@@ -4,7 +4,7 @@
     <application
         android:label="AI恋人"
         android:name="${applicationName}"
-
+        >
         <activity
             android:name=".MainActivity"
             android:exported="true"
