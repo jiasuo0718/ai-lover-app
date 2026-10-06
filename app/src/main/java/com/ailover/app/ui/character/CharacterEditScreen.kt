@@ -53,6 +53,10 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.ailover.app.di.AppContainer
+import com.ailover.app.ui.theme.AccentBlue
+import com.ailover.app.ui.theme.CardWhite
+import com.ailover.app.ui.theme.Divider
+import com.ailover.app.ui.theme.TextPrimary
 import com.ailover.app.ui.theme.TextSecondary
 import com.ailover.app.util.ImageUtils
 import kotlinx.coroutines.Dispatchers
@@ -102,39 +106,47 @@ fun CharacterEditScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        if (isEditMode) "编辑角色" else "新建角色",
-                        color = Color.White,
-                        fontSize = 18.sp
+            Column {
+                TopAppBar(
+                    title = {
+                        Text(
+                            if (isEditMode) "编辑角色" else "新建角色",
+                            color = TextPrimary,
+                            fontSize = 18.sp
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBackClick) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回", tint = TextPrimary)
+                        }
+                    },
+                    actions = {
+                        if (isEditMode) {
+                            IconButton(onClick = { showDeleteDialog = true }) {
+                                Icon(Icons.Filled.Delete, "删除", tint = AccentBlue)
+                            }
+                        }
+                        TextButton(onClick = {
+                            if (name.isBlank()) {
+                                showEmptyNameError = true
+                            } else {
+                                viewModel.save()
+                            }
+                        }) {
+                            Text("保存", color = AccentBlue, fontSize = 16.sp)
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = CardWhite
                     )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回", tint = Color.White)
-                    }
-                },
-                actions = {
-                    if (isEditMode) {
-                        IconButton(onClick = { showDeleteDialog = true }) {
-                            Icon(Icons.Filled.Delete, "删除", tint = Color.White)
-                        }
-                    }
-                    TextButton(onClick = {
-                        if (name.isBlank()) {
-                            showEmptyNameError = true
-                        } else {
-                            viewModel.save()
-                        }
-                    }) {
-                        Text("保存", color = Color.White, fontSize = 16.sp)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary
                 )
-            )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(Divider)
+                )
+            }
         }
     ) { paddingValues ->
         Column(

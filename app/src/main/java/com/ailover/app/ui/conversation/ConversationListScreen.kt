@@ -40,6 +40,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ailover.app.data.local.relation.ConversationWithCharacter
 import com.ailover.app.di.AppContainer
 import com.ailover.app.ui.theme.BubbleSelf
+import com.ailover.app.ui.theme.CardWhite
+import com.ailover.app.ui.theme.Divider
+import com.ailover.app.ui.theme.TextPrimary
 import com.ailover.app.ui.theme.TextSecondary
 import com.ailover.app.util.TimeUtils
 
@@ -57,26 +60,34 @@ fun ConversationListScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        "AI恋人",
-                        color = Color.White,
-                        fontSize = 18.sp
+            Column {
+                TopAppBar(
+                    title = {
+                        Text(
+                            "AI恋人",
+                            color = TextPrimary,
+                            fontSize = 18.sp
+                        )
+                    },
+                    actions = {
+                        IconButton(onClick = onSettingsClick) {
+                            Icon(Icons.Filled.Settings, contentDescription = "设置", tint = TextPrimary)
+                        }
+                        IconButton(onClick = onCharacterManageClick) {
+                            Icon(Icons.Filled.Group, contentDescription = "角色管理", tint = TextPrimary)
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = CardWhite
                     )
-                },
-                actions = {
-                    IconButton(onClick = onSettingsClick) {
-                        Icon(Icons.Filled.Settings, contentDescription = "设置", tint = Color.White)
-                    }
-                    IconButton(onClick = onCharacterManageClick) {
-                        Icon(Icons.Filled.Group, contentDescription = "角色管理", tint = Color.White)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary
                 )
-            )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(Divider)
+                )
+            }
         }
     ) { paddingValues ->
         if (conversations.isEmpty()) {

@@ -50,6 +50,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.ailover.app.data.local.entity.CharacterEntity
 import com.ailover.app.di.AppContainer
+import com.ailover.app.ui.theme.CardWhite
+import com.ailover.app.ui.theme.Divider
+import com.ailover.app.ui.theme.TextPrimary
 import com.ailover.app.ui.theme.TextSecondary
 import java.io.File
 
@@ -69,17 +72,25 @@ fun CharacterListScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("角色管理", color = Color.White, fontSize = 18.sp) },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回", tint = Color.White)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary
+            Column {
+                TopAppBar(
+                    title = { Text("角色管理", color = TextPrimary, fontSize = 18.sp) },
+                    navigationIcon = {
+                        IconButton(onClick = onBackClick) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回", tint = TextPrimary)
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = CardWhite
+                    )
                 )
-            )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(Divider)
+                )
+            }
         },
         floatingActionButton = {
             androidx.compose.material3.FloatingActionButton(

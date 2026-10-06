@@ -67,6 +67,9 @@ import com.ailover.app.data.local.entity.MessageEntity
 import com.ailover.app.di.AppContainer
 import com.ailover.app.ui.theme.BubbleOther
 import com.ailover.app.ui.theme.BubbleSelf
+import com.ailover.app.ui.theme.CardWhite
+import com.ailover.app.ui.theme.Divider
+import com.ailover.app.ui.theme.TextPrimary
 import com.ailover.app.ui.theme.TextSecondary
 import com.ailover.app.util.AudioPlayer
 import com.ailover.app.util.TimeUtils
@@ -138,38 +141,46 @@ fun ChatScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            title,
-                            color = Color.White,
-                            fontSize = 18.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        if (isStreaming) {
+            Column {
+                TopAppBar(
+                    title = {
+                        Column {
                             Text(
-                                "正在输入...",
-                                color = Color.White.copy(alpha = 0.7f),
-                                fontSize = 12.sp
+                                title,
+                                color = TextPrimary,
+                                fontSize = 18.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            if (isStreaming) {
+                                Text(
+                                    "正在输入...",
+                                    color = TextSecondary,
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBackClick) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "返回",
+                                tint = TextPrimary
                             )
                         }
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "返回",
-                            tint = Color.White
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = CardWhite
+                    )
                 )
-            )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(Divider)
+                )
+            }
         },
         bottomBar = {
             Column(
