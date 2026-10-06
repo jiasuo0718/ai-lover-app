@@ -64,6 +64,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -489,6 +490,9 @@ private fun MessageBubble(
     val isSystem = message.senderType == SenderType.SYSTEM
     val isVoice = message.messageType == MessageType.VOICE
     val firstChar = if (isSelf) "我" else characterName.firstOrNull()?.toString() ?: "?"
+    // 气泡最大宽度：屏幕的 70%，防止长消息把头像挤出屏幕
+    val screenWidth = LocalConfiguration.current.screenWidthDp.dp
+    val maxBubbleWidth = screenWidth * 0.7f
     val bubbleColor = when {
         isSelf -> BubbleSelf
         isSystem -> HintBg
@@ -514,7 +518,11 @@ private fun MessageBubble(
         }
 
         Column(
-            modifier = if (!isSelf && !isSystem) Modifier.weight(1f) else Modifier,
+            modifier = when {
+                !isSelf && !isSystem -> Modifier.weight(1f)
+                isSelf -> Modifier.widthIn(max = maxBubbleWidth)
+                else -> Modifier
+            },
             horizontalAlignment = if (isSelf) Alignment.End else Alignment.Start
         ) {
             Box(
