@@ -106,10 +106,21 @@ fun ChatScreen(
                 android.content.pm.PackageManager.PERMISSION_GRANTED
         )
     }
+    var showPermissionSettingsHint by remember { mutableStateOf(false) }
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         hasRecordPermission = granted
+        if (!granted) {
+            // shouldShowRequestPermissionRationale 返回 false 说明用户勾选了"不再询问"
+            val activity = context as? android.app.Activity
+            val shouldShowRationale = activity?.shouldShowRequestPermissionRationale(
+                Manifest.permission.RECORD_AUDIO
+            ) ?: true
+            if (!shouldShowRationale) {
+                showPermissionSettingsHint = true
+            }
+        }
     }
 
     // 语音播放
@@ -217,8 +228,13 @@ fun ChatScreen(
 
                     Spacer(modifier = Modifier.width(4.dp))
 
-                    // 表情按钮
-                    IconButton(onClick = { showEmojiPanel = !showEmojiPanel }) {
+                    // 表情按钮：点了直接切文字模式 + 弹出表情面板
+                    IconButton(onClick = {
+                        if (isVoiceMode) {
+                            isVoiceMode = false
+                        }
+                        showEmojiPanel = !showEmojiPanel
+                    }) {
                         Icon(
                             imageVector = Icons.Filled.EmojiEmotions,
                             contentDescription = "表情",
@@ -255,7 +271,7 @@ fun ChatScreen(
                         },
                         onSend = {
                             if (inputText.isNotBlank()) {
-                                viewModel.sendMessage()
+                                viewModel.sendEmojiMessage()
                                 showEmojiPanel = false
                             }
                         },
@@ -318,20 +334,51 @@ fun ChatScreen(
                 }
             }
 
-            // 错误提示
-            errorMessage?.let { error ->
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.TopCenter)
-                        .background(Color.Red.copy(alpha = 0.9f))
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    Text(
-                        text = error,
-                        color = Color.White,
-                        fontSize = 13.sp
-                    )
+            // 顶部提示区域（权限提示 + 错误提示）
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.TopCenter)
+            ) {
+                // 权限设置提示（橙色，点击跳转系统设置）
+                if (showPermissionSettingsHint) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFFFF9800).copy(alpha = 0.9f))
+                            .clickable {
+                                val intent = android.content.Intent(
+                                    android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+                                )
+                                intent.data = android.net.Uri.fromParts(
+                                    "package", context.packageName, null
+                                )
+                                context.startActivity(intent)
+                                showPermissionSettingsHint = false
+                            }
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = "录音权限被拒绝，点击去系统设置开启",
+                            color = Color.White,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+                // 错误提示（红色）
+                errorMessage?.let { error ->
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color.Red.copy(alpha = 0.9f))
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = error,
+                            color = Color.White,
+                            fontSize = 13.sp
+                        )
+                    }
                 }
             }
         }

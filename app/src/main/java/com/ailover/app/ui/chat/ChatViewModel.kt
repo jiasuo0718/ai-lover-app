@@ -166,6 +166,27 @@ class ChatViewModel(
     }
 
     /**
+     * 发送表情消息（纯表情，不触发 AI 请求）。
+     */
+    fun sendEmojiMessage() {
+        val text = _inputText.value.trim()
+        if (text.isEmpty()) return
+
+        viewModelScope.launch {
+            val userMessage = MessageEntity(
+                conversationId = conversationId,
+                senderType = SenderType.USER,
+                messageType = MessageType.TEXT,
+                content = text
+            )
+            messageRepository.insertMessage(userMessage)
+            _inputText.value = ""
+            _errorMessage.value = null
+            updateConversationLastMessage(text)
+        }
+    }
+
+    /**
      * 发送语音消息。
      * @param filePath 语音文件路径
      * @param duration 时长（秒）
