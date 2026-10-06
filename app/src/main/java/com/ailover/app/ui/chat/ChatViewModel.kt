@@ -9,6 +9,7 @@ import com.ailover.app.data.local.entity.MessageEntity
 import com.ailover.app.data.remote.model.ChatMessage
 import com.ailover.app.data.remote.model.ChatRequest
 import com.ailover.app.data.repository.CharacterRepository
+import com.ailover.app.data.repository.ChatApiException
 import com.ailover.app.data.repository.ChatRepository
 import com.ailover.app.data.repository.ConversationRepository
 import com.ailover.app.data.repository.MessageRepository
@@ -144,11 +145,16 @@ class ChatViewModel(
                     aiMessage = aiMessage.copy(content = fullContent.toString())
                     messageRepository.updateMessage(aiMessage)
                 }
+            } catch (e: ChatApiException) {
+                // ChatApiException 已携带用户友好提示，原始错误已在 Repository 层写 logcat
+                aiMessage = aiMessage.copy(content = e.userMessage)
+                messageRepository.updateMessage(aiMessage)
+                _errorMessage.value = e.userMessage
             } catch (e: Exception) {
-                val errorText = "出错了：${e.message ?: "未知错误"}"
+                val errorText = "请求失败，请重试"
                 aiMessage = aiMessage.copy(content = errorText)
                 messageRepository.updateMessage(aiMessage)
-                _errorMessage.value = e.message
+                _errorMessage.value = errorText
             } finally {
                 _isStreaming.value = false
                 // 更新会话最后消息为 AI 回复（或错误信息）
