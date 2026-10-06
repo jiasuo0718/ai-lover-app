@@ -217,7 +217,10 @@ fun ChatScreen(
                     } else {
                         OutlinedTextField(
                             value = inputText,
-                            onValueChange = viewModel::onInputTextChange,
+                            onValueChange = {
+                                viewModel.onInputTextChange(it)
+                                showEmojiPanel = false
+                            },
                             modifier = Modifier.weight(1f),
                             placeholder = { Text("输入消息...", fontSize = 15.sp) },
                             maxLines = 4,
@@ -228,12 +231,10 @@ fun ChatScreen(
 
                     Spacer(modifier = Modifier.width(4.dp))
 
-                    // 表情按钮：点了直接切文字模式 + 弹出表情面板
+                    // 表情按钮：不管什么状态，点了都切文字模式 + 弹面板
                     IconButton(onClick = {
-                        if (isVoiceMode) {
-                            isVoiceMode = false
-                        }
-                        showEmojiPanel = !showEmojiPanel
+                        isVoiceMode = false
+                        showEmojiPanel = true
                     }) {
                         Icon(
                             imageVector = Icons.Filled.EmojiEmotions,
