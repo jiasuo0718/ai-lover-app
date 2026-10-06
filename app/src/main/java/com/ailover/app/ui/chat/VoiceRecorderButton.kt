@@ -56,9 +56,7 @@ fun VoiceRecorderButton(
     onVoiceRecorded: (filePath: String, duration: Int) -> Unit
 ) {
     val context = LocalContext.current
-    val density = LocalDensity.current
     val recorder = remember { AudioRecorder(context) }
-    val cancelThresholdPx = density.density * CANCEL_THRESHOLD_DP.value
 
     var isRecording by remember { mutableStateOf(false) }
     var isCancelMode by remember { mutableStateOf(false) }
@@ -91,6 +89,7 @@ fun VoiceRecorderButton(
             .clip(RoundedCornerShape(24.dp))
             .background(if (isRecording) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surface)
             .pointerInput(Unit) {
+                val cancelThresholdPx = CANCEL_THRESHOLD_DP.toPx()
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     if (!hasPermission) {
