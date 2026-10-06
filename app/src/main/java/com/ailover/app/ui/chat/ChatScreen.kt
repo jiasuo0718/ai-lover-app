@@ -49,7 +49,6 @@ import com.ailover.app.ui.theme.BubbleOther
 import com.ailover.app.ui.theme.BubbleSelf
 import com.ailover.app.ui.theme.TextSecondary
 import com.ailover.app.util.TimeUtils
-import kotlinx.coroutines.flow.collectLatest
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,11 +61,16 @@ fun ChatScreen(
         factory = ChatViewModelFactory(
             conversationId = conversationId,
             messageRepository = AppContainer.messageRepository(),
-            conversationRepository = AppContainer.conversationRepository()
+            conversationRepository = AppContainer.conversationRepository(),
+            characterRepository = AppContainer.characterRepository(),
+            chatRepository = AppContainer.chatRepository(),
+            settingsRepository = AppContainer.settingsRepository()
         )
     )
     val messages by viewModel.messages.collectAsState()
     val inputText by viewModel.inputText.collectAsState()
+    val isStreaming by viewModel.isStreaming.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
     val listState = rememberLazyListState()
 
     // 新消息时自动滚动到底部
@@ -80,13 +84,22 @@ fun ChatScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        title,
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Column {
+                        Text(
+                            title,
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        if (isStreaming) {
+                            Text(
+                                "正在输入...",
+                                color = Color.White.copy(alpha = 0.7f),
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
@@ -106,7 +119,8 @@ fun ChatScreen(
             InputBar(
                 text = inputText,
                 onTextChange = viewModel::onInputTextChange,
-                onSend = viewModel::sendMessage
+                onSend = viewModel::sendMessage,
+                isStreaming = isStreaming
             )
         }
     ) { paddingValues ->
@@ -140,6 +154,23 @@ fun ChatScreen(
                     }
                 }
             }
+
+            // 错误提示
+            errorMessage?.let { error ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.TopCenter)
+                        .background(Color.Red.copy(alpha = 0.9f))
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = error,
+                        color = Color.White,
+                        fontSize = 13.sp
+                    )
+                }
+            }
         }
     }
 }
@@ -148,7 +179,8 @@ fun ChatScreen(
 private fun InputBar(
     text: String,
     onTextChange: (String) -> Unit,
-    onSend: () -> Unit
+    onSend: () -> Unit,
+    isStreaming: Boolean
 ) {
     Row(
         modifier = Modifier
@@ -162,19 +194,25 @@ private fun InputBar(
             value = text,
             onValueChange = onTextChange,
             modifier = Modifier.weight(1f),
-            placeholder = { Text("输入消息...", fontSize = 15.sp) },
+            placeholder = {
+                Text(
+                    if (isStreaming) "AI 正在回复..." else "输入消息...",
+                    fontSize = 15.sp
+                )
+            },
             maxLines = 4,
-            shape = RoundedCornerShape(20.dp)
+            shape = RoundedCornerShape(20.dp),
+            enabled = !isStreaming
         )
         Spacer(modifier = Modifier.width(8.dp))
         TextButton(
             onClick = onSend,
-            enabled = text.isNotBlank()
+            enabled = text.isNotBlank() && !isStreaming
         ) {
             Text(
                 "发送",
                 fontSize = 16.sp,
-                color = if (text.isNotBlank())
+                color = if (text.isNotBlank() && !isStreaming)
                     MaterialTheme.colorScheme.primary
                 else
                     TextSecondary
@@ -189,15 +227,31 @@ private fun MessageBubble(
     characterName: String
 ) {
     val isSelf = message.senderType == SenderType.USER
+    val isSystem = message.senderType == SenderType.SYSTEM
     val firstChar = if (isSelf) "我" else characterName.firstOrNull()?.toString() ?: "?"
-    val bubbleColor = if (isSelf) BubbleSelf else BubbleOther
-    val textColor = if (isSelf) Color.Black else MaterialTheme.colorScheme.onSurface
+    val bubbleColor = when {
+        isSelf -> BubbleSelf
+        isSystem -> Color.LightGray
+        else -> BubbleOther
+    }
+    val textColor = when {
+        isSelf -> Color.Black
+        isSystem -> TextSecondary
+        else -> MaterialTheme.colorScheme.onSurface
+    }
+
+    // AI 消息内容为空时（流式刚开始）显示占位
+    val displayText = if (message.senderType == SenderType.AI && message.content.isEmpty()) {
+        "正在思考..."
+    } else {
+        message.content
+    }
 
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = if (isSelf) Arrangement.End else Arrangement.Start
     ) {
-        if (!isSelf) {
+        if (!isSelf && !isSystem) {
             Avatar(firstChar = firstChar)
             Spacer(modifier = Modifier.width(8.dp))
         }
@@ -217,7 +271,7 @@ private fun MessageBubble(
                     .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
                 Text(
-                    text = message.content,
+                    text = displayText,
                     fontSize = 16.sp,
                     color = textColor
                 )

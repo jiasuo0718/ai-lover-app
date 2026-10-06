@@ -10,12 +10,14 @@ import com.ailover.app.ui.character.CharacterEditScreen
 import com.ailover.app.ui.character.CharacterListScreen
 import com.ailover.app.ui.chat.ChatScreen
 import com.ailover.app.ui.conversation.ConversationListScreen
+import com.ailover.app.ui.settings.SettingsScreen
 
 object Routes {
     const val CONVERSATION_LIST = "conversation_list"
     const val CHAT = "chat/{conversationId}/{title}"
     const val CHARACTER_LIST = "character_list"
     const val CHARACTER_EDIT = "character_edit/{characterId}"
+    const val SETTINGS = "settings"
 
     fun createChatRoute(conversationId: Long, title: String): String =
         "chat/$conversationId/$title"
@@ -39,6 +41,9 @@ fun AppNavGraph() {
                 },
                 onCharacterManageClick = {
                     navController.navigate(Routes.CHARACTER_LIST)
+                },
+                onSettingsClick = {
+                    navController.navigate(Routes.SETTINGS)
                 }
             )
         }
@@ -83,6 +88,12 @@ fun AppNavGraph() {
                 characterId = effectiveId,
                 onBackClick = { navController.popBackStack() },
                 onSaved = { navController.popBackStack() }
+            )
+        }
+
+        composable(Routes.SETTINGS) {
+            SettingsScreen(
+                onBackClick = { navController.popBackStack() }
             )
         }
     }
