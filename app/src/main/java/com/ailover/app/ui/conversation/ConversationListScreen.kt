@@ -62,6 +62,7 @@ fun ConversationListScreen(
         topBar = {
             Column {
                 CenterAlignedTopAppBar(
+                    modifier = Modifier.height(48.dp),
                     title = {
                         Text(
                             "AI恋人",

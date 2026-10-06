@@ -69,6 +69,7 @@ fun SettingsScreen(
         topBar = {
             Column {
                 CenterAlignedTopAppBar(
+                    modifier = Modifier.height(48.dp),
                     title = { Text("设置", color = TextPrimary, fontSize = 18.sp) },
                     navigationIcon = {
                         IconButton(onClick = onBackClick) {

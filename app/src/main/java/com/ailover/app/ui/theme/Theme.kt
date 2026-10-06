@@ -9,7 +9,7 @@ import androidx.compose.ui.graphics.Color
 
 // 白灰简洁风格配色（iMessage / Telegram / Notion 风格）
 val AccentBlue = Color(0xFF0A84FF)       // 强调色（iOS 蓝）
-val BgMain = Color(0xFFFAFAFA)           // 主背景
+val BgMain = Color(0xFFFFFFFF)           // 主背景（纯白）
 val CardWhite = Color(0xFFFFFFFF)         // 卡片/输入栏
 val TextPrimary = Color(0xFF1A1A1A)       // 主文字
 val TextSecondary = Color(0xFF8E8E93)     // 次要文字

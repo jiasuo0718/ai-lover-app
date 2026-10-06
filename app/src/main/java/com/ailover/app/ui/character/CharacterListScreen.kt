@@ -74,6 +74,7 @@ fun CharacterListScreen(
         topBar = {
             Column {
                 CenterAlignedTopAppBar(
+                    modifier = Modifier.height(48.dp),
                     title = { Text("角色管理", color = TextPrimary, fontSize = 18.sp) },
                     navigationIcon = {
                         IconButton(onClick = onBackClick) {

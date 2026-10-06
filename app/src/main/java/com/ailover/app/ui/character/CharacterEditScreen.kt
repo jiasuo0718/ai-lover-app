@@ -108,6 +108,7 @@ fun CharacterEditScreen(
         topBar = {
             Column {
                 CenterAlignedTopAppBar(
+                    modifier = Modifier.height(48.dp),
                     title = {
                         Text(
                             if (isEditMode) "编辑角色" else "新建角色",

@@ -57,7 +57,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -192,6 +191,7 @@ fun ChatScreen(
         topBar = {
             Column {
                 CenterAlignedTopAppBar(
+                    modifier = Modifier.height(48.dp),
                     title = {
                         Column {
                             Text(
