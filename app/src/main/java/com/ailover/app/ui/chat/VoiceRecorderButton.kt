@@ -30,7 +30,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ailover.app.ui.theme.TextSecondary
@@ -39,7 +38,7 @@ import kotlinx.coroutines.delay
 import java.io.File
 
 private const val MAX_RECORD_SECONDS = 60
-private const val CANCEL_THRESHOLD_DP = 100
+private const val CANCEL_THRESHOLD_DP = 100f
 
 /**
  * 按住说话按钮。
@@ -57,6 +56,10 @@ fun VoiceRecorderButton(
 ) {
     val context = LocalContext.current
     val recorder = remember { AudioRecorder(context) }
+    // 用 Android 原生 API 计算 dp 转 px，避免 Compose Density 接收者问题
+    val cancelThresholdPx = remember {
+        context.resources.displayMetrics.density * CANCEL_THRESHOLD_DP
+    }
 
     var isRecording by remember { mutableStateOf(false) }
     var isCancelMode by remember { mutableStateOf(false) }
@@ -88,8 +91,7 @@ fun VoiceRecorderButton(
             .height(48.dp)
             .clip(RoundedCornerShape(24.dp))
             .background(if (isRecording) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surface)
-            .pointerInput(Unit) {
-                val cancelThresholdPx = CANCEL_THRESHOLD_DP.toPx()
+            .pointerInput(cancelThresholdPx) {
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     if (!hasPermission) {
