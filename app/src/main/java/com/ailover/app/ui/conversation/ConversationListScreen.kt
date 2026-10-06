@@ -15,7 +15,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -41,7 +45,8 @@ import com.ailover.app.util.TimeUtils
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConversationListScreen(
-    onConversationClick: (Long, String) -> Unit
+    onConversationClick: (Long, String) -> Unit,
+    onCharacterManageClick: () -> Unit
 ) {
     val viewModel: ConversationViewModel = viewModel(
         factory = ConversationViewModelFactory(AppContainer.conversationRepository())
@@ -57,6 +62,11 @@ fun ConversationListScreen(
                         color = Color.White,
                         fontSize = 18.sp
                     )
+                },
+                actions = {
+                    IconButton(onClick = onCharacterManageClick) {
+                        Icon(Icons.Filled.Group, contentDescription = "角色管理", tint = Color.White)
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary
