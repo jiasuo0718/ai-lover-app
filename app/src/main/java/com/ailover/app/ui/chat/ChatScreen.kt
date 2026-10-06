@@ -519,11 +519,7 @@ private fun MessageBubble(
         }
 
         Column(
-            modifier = when {
-                !isSelf && !isSystem -> Modifier.weight(1f)
-                isSelf -> Modifier.widthIn(max = maxBubbleWidth)
-                else -> Modifier
-            },
+            modifier = if (!isSystem) Modifier.widthIn(max = maxBubbleWidth) else Modifier,
             horizontalAlignment = if (isSelf) Alignment.End else Alignment.Start
         ) {
             Box(
