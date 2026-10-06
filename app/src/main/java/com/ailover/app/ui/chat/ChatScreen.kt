@@ -61,6 +61,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -103,6 +104,7 @@ fun ChatScreen(
     val errorMessage by viewModel.errorMessage.collectAsState()
     val listState = rememberLazyListState()
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
 
     // 输入模式：文本 / 语音
     var isVoiceMode by remember { mutableStateOf(false) }
@@ -224,13 +226,15 @@ fun ChatScreen(
                     // 语音/键盘切换按钮
                     IconButton(onClick = {
                         if (isVoiceMode) {
-                            // 从语音切到文字：聚焦输入框，弹出键盘
+                            // 从语音切到文字：收起表情面板 + 聚焦输入框 + 弹出键盘
                             isVoiceMode = false
+                            showEmojiPanel = false
                             focusTrigger++
                         } else {
                             // 从文字切到语音
                             isVoiceMode = true
                             showEmojiPanel = false
+                            focusManager.clearFocus()
                             if (!hasRecordPermission) {
                                 permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                             }
@@ -279,10 +283,18 @@ fun ChatScreen(
 
                     Spacer(modifier = Modifier.width(4.dp))
 
-                    // 表情按钮：不管什么状态，点了都切文字模式 + 弹面板
+                    // 表情按钮：开关互斥，和键盘互斥
                     IconButton(onClick = {
-                        isVoiceMode = false
-                        showEmojiPanel = true
+                        if (showEmojiPanel) {
+                            // 面板已开：收起面板 + 弹出键盘
+                            showEmojiPanel = false
+                            focusTrigger++
+                        } else {
+                            // 面板没开：收起键盘 + 打开面板
+                            isVoiceMode = false
+                            showEmojiPanel = true
+                            focusManager.clearFocus()
+                        }
                     }) {
                         Icon(
                             imageVector = Icons.Filled.EmojiEmotions,
