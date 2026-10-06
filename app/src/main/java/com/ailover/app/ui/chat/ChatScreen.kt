@@ -106,7 +106,7 @@ fun ChatScreen(
 
     // 输入框焦点控制：点键盘图标后自动聚焦弹键盘
     val focusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
-    var focusTrigger by remember { mutableIntStateOf(0) }
+    var focusTrigger by remember { mutableStateOf(0) }
     LaunchedEffect(focusTrigger) {
         if (focusTrigger > 0) {
             delay(80)
