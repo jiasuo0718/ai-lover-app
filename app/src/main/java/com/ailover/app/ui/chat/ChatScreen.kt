@@ -517,9 +517,9 @@ private fun MessageBubble(
             Box(
                 modifier = Modifier
                     .then(
-                        // 对方气泡加极淡阴影（1dp），自己的气泡和系统消息不加
+                        // 对方气泡加极淡阴影（0.5dp），几乎看不出
                         if (!isSelf && !isSystem)
-                            Modifier.shadow(elevation = 1.dp, shape = RoundedCornerShape(20.dp))
+                            Modifier.shadow(elevation = 0.5.dp, shape = RoundedCornerShape(20.dp))
                         else
                             Modifier
                     )
