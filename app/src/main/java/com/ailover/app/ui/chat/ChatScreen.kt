@@ -77,6 +77,7 @@ import com.ailover.app.ui.theme.BubbleOther
 import com.ailover.app.ui.theme.BubbleSelf
 import com.ailover.app.ui.theme.CardWhite
 import com.ailover.app.ui.theme.Divider
+import com.ailover.app.ui.theme.HintBg
 import com.ailover.app.ui.theme.TextPrimary
 import com.ailover.app.ui.theme.TextSecondary
 import com.ailover.app.util.AudioPlayer
@@ -449,19 +450,26 @@ fun ChatScreen(
                         )
                     }
                 }
-                // 错误提示（红色）
+                // 错误提示（胶囊形轻量提示）
                 errorMessage?.let { error ->
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color.Red.copy(alpha = 0.9f))
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = error,
-                            color = Color.White,
-                            fontSize = 13.sp
-                        )
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(HintBg)
+                                .padding(horizontal = 14.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = error,
+                                color = TextSecondary,
+                                fontSize = 12.sp
+                            )
+                        }
                     }
                 }
             }
@@ -482,7 +490,7 @@ private fun MessageBubble(
     val firstChar = if (isSelf) "我" else characterName.firstOrNull()?.toString() ?: "?"
     val bubbleColor = when {
         isSelf -> BubbleSelf
-        isSystem -> Color.LightGray
+        isSystem -> HintBg
         else -> BubbleOther
     }
     val textColor = when {
@@ -493,7 +501,11 @@ private fun MessageBubble(
 
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (isSelf) Arrangement.End else Arrangement.Start
+        horizontalArrangement = when {
+            isSelf -> Arrangement.End
+            isSystem -> Arrangement.Center
+            else -> Arrangement.Start
+        }
     ) {
         if (!isSelf && !isSystem) {
             Avatar(firstChar = firstChar)
@@ -508,7 +520,10 @@ private fun MessageBubble(
                     .then(
                         if (isVoice) Modifier.clickable(onClick = onPlayClick) else Modifier
                     )
-                    .padding(horizontal = 14.dp, vertical = 10.dp)
+                    .padding(
+                        horizontal = 14.dp,
+                        vertical = if (isSystem) 6.dp else 10.dp
+                    )
             ) {
                 if (isVoice) {
                     // 语音气泡：波形 + 时长
@@ -541,7 +556,7 @@ private fun MessageBubble(
                     }
                     Text(
                         text = displayText,
-                        fontSize = 16.sp,
+                        fontSize = if (isSystem) 12.sp else 16.sp,
                         color = textColor
                     )
                 }

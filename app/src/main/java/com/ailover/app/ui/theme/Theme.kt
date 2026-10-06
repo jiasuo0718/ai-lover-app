@@ -14,6 +14,7 @@ val CardWhite = Color(0xFFFFFFFF)         // 卡片/输入栏
 val TextPrimary = Color(0xFF1A1A1A)       // 主文字
 val TextSecondary = Color(0xFF8E8E93)     // 次要文字
 val Divider = Color(0xFFE5E5EA)           // 分割线
+val HintBg = Color(0xFFF2F2F7)             // 提示条底色
 
 // 气泡颜色
 val BubbleSelf = Color(0xFFEDF1F7)   // 自己的气泡：浅灰蓝
