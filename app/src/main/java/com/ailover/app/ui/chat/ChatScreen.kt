@@ -513,7 +513,10 @@ private fun MessageBubble(
             Spacer(modifier = Modifier.width(8.dp))
         }
 
-        Column(horizontalAlignment = if (isSelf) Alignment.End else Alignment.Start) {
+        Column(
+            modifier = if (!isSelf && !isSystem) Modifier.weight(1f) else Modifier,
+            horizontalAlignment = if (isSelf) Alignment.End else Alignment.Start
+        ) {
             Box(
                 modifier = Modifier
                     .then(
