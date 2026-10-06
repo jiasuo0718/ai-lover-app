@@ -34,6 +34,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -80,6 +81,13 @@ fun CharacterEditScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showEmptyNameError by remember { mutableStateOf(false) }
 
+    // 监听 ViewModel 的操作完成事件，在主线程执行导航（避免后台线程调 popBackStack 崩溃）
+    LaunchedEffect(Unit) {
+        viewModel.operationCompleteEvent.collect {
+            onSaved()
+        }
+    }
+
     // 头像选择器
     val imagePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -117,10 +125,7 @@ fun CharacterEditScreen(
                         if (name.isBlank()) {
                             showEmptyNameError = true
                         } else {
-                            scope.launch(Dispatchers.IO) {
-                                viewModel.saveAndGetId()
-                                onSaved()
-                            }
+                            viewModel.save()
                         }
                     }) {
                         Text("保存", color = Color.White, fontSize = 16.sp)
@@ -223,10 +228,8 @@ fun CharacterEditScreen(
             text = { Text("确定删除该角色吗？其所有会话和消息也会被删除，无法恢复。") },
             confirmButton = {
                 TextButton(onClick = {
-                    scope.launch(Dispatchers.IO) {
-                        viewModel.delete()
-                        onSaved()
-                    }
+                    showDeleteDialog = false
+                    viewModel.deleteCharacter()
                 }) {
                     Text("删除", color = Color.Red)
                 }

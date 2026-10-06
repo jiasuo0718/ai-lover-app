@@ -5,9 +5,12 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.ailover.app.data.local.entity.CharacterEntity
 import com.ailover.app.data.repository.CharacterRepository
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -52,6 +55,10 @@ class CharacterEditViewModel(
     private val _isEditMode = MutableStateFlow(characterId != null)
     val isEditMode: StateFlow<Boolean> = _isEditMode
 
+    // 保存/删除完成事件，UI 层在主线程收集后执行导航
+    private val _operationCompleteEvent = MutableSharedFlow<Unit>()
+    val operationCompleteEvent: SharedFlow<Unit> = _operationCompleteEvent.asSharedFlow()
+
     init {
         if (characterId != null) {
             viewModelScope.launch {
@@ -67,6 +74,23 @@ class CharacterEditViewModel(
     fun onNameChange(value: String) { _name.value = value }
     fun onPersonalityChange(value: String) { _personality.value = value }
     fun onAvatarChange(value: String?) { _avatarUri.value = value }
+
+    // 非 suspend 入口：在 viewModelScope 中执行，完成后发事件
+    fun save() {
+        viewModelScope.launch {
+            val id = saveAndGetId()
+            if (id != null) {
+                _operationCompleteEvent.emit(Unit)
+            }
+        }
+    }
+
+    fun deleteCharacter() {
+        viewModelScope.launch {
+            delete()
+            _operationCompleteEvent.emit(Unit)
+        }
+    }
 
     suspend fun saveAndGetId(): Long? {
         val trimmedName = _name.value.trim()
