@@ -395,7 +395,7 @@ fun ChatScreen(
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    contentPadding = PaddingValues(vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(messages, key = { it.id }) { message ->
@@ -506,7 +506,9 @@ private fun MessageBubble(
     }
 
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
         horizontalArrangement = when {
             isSelf -> Arrangement.End
             isSystem -> Arrangement.Center
