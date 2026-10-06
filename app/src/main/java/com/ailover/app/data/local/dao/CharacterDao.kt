@@ -28,4 +28,7 @@ interface CharacterDao {
 
     @Query("DELETE FROM characters WHERE id = :id")
     suspend fun deleteCharacterById(id: Long)
+
+    @Query("SELECT COUNT(*) FROM characters")
+    suspend fun getCharacterCount(): Int
 }

@@ -2,6 +2,7 @@ package com.ailover.app.data.repository
 
 import com.ailover.app.data.local.dao.ConversationDao
 import com.ailover.app.data.local.entity.ConversationEntity
+import com.ailover.app.data.local.relation.ConversationWithCharacter
 import kotlinx.coroutines.flow.Flow
 
 class ConversationRepository(private val conversationDao: ConversationDao) {
@@ -24,4 +25,7 @@ class ConversationRepository(private val conversationDao: ConversationDao) {
         conversationDao.deleteConversation(conversation)
 
     suspend fun deleteConversationById(id: Long) = conversationDao.deleteConversationById(id)
+
+    fun getConversationsWithCharacters(): Flow<List<ConversationWithCharacter>> =
+        conversationDao.getConversationsWithCharacters()
 }
