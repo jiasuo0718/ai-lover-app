@@ -1,6 +1,7 @@
 package com.ailover.app.ui.chat
 
 import android.Manifest
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.RepeatMode
@@ -167,6 +168,24 @@ fun ChatScreen(
         }
     }
 
+    // 统一返回逻辑：先收浮层（表情面板/键盘），再退页面
+    val handleBack: () -> Unit = {
+        when {
+            showEmojiPanel -> {
+                showEmojiPanel = false
+            }
+            WindowInsets.ime.getBottom(density) > 0 -> {
+                focusManager.clearFocus()
+            }
+            else -> {
+                onBackClick()
+            }
+        }
+    }
+    BackHandler(enabled = true) {
+        handleBack()
+    }
+
     Scaffold(
         topBar = {
             Column {
@@ -190,7 +209,7 @@ fun ChatScreen(
                         }
                     },
                     navigationIcon = {
-                        IconButton(onClick = onBackClick) {
+                        IconButton(onClick = handleBack) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "返回",
