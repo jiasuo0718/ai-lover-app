@@ -393,7 +393,7 @@ fun ChatScreen(
                     state = listState,
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(messages, key = { it.id }) { message ->
@@ -564,7 +564,8 @@ private fun MessageBubble(
                     }
                     Text(
                         text = displayText,
-                        fontSize = if (isSystem) 12.sp else 16.sp,
+                        fontSize = if (isSystem) 12.sp else 15.sp,
+                        lineHeight = if (isSystem) 15.6.sp else 19.5.sp,
                         color = textColor
                     )
                 }
