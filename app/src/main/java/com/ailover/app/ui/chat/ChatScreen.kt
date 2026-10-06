@@ -56,6 +56,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -467,7 +468,7 @@ private fun MessageBubble(
     val textColor = when {
         isSelf -> TextPrimary
         isSystem -> TextSecondary
-        else -> MaterialTheme.colorScheme.onSurface
+        else -> TextPrimary
     }
 
     Row(
@@ -482,17 +483,14 @@ private fun MessageBubble(
         Column(horizontalAlignment = if (isSelf) Alignment.End else Alignment.Start) {
             Box(
                 modifier = Modifier
-                    .clip(
-                        if (isSelf)
-                            RoundedCornerShape(20.dp)
+                    .then(
+                        // 对方气泡加轻微阴影，自己的气泡不加
+                        if (!isSelf && !isSystem)
+                            Modifier.shadow(elevation = 2.dp, shape = RoundedCornerShape(20.dp))
                         else
-                            RoundedCornerShape(
-                                topStart = 4.dp,
-                                topEnd = 12.dp,
-                                bottomStart = 12.dp,
-                                bottomEnd = 12.dp
-                            )
+                            Modifier
                     )
+                    .clip(RoundedCornerShape(20.dp))
                     .background(bubbleColor)
                     .then(
                         if (isVoice) Modifier.clickable(onClick = onPlayClick) else Modifier
