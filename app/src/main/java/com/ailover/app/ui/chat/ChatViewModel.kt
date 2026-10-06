@@ -165,6 +165,25 @@ class ChatViewModel(
         }
     }
 
+    /**
+     * 发送语音消息。
+     * @param filePath 语音文件路径
+     * @param duration 时长（秒）
+     */
+    fun sendVoiceMessage(filePath: String, duration: Int) {
+        viewModelScope.launch {
+            val voiceMessage = MessageEntity(
+                conversationId = conversationId,
+                senderType = SenderType.USER,
+                messageType = MessageType.VOICE,
+                content = filePath,
+                voiceDuration = duration
+            )
+            messageRepository.insertMessage(voiceMessage)
+            updateConversationLastMessage("[语音] ${duration}″")
+        }
+    }
+
     private suspend fun updateConversationLastMessage(text: String) {
         val conversation = conversationRepository.getConversationById(conversationId)
         if (conversation != null) {
