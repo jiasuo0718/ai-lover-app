@@ -41,7 +41,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -142,7 +142,7 @@ fun ChatScreen(
     Scaffold(
         topBar = {
             Column {
-                TopAppBar(
+                CenterAlignedTopAppBar(
                     title = {
                         Column {
                             Text(
@@ -416,7 +416,7 @@ private fun MessageBubble(
         else -> BubbleOther
     }
     val textColor = when {
-        isSelf -> Color.Black
+        isSelf -> TextPrimary
         isSystem -> TextSecondary
         else -> MaterialTheme.colorScheme.onSurface
     }
@@ -434,18 +434,21 @@ private fun MessageBubble(
             Box(
                 modifier = Modifier
                     .clip(
-                        RoundedCornerShape(
-                            topStart = if (isSelf) 12.dp else 4.dp,
-                            topEnd = if (isSelf) 4.dp else 12.dp,
-                            bottomStart = 12.dp,
-                            bottomEnd = 12.dp
-                        )
+                        if (isSelf)
+                            RoundedCornerShape(20.dp)
+                        else
+                            RoundedCornerShape(
+                                topStart = 4.dp,
+                                topEnd = 12.dp,
+                                bottomStart = 12.dp,
+                                bottomEnd = 12.dp
+                            )
                     )
                     .background(bubbleColor)
                     .then(
                         if (isVoice) Modifier.clickable(onClick = onPlayClick) else Modifier
                     )
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .padding(horizontal = 14.dp, vertical = 10.dp)
             ) {
                 if (isVoice) {
                     // 语音气泡：波形 + 时长

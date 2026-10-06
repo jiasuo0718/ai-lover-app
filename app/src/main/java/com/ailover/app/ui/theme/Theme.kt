@@ -15,9 +15,9 @@ val TextPrimary = Color(0xFF1A1A1A)       // 主文字
 val TextSecondary = Color(0xFF8E8E93)     // 次要文字
 val Divider = Color(0xFFE5E5EA)           // 分割线
 
-// 气泡颜色（下一轮改，暂时保留）
-val BubbleSelf = Color(0xFF95EC69)
-val BubbleOther = Color.White
+// 气泡颜色
+val BubbleSelf = Color(0xFFEDF1F7)   // 自己的气泡：浅灰蓝
+val BubbleOther = Color.White          // 对方气泡：白色
 
 private val LightColorScheme = lightColorScheme(
     primary = AccentBlue,
