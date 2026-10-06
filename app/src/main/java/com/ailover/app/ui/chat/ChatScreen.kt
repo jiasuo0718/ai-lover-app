@@ -659,8 +659,8 @@ private fun PlayingWaveform() {
 private fun Avatar(firstChar: String) {
     Box(
         modifier = Modifier
-            .size(36.dp)
-            .clip(CircleShape)
+            .size(40.dp)
+            .clip(RoundedCornerShape(8.dp))
             .background(MaterialTheme.colorScheme.primary),
         contentAlignment = Alignment.Center
     ) {
