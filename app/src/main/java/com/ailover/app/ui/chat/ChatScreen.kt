@@ -57,6 +57,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -515,6 +516,13 @@ private fun MessageBubble(
         Column(horizontalAlignment = if (isSelf) Alignment.End else Alignment.Start) {
             Box(
                 modifier = Modifier
+                    .then(
+                        // 对方气泡加极淡阴影（1dp），自己的气泡和系统消息不加
+                        if (!isSelf && !isSystem)
+                            Modifier.shadow(elevation = 1.dp, shape = RoundedCornerShape(20.dp))
+                        else
+                            Modifier
+                    )
                     .clip(RoundedCornerShape(20.dp))
                     .background(bubbleColor)
                     .then(
