@@ -17,7 +17,7 @@ val Divider = Color(0xFFE5E5EA)           // 分割线
 
 // 气泡颜色
 val BubbleSelf = Color(0xFFEDF1F7)   // 自己的气泡：浅灰蓝
-val BubbleOther = Color.White          // 对方气泡：白色
+val BubbleOther = Color(0xFFF7F7F8)  // 对方气泡：浅灰
 
 private val LightColorScheme = lightColorScheme(
     primary = AccentBlue,

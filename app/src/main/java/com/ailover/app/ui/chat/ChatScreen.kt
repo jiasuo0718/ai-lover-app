@@ -483,13 +483,6 @@ private fun MessageBubble(
         Column(horizontalAlignment = if (isSelf) Alignment.End else Alignment.Start) {
             Box(
                 modifier = Modifier
-                    .then(
-                        // 对方气泡加轻微阴影，自己的气泡不加
-                        if (!isSelf && !isSystem)
-                            Modifier.shadow(elevation = 2.dp, shape = RoundedCornerShape(20.dp))
-                        else
-                            Modifier
-                    )
                     .clip(RoundedCornerShape(20.dp))
                     .background(bubbleColor)
                     .then(
