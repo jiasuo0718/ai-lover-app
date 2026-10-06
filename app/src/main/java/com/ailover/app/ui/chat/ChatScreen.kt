@@ -54,6 +54,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
@@ -102,6 +103,16 @@ fun ChatScreen(
     // 输入模式：文本 / 语音
     var isVoiceMode by remember { mutableStateOf(false) }
     var showEmojiPanel by remember { mutableStateOf(false) }
+
+    // 输入框焦点控制：点键盘图标后自动聚焦弹键盘
+    val focusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
+    var focusTrigger by remember { mutableIntStateOf(0) }
+    LaunchedEffect(focusTrigger) {
+        if (focusTrigger > 0) {
+            delay(80)
+            focusRequester.requestFocus()
+        }
+    }
 
     // 录音权限
     var hasRecordPermission by remember {
@@ -198,9 +209,17 @@ fun ChatScreen(
                 ) {
                     // 语音/键盘切换按钮
                     IconButton(onClick = {
-                        isVoiceMode = !isVoiceMode
-                        if (isVoiceMode && !hasRecordPermission) {
-                            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                        if (isVoiceMode) {
+                            // 从语音切到文字：聚焦输入框，弹出键盘
+                            isVoiceMode = false
+                            focusTrigger++
+                        } else {
+                            // 从文字切到语音
+                            isVoiceMode = true
+                            showEmojiPanel = false
+                            if (!hasRecordPermission) {
+                                permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                            }
                         }
                     }) {
                         Icon(
@@ -234,7 +253,9 @@ fun ChatScreen(
                                 viewModel.onInputTextChange(it)
                                 showEmojiPanel = false
                             },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .focusRequester(focusRequester),
                             placeholder = { Text("输入消息...", fontSize = 15.sp) },
                             maxLines = 4,
                             shape = RoundedCornerShape(20.dp),
