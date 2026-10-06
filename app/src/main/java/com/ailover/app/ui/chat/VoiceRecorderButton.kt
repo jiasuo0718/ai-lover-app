@@ -58,7 +58,7 @@ fun VoiceRecorderButton(
     val context = LocalContext.current
     val density = LocalDensity.current
     val recorder = remember { AudioRecorder(context) }
-    val cancelThresholdPx = with(density) { CANCEL_THRESHOLD_DP.toPx() }
+    val cancelThresholdPx = density.density * CANCEL_THRESHOLD_DP.value
 
     var isRecording by remember { mutableStateOf(false) }
     var isCancelMode by remember { mutableStateOf(false) }
