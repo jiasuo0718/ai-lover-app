@@ -29,8 +29,10 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -186,10 +188,13 @@ fun CharacterListScreen(
                 // 右侧字母索引条（完整 A-Z + #，支持点击和滑动）
                 val letterItemHeight = 16.dp
                 val letterBarWidth = 28.dp
+                var selectedIndex by remember { mutableStateOf(-1) }
+                var isDragging by remember { mutableStateOf(false) }
 
-                // 根据 Y 坐标计算字母并跳转
-                fun scrollToLetterByY(y: Float, itemHeightPx: Float) {
-                    val index = (y / itemHeightPx).toInt().coerceIn(0, allLetters.size - 1)
+                // 选中字母时滚动列表（只在字母变化时滚动）
+                fun onLetterSelected(index: Int) {
+                    if (index == selectedIndex) return
+                    selectedIndex = index
                     val letter = allLetters[index]
                     scope.launch {
                         findNearestLetter(letter)?.let { letterIndexMap[it] }?.let { idx ->
@@ -211,7 +216,15 @@ fun CharacterListScreen(
                                     val change = event.changes.firstOrNull() ?: continue
                                     if (change.pressed) {
                                         change.consume()
-                                        scrollToLetterByY(change.position.y, itemHeightPx)
+                                        isDragging = true
+                                        val index = (change.position.y / itemHeightPx)
+                                            .toInt()
+                                            .coerceIn(0, allLetters.size - 1)
+                                        onLetterSelected(index)
+                                    } else {
+                                        // 松手
+                                        isDragging = false
+                                        selectedIndex = -1
                                     }
                                 }
                             }
@@ -221,8 +234,9 @@ fun CharacterListScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        allLetters.forEach { letter ->
+                        allLetters.forEachIndexed { index, letter ->
                             val hasCharacters = letter in availableLetters
+                            val isSelected = index == selectedIndex
                             Box(
                                 modifier = Modifier
                                     .height(letterItemHeight)
@@ -231,10 +245,36 @@ fun CharacterListScreen(
                             ) {
                                 Text(
                                     text = letter,
-                                    fontSize = 11.sp,
-                                    color = if (hasCharacters) TextPrimary else Color(0xFFC7C7CC)
+                                    fontSize = if (isSelected) 14.sp else 11.sp,
+                                    fontWeight = if (isSelected) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Normal,
+                                    color = when {
+                                        isSelected -> Color(0xFF0A84FF)
+                                        hasCharacters -> TextPrimary
+                                        else -> Color(0xFFC7C7CC)
+                                    }
                                 )
                             }
+                        }
+                    }
+
+                    // 大字母气泡提示（滑动时显示）
+                    if (isDragging && selectedIndex >= 0) {
+                        val selectedLetter = allLetters[selectedIndex]
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterStart)
+                                .padding(end = 36.dp)
+                                .size(56.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFF0A84FF)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = selectedLetter,
+                                fontSize = 28.sp,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                                color = Color.White
+                            )
                         }
                     }
                 }
