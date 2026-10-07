@@ -32,9 +32,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Camera
 import androidx.compose.material.icons.filled.Close
@@ -45,9 +47,11 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -71,6 +75,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -269,111 +274,152 @@ fun ChatScreen(
                     .imePadding()
                     .background(CardWhite)
             ) {
-                // 输入栏：相机 | 输入框/按住说话 | 麦克风/键盘 | +
+                // 输入栏：大框内嵌图标（豆包风格）
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // 相机图标（功能先不做）
-                    IconButton(onClick = {}) {
+                    // 大输入框：图标全部内嵌
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .shadow(4.dp, RoundedCornerShape(24.dp))
+                            .background(Color(0xFFF7F7F8), RoundedCornerShape(24.dp))
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // 相机图标
                         Icon(
-                            imageVector = Icons.Filled.Camera,
+                            imageVector = Icons.Outlined.PhotoCamera,
                             contentDescription = "相机",
-                            tint = TextPrimary
+                            tint = TextPrimary,
+                            modifier = Modifier.size(24.dp)
                         )
-                    }
 
-                    // 输入框 或 按住说话按钮
-                    if (isVoiceMode) {
-                        Box(modifier = Modifier.weight(1f)) {
-                            VoiceRecorderButton(
-                                conversationId = conversationId,
-                                hasPermission = hasRecordPermission,
-                                onRequestPermission = {
-                                    permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        // 输入区 或 按住说话
+                        if (isVoiceMode) {
+                            Box(modifier = Modifier.weight(1f)) {
+                                VoiceRecorderButton(
+                                    conversationId = conversationId,
+                                    hasPermission = hasRecordPermission,
+                                    onRequestPermission = {
+                                        permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                    },
+                                    onVoiceRecorded = { filePath, duration ->
+                                        viewModel.sendVoiceMessage(filePath, duration)
+                                    }
+                                )
+                            }
+                        } else {
+                            BasicTextField(
+                                value = inputText,
+                                onValueChange = {
+                                    viewModel.onInputTextChange(it)
+                                    showEmojiPanel = false
                                 },
-                                onVoiceRecorded = { filePath, duration ->
-                                    viewModel.sendVoiceMessage(filePath, duration)
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .focusRequester(focusRequester),
+                                textStyle = LocalTextStyle.current.copy(
+                                    fontSize = 15.sp,
+                                    color = TextPrimary
+                                ),
+                                maxLines = 4,
+                                enabled = !isStreaming,
+                                cursorBrush = SolidColor(TextPrimary),
+                                decorationBox = { innerTextField ->
+                                    if (inputText.isEmpty()) {
+                                        Text(
+                                            "发消息或按住说话...",
+                                            fontSize = 15.sp,
+                                            color = TextSecondary
+                                        )
+                                    }
+                                    innerTextField()
                                 }
                             )
                         }
-                    } else {
-                        OutlinedTextField(
-                            value = inputText,
-                            onValueChange = {
-                                viewModel.onInputTextChange(it)
-                                showEmojiPanel = false
-                            },
-                            modifier = Modifier
-                                .weight(1f)
-                                .focusRequester(focusRequester),
-                            placeholder = {
-                                Text(
-                                    "发消息或按住说话...",
-                                    fontSize = 15.sp,
-                                    color = TextSecondary
-                                )
-                            },
-                            maxLines = 4,
-                            shape = RoundedCornerShape(24.dp),
-                            enabled = !isStreaming,
-                            colors = TextFieldDefaults.colors(
-                                focusedContainerColor = Color(0xFFF2F2F7),
-                                unfocusedContainerColor = Color(0xFFF2F2F7),
-                                focusedIndicatorColor = Color.Transparent,
-                                unfocusedIndicatorColor = Color.Transparent,
-                                cursorColor = TextPrimary
-                            )
-                        )
-                    }
 
-                    Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
 
-                    // 麦克风/键盘切换
-                    IconButton(onClick = {
+                        // 右侧：语音模式→键盘；空→麦克风；有字→发送
                         if (isVoiceMode) {
-                            isVoiceMode = false
-                            showEmojiPanel = false
-                            showPlusMenu = false
-                            focusTrigger++
+                            IconButton(onClick = {
+                                isVoiceMode = false
+                                showEmojiPanel = false
+                                showPlusMenu = false
+                                focusTrigger++
+                            }) {
+                                Icon(
+                                    imageVector = Icons.Filled.Keyboard,
+                                    contentDescription = "键盘",
+                                    tint = TextPrimary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        } else if (inputText.isEmpty()) {
+                            // 麦克风：切换语音模式
+                            IconButton(onClick = {
+                                isVoiceMode = true
+                                showEmojiPanel = false
+                                showPlusMenu = false
+                                focusManager.clearFocus()
+                                if (!hasRecordPermission) {
+                                    permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                }
+                            }) {
+                                Icon(
+                                    imageVector = Icons.Filled.Mic,
+                                    contentDescription = "语音",
+                                    tint = TextPrimary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(4.dp))
+                            // 加号：展开菜单
+                            IconButton(onClick = {
+                                showPlusMenu = !showPlusMenu
+                                if (showPlusMenu) {
+                                    showEmojiPanel = false
+                                    focusManager.clearFocus()
+                                }
+                            }) {
+                                Icon(
+                                    imageVector = if (showPlusMenu)
+                                        Icons.Filled.Close
+                                    else
+                                        Icons.Filled.Add,
+                                    contentDescription = if (showPlusMenu) "关闭" else "更多",
+                                    tint = TextPrimary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
                         } else {
-                            isVoiceMode = true
-                            showEmojiPanel = false
-                            showPlusMenu = false
-                            focusManager.clearFocus()
-                            if (!hasRecordPermission) {
-                                permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                            // 有文字：发送按钮（蓝色圆形向上箭头）
+                            IconButton(
+                                onClick = { viewModel.sendMessage() },
+                                enabled = !isStreaming
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.primary),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.ArrowUpward,
+                                        contentDescription = "发送",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
                             }
                         }
-                    }) {
-                        Icon(
-                            imageVector = if (isVoiceMode)
-                                Icons.Filled.Keyboard
-                            else
-                                Icons.Filled.Mic,
-                            contentDescription = if (isVoiceMode) "键盘" else "语音",
-                            tint = TextPrimary
-                        )
-                    }
-
-                    // + / × 按钮
-                    IconButton(onClick = {
-                        showPlusMenu = !showPlusMenu
-                        if (showPlusMenu) {
-                            showEmojiPanel = false
-                            focusManager.clearFocus()
-                        }
-                    }) {
-                        Icon(
-                            imageVector = if (showPlusMenu)
-                                Icons.Filled.Close
-                            else
-                                Icons.Filled.Add,
-                            contentDescription = if (showPlusMenu) "关闭" else "更多",
-                            tint = TextPrimary
-                        )
                     }
                 }
 
