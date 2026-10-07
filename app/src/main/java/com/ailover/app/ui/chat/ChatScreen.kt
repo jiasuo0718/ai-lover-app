@@ -364,7 +364,7 @@ fun ChatScreen(
                                 )
                             }
                         } else if (inputText.isEmpty()) {
-                            // 麦克风：圆圈套图标，切换语音模式
+                            // 麦克风：IconPark 细线条，切换语音模式
                             IconButton(onClick = {
                                 isVoiceMode = true
                                 showEmojiPanel = false
@@ -374,21 +374,14 @@ fun ChatScreen(
                                     permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                                 }
                             }) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(30.dp)
-                                        .border(1.5.dp, TextPrimary, CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = IconParkIcons.Outline.Microphone,
-                                        contentDescription = "语音",
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
+                                Icon(
+                                    imageVector = IconParkIcons.Outline.Microphone,
+                                    contentDescription = "语音",
+                                    modifier = Modifier.size(24.dp)
+                                )
                             }
                             Spacer(modifier = Modifier.width(4.dp))
-                            // 加号：圆圈套图标，展开菜单
+                            // 加号：IconPark 细线条，展开菜单
                             IconButton(onClick = {
                                 showPlusMenu = !showPlusMenu
                                 if (showPlusMenu) {
@@ -396,26 +389,19 @@ fun ChatScreen(
                                     focusManager.clearFocus()
                                 }
                             }) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(30.dp)
-                                        .border(1.5.dp, TextPrimary, CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    if (showPlusMenu) {
-                                        Icon(
-                                            imageVector = Icons.Filled.Close,
-                                            contentDescription = "关闭",
-                                            tint = TextPrimary,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    } else {
-                                        Icon(
-                                            imageVector = IconParkIcons.Outline.Add,
-                                            contentDescription = "更多",
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    }
+                                if (showPlusMenu) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Close,
+                                        contentDescription = "关闭",
+                                        tint = TextPrimary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = IconParkIcons.Outline.Add,
+                                        contentDescription = "更多",
+                                        modifier = Modifier.size(24.dp)
+                                    )
                                 }
                             }
                         } else {
