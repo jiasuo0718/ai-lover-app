@@ -32,6 +32,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -77,6 +78,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -319,10 +322,10 @@ fun ChatScreen(
                             maxLines = 4,
                             shape = RoundedCornerShape(24.dp),
                             enabled = !isStreaming,
-                            keyboardOptions = androidx.compose.ui.text.input.KeyboardOptions(
-                                imeAction = androidx.compose.ui.text.input.ImeAction.Send
+                            keyboardOptions = KeyboardOptions(
+                                imeAction = ImeAction.Send
                             ),
-                            keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                            keyboardActions = KeyboardActions(
                                 onSend = { viewModel.sendMessage() }
                             ),
                             colors = TextFieldDefaults.colors(
