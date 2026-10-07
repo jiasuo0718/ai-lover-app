@@ -10,6 +10,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -285,9 +286,9 @@ fun ChatScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .shadow(4.dp, RoundedCornerShape(24.dp))
-                            .background(Color(0xFFF7F7F8), RoundedCornerShape(24.dp))
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                            .shadow(6.dp, RoundedCornerShape(28.dp))
+                            .background(Color(0xFFF2F2F7), RoundedCornerShape(28.dp))
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // 相机图标
@@ -362,7 +363,7 @@ fun ChatScreen(
                                 )
                             }
                         } else if (inputText.isEmpty()) {
-                            // 麦克风：切换语音模式
+                            // 麦克风：圆圈套图标，切换语音模式
                             IconButton(onClick = {
                                 isVoiceMode = true
                                 showEmojiPanel = false
@@ -372,15 +373,22 @@ fun ChatScreen(
                                     permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                                 }
                             }) {
-                                Icon(
-                                    imageVector = Icons.Filled.Mic,
-                                    contentDescription = "语音",
-                                    tint = TextPrimary,
-                                    modifier = Modifier.size(24.dp)
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(30.dp)
+                                        .border(1.5.dp, TextPrimary, CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Mic,
+                                        contentDescription = "语音",
+                                        tint = TextPrimary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
                             }
                             Spacer(modifier = Modifier.width(4.dp))
-                            // 加号：展开菜单
+                            // 加号：圆圈套图标，展开菜单
                             IconButton(onClick = {
                                 showPlusMenu = !showPlusMenu
                                 if (showPlusMenu) {
@@ -388,15 +396,22 @@ fun ChatScreen(
                                     focusManager.clearFocus()
                                 }
                             }) {
-                                Icon(
-                                    imageVector = if (showPlusMenu)
-                                        Icons.Filled.Close
-                                    else
-                                        Icons.Filled.Add,
-                                    contentDescription = if (showPlusMenu) "关闭" else "更多",
-                                    tint = TextPrimary,
-                                    modifier = Modifier.size(24.dp)
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(30.dp)
+                                        .border(1.5.dp, TextPrimary, CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = if (showPlusMenu)
+                                            Icons.Filled.Close
+                                        else
+                                            Icons.Filled.Add,
+                                        contentDescription = if (showPlusMenu) "关闭" else "更多",
+                                        tint = TextPrimary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
                             }
                         } else {
                             // 有文字：发送按钮（蓝色圆形向上箭头）
