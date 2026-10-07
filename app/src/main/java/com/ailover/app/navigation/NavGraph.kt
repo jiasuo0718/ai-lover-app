@@ -140,7 +140,7 @@ fun AppNavGraph() {
                                     selectedTextColor = TextPrimary,
                                     unselectedIconColor = TextSecondary,
                                     unselectedTextColor = TextSecondary,
-                                    indicatorColor = Color.Transparent
+                                    indicatorColor = CardWhite
                                 )
                             )
                         }
