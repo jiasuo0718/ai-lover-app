@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -19,8 +21,13 @@ class CharacterListViewModel(
     characterRepository: CharacterRepository
 ) : ViewModel() {
 
+    // 加载中状态：数据第一次到达前为 true，避免闪现空状态
+    private val _isLoading = MutableStateFlow(true)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
     val characters: StateFlow<List<CharacterEntity>> =
         characterRepository.getAllCharacters()
+            .onEach { _isLoading.value = false }
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),

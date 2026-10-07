@@ -65,6 +65,7 @@ fun CharacterListScreen(
         factory = CharacterListViewModelFactory(AppContainer.characterRepository())
     )
     val characters by viewModel.characters.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
@@ -93,8 +94,15 @@ fun CharacterListScreen(
         },
         containerColor = CardWhite
     ) { paddingValues ->
-        if (characters.isEmpty()) {
-            Box(
+        when {
+            // 加载中：显示空白，不闪现空状态
+            isLoading -> Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            )
+            // 数据加载完且为空：显示空状态
+            characters.isEmpty() -> Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues),
@@ -102,7 +110,8 @@ fun CharacterListScreen(
             ) {
                 Text("点击右上角 + 添加角色", color = TextSecondary, fontSize = 15.sp)
             }
-        } else {
+            // 有数据：显示列表
+            else -> {
             // 按拼音首字母分组排序
             val grouped = PinyinUtils.groupByPinyin(characters) { it.name }
 
