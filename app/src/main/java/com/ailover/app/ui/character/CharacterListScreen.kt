@@ -63,6 +63,11 @@ fun CharacterListScreen(
                 CenterAlignedTopAppBar(
                     modifier = Modifier.height(48.dp),
                     title = { Text("通讯录", color = TextPrimary, fontSize = 18.sp) },
+                    actions = {
+                        IconButton(onClick = onAddClick) {
+                            Icon(Icons.Filled.Add, contentDescription = "新建角色", tint = TextPrimary)
+                        }
+                    },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = CardWhite
                     )
