@@ -86,6 +86,9 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     debugImplementation("androidx.compose.ui:ui-tooling")
 
+    // IconPark 图标库（豆包同源）
+    implementation("io.github.qdsfdhvh:iconpark-outline-3dp:1.0.0")
+
     // Navigation
     implementation("androidx.navigation:navigation-compose:2.7.6")
 

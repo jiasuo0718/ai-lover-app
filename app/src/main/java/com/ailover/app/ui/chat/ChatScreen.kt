@@ -82,7 +82,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -103,6 +102,7 @@ import com.ailover.app.ui.theme.TextPrimary
 import com.ailover.app.ui.theme.TextSecondary
 import com.ailover.app.util.AudioPlayer
 import com.ailover.app.util.TimeUtils
+import io.github.qdsfdhvh.iconpark.IconPark
 import kotlinx.coroutines.delay
 import java.io.File
 
@@ -292,9 +292,9 @@ fun ChatScreen(
                             .padding(horizontal = 14.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // 相机图标（IconPark 细线条风格）
+                        // 相机图标（IconPark）
                         Icon(
-                            painter = painterResource(id = R.drawable.ic_camera),
+                            imageVector = IconPark.Outline.Camera,
                             contentDescription = "相机",
                             modifier = Modifier.size(24.dp)
                         )
@@ -380,7 +380,7 @@ fun ChatScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
-                                        painter = painterResource(id = R.drawable.ic_mic),
+                                        imageVector = IconPark.Outline.Mic,
                                         contentDescription = "语音",
                                         modifier = Modifier.size(16.dp)
                                     )
@@ -410,7 +410,7 @@ fun ChatScreen(
                                         )
                                     } else {
                                         Icon(
-                                            painter = painterResource(id = R.drawable.ic_plus),
+                                            imageVector = IconPark.Outline.Plus,
                                             contentDescription = "更多",
                                             modifier = Modifier.size(16.dp)
                                         )
@@ -431,8 +431,9 @@ fun ChatScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
-                                        painter = painterResource(id = R.drawable.ic_arrow_up),
+                                        imageVector = IconPark.Outline.ArrowUp,
                                         contentDescription = "发送",
+                                        tint = Color.White,
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }
