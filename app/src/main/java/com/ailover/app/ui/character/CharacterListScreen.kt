@@ -121,19 +121,29 @@ fun CharacterListScreen(
             val allLetters = remember { ('A'..'Z').map { it.toString() } + listOf("#") }
             val availableLetters = remember(grouped) { grouped.map { it.first }.toSet() }
 
-            // 找最近的有角色的字母（用于点击没角色的字母时跳转）
-            fun findNearestLetter(target: String): String? {
-                if (target in availableLetters) return target
-                val targetIdx = allLetters.indexOf(target)
-                // 向前找
-                for (i in targetIdx - 1 downTo 0) {
-                    if (allLetters[i] in availableLetters) return allLetters[i]
+            // 预计算：每个字母（含无角色的）→ 最近的有角色分组的 LazyColumn index
+            val letterToScrollIndex = remember(grouped, allLetters) {
+                val map = mutableMapOf<String, Int>()
+                val availableList = allLetters.filter { it in letterIndexMap }
+                allLetters.forEach { letter ->
+                    if (letter in letterIndexMap) {
+                        map[letter] = letterIndexMap[letter]!!
+                    } else {
+                        // 找最近的有角色的字母
+                        val idx = allLetters.indexOf(letter)
+                        var nearest: String? = null
+                        for (i in idx - 1 downTo 0) {
+                            if (allLetters[i] in letterIndexMap) { nearest = allLetters[i]; break }
+                        }
+                        if (nearest == null) {
+                            for (i in idx + 1 until allLetters.size) {
+                                if (allLetters[i] in letterIndexMap) { nearest = allLetters[i]; break }
+                            }
+                        }
+                        nearest?.let { map[letter] = letterIndexMap[it]!! }
+                    }
                 }
-                // 向后找
-                for (i in targetIdx + 1 until allLetters.size) {
-                    if (allLetters[i] in availableLetters) return allLetters[i]
-                }
-                return null
+                map
             }
 
             Box(
@@ -186,98 +196,19 @@ fun CharacterListScreen(
                     }
                 }
 
-                // 右侧字母索引条（完整 A-Z + #，支持点击和滑动）
-                val letterItemHeight = 16.dp
-                val letterBarWidth = 28.dp
-                var selectedIndex by remember { mutableStateOf(-1) }
-                var isDragging by remember { mutableStateOf(false) }
-
-                // 选中字母时滚动列表（只在字母变化时滚动）
-                fun onLetterSelected(index: Int) {
-                    if (index == selectedIndex) return
-                    selectedIndex = index
-                    val letter = allLetters[index]
-                    scope.launch {
-                        findNearestLetter(letter)?.let { letterIndexMap[it] }?.let { idx ->
-                            listState.scrollToItem(idx)
-                        }
-                    }
-                }
-
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.CenterEnd)
-                        .width(letterBarWidth)
-                        .padding(end = 2.dp)
-                        .pointerInput(allLetters, letterIndexMap) {
-                            val itemHeightPx = letterItemHeight.toPx()
-                            awaitPointerEventScope {
-                                while (true) {
-                                    val event = awaitPointerEvent()
-                                    val change = event.changes.firstOrNull() ?: continue
-                                    if (change.pressed) {
-                                        change.consume()
-                                        isDragging = true
-                                        val index = (change.position.y / itemHeightPx)
-                                            .toInt()
-                                            .coerceIn(0, allLetters.size - 1)
-                                        onLetterSelected(index)
-                                    } else {
-                                        // 松手
-                                        isDragging = false
-                                        selectedIndex = -1
-                                    }
-                                }
-                            }
-                        }
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        allLetters.forEachIndexed { index, letter ->
-                            val hasCharacters = letter in availableLetters
-                            val isSelected = index == selectedIndex
-                            Box(
-                                modifier = Modifier
-                                    .height(letterItemHeight)
-                                    .fillMaxWidth(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = letter,
-                                    fontSize = if (isSelected) 14.sp else 11.sp,
-                                    fontWeight = if (isSelected) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Normal,
-                                    color = when {
-                                        isSelected -> Color(0xFF0A84FF)
-                                        hasCharacters -> TextPrimary
-                                        else -> Color(0xFFC7C7CC)
-                                    }
-                                )
+                // 右侧字母索引条（独立组件，状态变化不影响 LazyColumn）
+                AlphabetIndexBar(
+                    allLetters = allLetters,
+                    availableLetters = availableLetters,
+                    onLetterSelected = { index ->
+                        val letter = allLetters[index]
+                        letterToScrollIndex[letter]?.let { scrollIdx ->
+                            scope.launch {
+                                listState.scrollToItem(scrollIdx)
                             }
                         }
                     }
-                }
-
-                // 大字母气泡提示（滑动时显示，屏幕中央）
-                if (isDragging && selectedIndex >= 0) {
-                    val selectedLetter = allLetters[selectedIndex]
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .size(80.dp)
-                            .clip(androidx.compose.foundation.shape.CircleShape)
-                            .background(Color(0xCC8E8E93)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = selectedLetter,
-                            fontSize = 40.sp,
-                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                            color = Color.White
-                        )
-                    }
-                }
+                )
             }
         }
     }
@@ -340,6 +271,99 @@ private fun CharacterItem(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+        }
+    }
+}
+
+/**
+ * 右侧字母索引条（独立组件，状态变化不影响 LazyColumn）
+ */
+@Composable
+private fun AlphabetIndexBar(
+    allLetters: List<String>,
+    availableLetters: Set<String>,
+    onLetterSelected: (Int) -> Unit
+) {
+    val letterItemHeight = 16.dp
+    val letterBarWidth = 28.dp
+    var selectedIndex by remember { mutableStateOf(-1) }
+    var isDragging by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    Box(
+        modifier = Modifier
+            .align(Alignment.CenterEnd)
+            .width(letterBarWidth)
+            .padding(end = 2.dp)
+            .pointerInput(allLetters) {
+                val itemHeightPx = letterItemHeight.toPx()
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val change = event.changes.firstOrNull() ?: continue
+                        if (change.pressed) {
+                            change.consume()
+                            isDragging = true
+                            val index = (change.position.y / itemHeightPx)
+                                .toInt()
+                                .coerceIn(0, allLetters.size - 1)
+                            if (index != selectedIndex) {
+                                selectedIndex = index
+                                onLetterSelected(index)
+                            }
+                        } else {
+                            isDragging = false
+                            selectedIndex = -1
+                        }
+                    }
+                }
+            }
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            allLetters.forEachIndexed { index, letter ->
+                val hasCharacters = letter in availableLetters
+                val isSelected = index == selectedIndex
+                Box(
+                    modifier = Modifier
+                        .height(letterItemHeight)
+                        .fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = letter,
+                        fontSize = if (isSelected) 14.sp else 11.sp,
+                        fontWeight = if (isSelected) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Normal,
+                        color = when {
+                            isSelected -> Color(0xFF0A84FF)
+                            hasCharacters -> TextPrimary
+                            else -> Color(0xFFC7C7CC)
+                        }
+                    )
+                }
+            }
+        }
+
+        // 大字母气泡提示（滑动时显示，屏幕中央）
+        if (isDragging && selectedIndex >= 0) {
+            val selectedLetter = allLetters[selectedIndex]
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .size(80.dp)
+                    .clip(androidx.compose.foundation.shape.CircleShape)
+                    .background(Color(0xCC8E8E93)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = selectedLetter,
+                    fontSize = 40.sp,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                    color = Color.White
+                )
+            }
         }
     }
 }

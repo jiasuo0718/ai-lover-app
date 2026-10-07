@@ -8,12 +8,14 @@ android {
     namespace = "com.ailover.app"
     compileSdk = 34
 
+    // versionCode 从 CI 环境变量取，保证每次构建自增，支持覆盖安装
+    val ciRunNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
     defaultConfig {
         applicationId = "com.ailover.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = ciRunNumber
+        versionName = "2.1.$ciRunNumber"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -21,7 +23,20 @@ android {
         }
     }
 
+    // 固定 debug 签名，保证每次构建签名一致，支持覆盖安装
+    signingConfigs {
+        create("debug") {
+            storeFile = file("../debug.keystore")
+            storePassword = "android"
+            keyAlias = "debug"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(
