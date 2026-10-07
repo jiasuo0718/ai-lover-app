@@ -21,7 +21,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.onGloballyPositioned
+import androidx.compose.foundation.layout.LocalWindowInsets
+import androidx.compose.foundation.layout.onSizeChanged
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
@@ -78,6 +79,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.style.TextOverflow
@@ -186,10 +188,11 @@ fun ChatScreen(
     }
 
     // 键盘弹出时自动滚到底部，确保最新消息不被键盘遮挡
-    val isImeVisible = androidx.compose.foundation.layout.isImeVisible
+    val density = LocalDensity.current
+    val imeBottom = LocalWindowInsets.current.ime.getBottom(density)
     var listHeight by remember { mutableStateOf(0) }
-    LaunchedEffect(isImeVisible, listHeight) {
-        if (isImeVisible && messages.isNotEmpty()) {
+    LaunchedEffect(imeBottom, listHeight) {
+        if (imeBottom > 0 && messages.isNotEmpty()) {
             delay(100)
             listState.scrollToItem(messages.size - 1)
         }
@@ -204,7 +207,7 @@ fun ChatScreen(
             showEmojiPanel -> {
                 showEmojiPanel = false
             }
-            isImeVisible -> {
+            imeBottom > 0 -> {
                 focusManager.clearFocus()
             }
             else -> {
@@ -578,8 +581,8 @@ fun ChatScreen(
                     state = listState,
                     modifier = Modifier
                         .fillMaxSize()
-                        .onGloballyPositioned { coordinates ->
-                            listHeight = coordinates.size.height
+                        .onSizeChanged { size ->
+                            listHeight = size.height
                         },
                     contentPadding = PaddingValues(vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
