@@ -18,7 +18,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.EmojiEmotions
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
 import io.github.qdsfdhvh.iconpark.IconParkIcons
@@ -33,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
+import com.ailover.app.BuildConfig
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -189,26 +189,12 @@ fun ProfileScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // ===== 分组一：表情 + API 设置（白卡）=====
+            // ===== 分组一：API 设置（白卡）=====
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(CardWhite)
             ) {
-                // 表情（占位）
-                ProfileListItem(
-                    icon = Icons.Filled.EmojiEmotions,
-                    iconTint = Color(0xFFFFCC00),
-                    title = "表情",
-                    onClick = {}
-                )
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(0.5.dp)
-                        .background(Divider)
-                        .padding(start = 56.dp)
-                )
                 // API 设置
                 ProfileListItem(
                     icon = IconParkIcons.Outline.SettingTwo,
@@ -230,7 +216,7 @@ fun ProfileScreen(
                     icon = Icons.Filled.Info,
                     iconTint = TextSecondary,
                     title = "关于",
-                    trailing = "v1.9.4",
+                    trailing = "v${BuildConfig.VERSION_NAME}",
                     onClick = {}
                 )
             }
