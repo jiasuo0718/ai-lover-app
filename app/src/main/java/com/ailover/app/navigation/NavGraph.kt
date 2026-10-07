@@ -28,6 +28,7 @@ import androidx.navigation.navArgument
 import com.ailover.app.ui.character.CharacterDetailScreen
 import com.ailover.app.ui.character.CharacterEditScreen
 import com.ailover.app.ui.character.CharacterListScreen
+import com.ailover.app.ui.character.CharacterSettingsScreen
 import com.ailover.app.ui.chat.ChatScreen
 import com.ailover.app.ui.conversation.ConversationListScreen
 import com.ailover.app.ui.settings.SettingsScreen
@@ -43,6 +44,7 @@ object Routes {
     const val CHAT = "chat/{conversationId}/{title}"
     const val CHARACTER_EDIT = "character_edit/{characterId}"
     const val CHARACTER_DETAIL = "character_detail/{characterId}"
+    const val CHARACTER_SETTINGS = "character_settings/{characterId}"
 
     fun createChatRoute(conversationId: Long, title: String): String =
         "chat/$conversationId/$title"
@@ -52,6 +54,9 @@ object Routes {
 
     fun createCharacterDetailRoute(characterId: Long): String =
         "character_detail/$characterId"
+
+    fun createCharacterSettingsRoute(characterId: Long): String =
+        "character_settings/$characterId"
 
     // 顶层页面（显示底部导航）
     val topLevelRoutes = setOf(CONVERSATION_LIST, CONTACTS, SETTINGS)
@@ -184,7 +189,10 @@ fun AppNavGraph() {
                 ChatScreen(
                     conversationId = conversationId,
                     title = title,
-                    onBackClick = { navController.popBackStack() }
+                    onBackClick = { navController.popBackStack() },
+                    onSettingsClick = { cid ->
+                        navController.navigate(Routes.createCharacterSettingsRoute(cid))
+                    }
                 )
             }
 
@@ -208,6 +216,9 @@ fun AppNavGraph() {
                     onDeleted = {
                         // 删除后回通讯录 tab
                         navigateToTopLevel(Routes.CONTACTS)
+                    },
+                    onSettingsClick = {
+                        navController.navigate(Routes.createCharacterSettingsRoute(characterId))
                     }
                 )
             }
@@ -227,6 +238,27 @@ fun AppNavGraph() {
                     onSaved = {
                         // 保存后：先弹出编辑页，再切到通讯录 tab
                         navController.popBackStack()
+                        navigateToTopLevel(Routes.CONTACTS)
+                    }
+                )
+            }
+
+            // 角色设置页
+            composable(
+                route = Routes.CHARACTER_SETTINGS,
+                arguments = listOf(
+                    navArgument("characterId") { type = NavType.LongType }
+                )
+            ) { backStackEntry ->
+                val characterId = backStackEntry.arguments?.getLong("characterId") ?: 0L
+                CharacterSettingsScreen(
+                    characterId = characterId,
+                    onBackClick = { navController.popBackStack() },
+                    onEditClick = { cid ->
+                        navController.navigate(Routes.createCharacterEditRoute(cid))
+                    },
+                    onDeleted = {
+                        // 删除后回通讯录 tab
                         navigateToTopLevel(Routes.CONTACTS)
                     }
                 )

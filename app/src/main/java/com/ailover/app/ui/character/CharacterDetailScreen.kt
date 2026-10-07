@@ -23,8 +23,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -139,7 +137,8 @@ fun CharacterDetailScreen(
     onBackClick: () -> Unit,
     onEditClick: () -> Unit,
     onStartChat: (Long, String) -> Unit,
-    onDeleted: () -> Unit
+    onDeleted: () -> Unit,
+    onSettingsClick: () -> Unit
 ) {
     val viewModel: CharacterDetailViewModel = viewModel(
         factory = CharacterDetailViewModelFactory(
@@ -152,7 +151,6 @@ fun CharacterDetailScreen(
     val conversations by viewModel.conversations.collectAsState()
     val scope = rememberCoroutineScope()
     var showDeleteDialog by remember { mutableStateOf(false) }
-    var showMenu by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -166,47 +164,8 @@ fun CharacterDetailScreen(
                         }
                     },
                     actions = {
-                        Box {
-                            IconButton(onClick = { showMenu = true }) {
-                                Icon(Icons.Filled.MoreVert, "更多", tint = TextPrimary)
-                            }
-                            if (showMenu) {
-                                androidx.compose.ui.window.Popup(
-                                    alignment = Alignment.TopEnd,
-                                    onDismissRequest = { showMenu = false }
-                                ) {
-                                    androidx.compose.material3.Surface(
-                                        shape = RoundedCornerShape(12.dp),
-                                        color = CardWhite,
-                                        tonalElevation = 0.dp,
-                                        shadowElevation = 0.dp,
-                                        modifier = Modifier.width(160.dp)
-                                    ) {
-                                        Column {
-                                            DropdownMenuItem(
-                                                text = { Text("编辑角色", color = TextPrimary) },
-                                                onClick = {
-                                                    showMenu = false
-                                                    onEditClick()
-                                                },
-                                                leadingIcon = {
-                                                    Icon(Icons.Filled.Edit, contentDescription = null, tint = TextPrimary, modifier = Modifier.size(20.dp))
-                                                }
-                                            )
-                                            DropdownMenuItem(
-                                                text = { Text("删除角色", color = Color(0xFFFF3B30)) },
-                                                onClick = {
-                                                    showMenu = false
-                                                    showDeleteDialog = true
-                                                },
-                                                leadingIcon = {
-                                                    Icon(Icons.Filled.Delete, contentDescription = null, tint = Color(0xFFFF3B30), modifier = Modifier.size(20.dp))
-                                                }
-                                            )
-                                        }
-                                    }
-                                }
-                            }
+                        IconButton(onClick = onSettingsClick) {
+                            Icon(Icons.Filled.MoreVert, "更多", tint = TextPrimary)
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(

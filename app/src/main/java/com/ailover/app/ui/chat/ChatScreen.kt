@@ -95,7 +95,8 @@ import java.io.File
 fun ChatScreen(
     conversationId: Long,
     title: String,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    onSettingsClick: (Long) -> Unit
 ) {
     val viewModel: ChatViewModel = viewModel(
         factory = ChatViewModelFactory(
@@ -225,6 +226,13 @@ fun ChatScreen(
                                 contentDescription = "返回",
                                 tint = TextPrimary
                             )
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = {
+                            character?.id?.let { onSettingsClick(it) }
+                        }) {
+                            Icon(Icons.Filled.MoreVert, "更多", tint = TextPrimary)
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
