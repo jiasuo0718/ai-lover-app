@@ -597,6 +597,43 @@ fun ChatScreen(
                         fontSize = 15.sp
                     )
                 }
+            } else if (messages.isEmpty()) {
+                // 骨架屏：数据加载中显示灰色气泡占位
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .imePadding(),
+                    contentPadding = PaddingValues(vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    userScrollEnabled = false
+                ) {
+                    items(5) { index ->
+                        val isLeft = index % 2 == 0
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            horizontalArrangement = if (isLeft) Arrangement.Start else Arrangement.End
+                        ) {
+                            if (isLeft) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color(0xFFF0F0F0))
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .width(if (isLeft) 180.dp else 140.dp)
+                                    .height(if (index % 3 == 0) 60.dp else 40.dp)
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(Color(0xFFF0F0F0))
+                            )
+                        }
+                    }
+                }
             } else if (messages.isNotEmpty()) {
                 LazyColumn(
                     state = listState,
