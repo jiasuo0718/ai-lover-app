@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -128,28 +128,28 @@ private fun CharacterItem(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // 头像
+        // 头像（圆角方形 8dp，40dp，跟其他页面统一）
         if (character.avatarUri != null && File(character.avatarUri!!).exists()) {
             AsyncImage(
                 model = File(character.avatarUri!!),
                 contentDescription = character.name,
                 modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape),
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(8.dp)),
                 contentScale = ContentScale.Crop
             )
         } else {
             Box(
                 modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(8.dp))
                     .background(MaterialTheme.colorScheme.primary),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     character.name.firstOrNull()?.toString() ?: "?",
                     color = Color.White,
-                    fontSize = 20.sp
+                    fontSize = 16.sp
                 )
             }
         }

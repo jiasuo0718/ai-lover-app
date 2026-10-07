@@ -170,33 +170,43 @@ fun CharacterDetailScreen(
                             IconButton(onClick = { showMenu = true }) {
                                 Icon(Icons.Filled.MoreVert, "更多", tint = TextPrimary)
                             }
-                            DropdownMenu(
-                                expanded = showMenu,
-                                onDismissRequest = { showMenu = false },
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(CardWhite)
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text("编辑角色", color = TextPrimary) },
-                                    onClick = {
-                                        showMenu = false
-                                        onEditClick()
-                                    },
-                                    leadingIcon = {
-                                        Icon(Icons.Filled.Edit, contentDescription = null, tint = TextPrimary, modifier = Modifier.size(20.dp))
+                            if (showMenu) {
+                                androidx.compose.ui.window.Popup(
+                                    alignment = Alignment.TopEnd,
+                                    offset = androidx.compose.ui.unit.DpOffset((-8).dp, 8.dp),
+                                    onDismissRequest = { showMenu = false }
+                                ) {
+                                    androidx.compose.material3.Surface(
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = CardWhite,
+                                        tonalElevation = 0.dp,
+                                        shadowElevation = 0.dp,
+                                        modifier = Modifier.width(160.dp)
+                                    ) {
+                                        Column {
+                                            DropdownMenuItem(
+                                                text = { Text("编辑角色", color = TextPrimary) },
+                                                onClick = {
+                                                    showMenu = false
+                                                    onEditClick()
+                                                },
+                                                leadingIcon = {
+                                                    Icon(Icons.Filled.Edit, contentDescription = null, tint = TextPrimary, modifier = Modifier.size(20.dp))
+                                                }
+                                            )
+                                            DropdownMenuItem(
+                                                text = { Text("删除角色", color = Color(0xFFFF3B30)) },
+                                                onClick = {
+                                                    showMenu = false
+                                                    showDeleteDialog = true
+                                                },
+                                                leadingIcon = {
+                                                    Icon(Icons.Filled.Delete, contentDescription = null, tint = Color(0xFFFF3B30), modifier = Modifier.size(20.dp))
+                                                }
+                                            )
+                                        }
                                     }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("删除角色", color = Color(0xFFFF3B30)) },
-                                    onClick = {
-                                        showMenu = false
-                                        showDeleteDialog = true
-                                    },
-                                    leadingIcon = {
-                                        Icon(Icons.Filled.Delete, contentDescription = null, tint = Color(0xFFFF3B30), modifier = Modifier.size(20.dp))
-                                    }
-                                )
+                                }
                             }
                         }
                     },
