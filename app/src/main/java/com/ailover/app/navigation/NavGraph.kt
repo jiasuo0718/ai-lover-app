@@ -110,7 +110,8 @@ fun AppNavGraph() {
                 Box {
                     NavigationBar(
                         containerColor = CardWhite,
-                        tonalElevation = 0.dp
+                        tonalElevation = 0.dp,
+                        modifier = Modifier.height(56.dp)
                     ) {
                         bottomNavItems.forEach { item ->
                             val isSelected = currentRoute == item.route
@@ -121,7 +122,8 @@ fun AppNavGraph() {
                                     Icon(
                                         imageVector = item.icon,
                                         contentDescription = item.label,
-                                        tint = if (isSelected) TextPrimary else TextSecondary
+                                        tint = if (isSelected) TextPrimary else TextSecondary,
+                                        modifier = Modifier.size(24.dp)
                                     )
                                 },
                                 label = {
