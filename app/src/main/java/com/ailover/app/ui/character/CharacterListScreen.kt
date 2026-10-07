@@ -98,7 +98,7 @@ fun CharacterListScreen(
                     .padding(paddingValues),
                 contentAlignment = Alignment.Center
             ) {
-                Text("还没有角色，点击右下角 + 创建", color = TextSecondary, fontSize = 15.sp)
+                Text("点击右上角 + 添加角色", color = TextSecondary, fontSize = 15.sp)
             }
         } else {
             LazyColumn(

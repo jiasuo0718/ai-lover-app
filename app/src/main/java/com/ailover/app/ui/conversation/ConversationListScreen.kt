@@ -125,7 +125,7 @@ fun ConversationListScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    "暂无会话，点右下角 + 开始聊天",
+                    "暂无会话",
                     color = TextSecondary,
                     fontSize = 16.sp
                 )
