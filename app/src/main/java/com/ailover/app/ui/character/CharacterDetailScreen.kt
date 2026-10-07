@@ -173,7 +173,6 @@ fun CharacterDetailScreen(
                             if (showMenu) {
                                 androidx.compose.ui.window.Popup(
                                     alignment = Alignment.TopEnd,
-                                    offset = androidx.compose.ui.unit.DpOffset((-8).dp, 8.dp),
                                     onDismissRequest = { showMenu = false }
                                 ) {
                                     androidx.compose.material3.Surface(
