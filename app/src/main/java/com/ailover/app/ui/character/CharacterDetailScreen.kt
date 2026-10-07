@@ -19,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChatBubble
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
@@ -179,7 +180,8 @@ fun CharacterDetailScreen(
                         .background(Divider)
                 )
             }
-        }
+        },
+        containerColor = Color(0xFFEDEDED)
     ) { paddingValues ->
         character?.let { char ->
             Column(
@@ -188,113 +190,181 @@ fun CharacterDetailScreen(
                     .padding(paddingValues)
                     .verticalScroll(rememberScrollState())
             ) {
-                // ===== 顶部：头像 + 名字 + 人设摘要 =====
+                // ===== 顶部：头像 + 名字 + 人设（白卡，左对齐）=====
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                        .background(CardWhite)
+                        .padding(horizontal = 16.dp, vertical = 20.dp)
                 ) {
-                    // 大头像
-                    val hasCustomAvatar = char.avatarUri != null && File(char.avatarUri!!).exists()
-                    if (hasCustomAvatar) {
-                        AsyncImage(
-                            model = File(char.avatarUri!!),
-                            contentDescription = char.name,
-                            modifier = Modifier
-                                .size(96.dp)
-                                .clip(RoundedCornerShape(16.dp)),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .size(96.dp)
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(BubbleSelf),
-                            contentAlignment = Alignment.Center
-                        ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // 头像（圆角方形 64dp）
+                        val hasCustomAvatar = char.avatarUri != null && File(char.avatarUri!!).exists()
+                        if (hasCustomAvatar) {
+                            AsyncImage(
+                                model = File(char.avatarUri!!),
+                                contentDescription = char.name,
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .clip(RoundedCornerShape(8.dp)),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(BubbleSelf),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = char.name.firstOrNull()?.toString() ?: "?",
+                                    color = Color.White,
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(16.dp))
+
+                        // 名字 + 人设摘要 + 创建时间
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = char.name.firstOrNull()?.toString() ?: "?",
-                                color = Color.White,
-                                fontSize = 36.sp,
-                                fontWeight = FontWeight.Medium
+                                text = char.name,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            if (char.personality.isNotBlank()) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = char.personality.take(30).let {
+                                        if (char.personality.length > 30) "$it..." else it
+                                    },
+                                    fontSize = 13.sp,
+                                    color = TextSecondary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            val createTime = remember(char.createdAt) {
+                                SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                                    .format(Date(char.createdAt))
+                            }
+                            Text(
+                                text = "创建于 $createTime",
+                                fontSize = 12.sp,
+                                color = TextSecondary
                             )
                         }
                     }
+                }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                    // 名字
+                // ===== 分组一：角色设定（白卡）=====
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(CardWhite)
+                ) {
+                    // 分组标题
                     Text(
-                        text = char.name,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = TextPrimary
+                        text = "角色设定",
+                        fontSize = 13.sp,
+                        color = TextSecondary,
+                        modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp)
                     )
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    // 人设摘要
-                    if (char.personality.isNotBlank()) {
+                    // 完整人设（点击进编辑页）
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(onClick = onEditClick)
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text(
-                            text = char.personality.take(30).let {
-                                if (char.personality.length > 30) "$it..." else it
-                            },
-                            fontSize = 13.sp,
-                            color = TextSecondary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.padding(horizontal = 32.dp)
+                            text = char.personality.ifBlank { "暂无设定，点击编辑" },
+                            fontSize = 15.sp,
+                            color = if (char.personality.isBlank()) TextSecondary else TextPrimary,
+                            modifier = Modifier.weight(1f),
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(
+                            imageVector = Icons.Filled.ChevronRight,
+                            contentDescription = null,
+                            tint = TextSecondary,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                // ===== 分组：角色设定 =====
-                DetailSectionTitle("角色设定")
-                DetailRow(
-                    label = "完整人设",
-                    value = char.personality.ifBlank { "暂无设定" },
-                    onClick = onEditClick,
-                    showArrow = true
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // ===== 分组：其他信息 =====
-                DetailSectionTitle("其他信息")
-                val createTime = remember(char.createdAt) {
-                    SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-                        .format(Date(char.createdAt))
-                }
-                DetailRow(
-                    label = "创建时间",
-                    value = createTime,
-                    showArrow = false
-                )
-                DetailRow(
-                    label = "会话数",
-                    value = "${conversations.size} 个会话",
-                    showArrow = false
-                )
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                // ===== 底部按钮：只保留发消息 =====
+                // ===== 分组二：其他信息（白卡）=====
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp)
+                        .background(CardWhite)
                 ) {
-                    // 发消息（主按钮）
+                    Text(
+                        text = "其他信息",
+                        fontSize = 13.sp,
+                        color = TextSecondary,
+                        modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp)
+                    )
+                    // 创建时间
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("创建时间", fontSize = 15.sp, color = TextSecondary, modifier = Modifier.width(80.dp))
+                        val createTimeFull = remember(char.createdAt) {
+                            SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+                                .format(Date(char.createdAt))
+                        }
+                        Text(createTimeFull, fontSize = 15.sp, color = TextPrimary)
+                    }
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(48.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(AccentBlue)
+                            .height(0.5.dp)
+                            .background(Divider)
+                            .padding(start = 16.dp)
+                    )
+                    // 会话数
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("会话数", fontSize = 15.sp, color = TextSecondary, modifier = Modifier.width(80.dp))
+                        Text("${conversations.size} 个", fontSize = 15.sp, color = TextPrimary)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // ===== 底部按钮：发消息（白卡，左对齐）=====
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(CardWhite)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
                             .clickable {
                                 scope.launch {
                                     val conversation = conversations.firstOrNull()
@@ -305,26 +375,23 @@ fun CharacterDetailScreen(
                                     }
                                     onStartChat(conversationId, char.name)
                                 }
-                            },
-                        contentAlignment = Alignment.Center
+                            }
+                            .padding(horizontal = 16.dp, vertical = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                Icons.Filled.ChatBubble,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Text(
-                                text = "发消息",
-                                color = Color.White,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
+                        Icon(
+                            Icons.Filled.ChatBubble,
+                            contentDescription = null,
+                            tint = TextPrimary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Text(
+                            text = "发消息",
+                            color = TextPrimary,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium
+                        )
                     }
                 }
 
