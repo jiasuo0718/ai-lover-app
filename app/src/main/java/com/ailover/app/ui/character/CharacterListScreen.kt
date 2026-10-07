@@ -42,6 +42,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.toPx
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.ailover.app.data.local.entity.CharacterEntity
@@ -197,18 +198,25 @@ fun CharacterListScreen(
                 }
 
                 // 右侧字母索引条（独立组件，状态变化不影响 LazyColumn）
-                AlphabetIndexBar(
-                    allLetters = allLetters,
-                    availableLetters = availableLetters,
-                    onLetterSelected = { index ->
-                        val letter = allLetters[index]
-                        letterToScrollIndex[letter]?.let { scrollIdx ->
-                            scope.launch {
-                                listState.scrollToItem(scrollIdx)
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .fillMaxSize()
+                ) {
+                    AlphabetIndexBar(
+                        modifier = Modifier.align(Alignment.CenterEnd),
+                        allLetters = allLetters,
+                        availableLetters = availableLetters,
+                        onLetterSelected = { index ->
+                            val letter = allLetters[index]
+                            letterToScrollIndex[letter]?.let { scrollIdx ->
+                                scope.launch {
+                                    listState.scrollToItem(scrollIdx)
+                                }
                             }
                         }
-                    }
-                )
+                    )
+                }
             }
         }
     }
@@ -280,6 +288,7 @@ private fun CharacterItem(
  */
 @Composable
 private fun AlphabetIndexBar(
+    modifier: Modifier = Modifier,
     allLetters: List<String>,
     availableLetters: Set<String>,
     onLetterSelected: (Int) -> Unit
@@ -291,8 +300,7 @@ private fun AlphabetIndexBar(
     val scope = rememberCoroutineScope()
 
     Box(
-        modifier = Modifier
-            .align(Alignment.CenterEnd)
+        modifier = modifier
             .width(letterBarWidth)
             .padding(end = 2.dp)
             .pointerInput(allLetters) {
