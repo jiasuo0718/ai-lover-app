@@ -68,6 +68,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
@@ -177,6 +178,9 @@ fun ChatScreen(
     val audioPlayer = remember { AudioPlayer() }
     var currentPlayingId by remember { mutableStateOf<Long?>(null) }
 
+    // 方案D：先定位后显示。列表先 invisible，定位完成后再 visible
+    var isListReady by remember { mutableStateOf(false) }
+
     // 空状态延迟显示：数据加载前显示空白，避免"闪一下"
     var showEmptyState by remember { mutableStateOf(false) }
     LaunchedEffect(messages.isEmpty()) {
@@ -190,11 +194,17 @@ fun ChatScreen(
         }
     }
 
-    // 新消息或 AI 流式更新时自动滚到底部（瞬间定位，无动画，避免"倒带"效果）
+    // 新消息或 AI 流式更新时自动滚到底部
+    // 首次加载：先滚动定位，再设置 isListReady=true（列表从 invisible 变 visible）
+    // 后续新消息：正常滚动
     LaunchedEffect(messages.size, messages.lastOrNull()?.content) {
         if (messages.isNotEmpty()) {
             delay(50)
             listState.scrollToItem(messages.size - 1)
+            if (!isListReady) {
+                delay(50)
+                isListReady = true
+            }
         }
     }
 
@@ -592,7 +602,8 @@ fun ChatScreen(
                     state = listState,
                     modifier = Modifier
                         .fillMaxSize()
-                        .imePadding(),
+                        .imePadding()
+                        .alpha(if (isListReady) 1f else 0f),
                     contentPadding = PaddingValues(vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
