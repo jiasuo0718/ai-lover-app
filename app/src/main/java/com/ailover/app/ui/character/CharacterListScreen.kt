@@ -59,7 +59,6 @@ import java.io.File
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CharacterListScreen(
-    onBackClick: () -> Unit,
     onAddClick: () -> Unit,
     onEditClick: (Long) -> Unit
 ) {
@@ -75,12 +74,7 @@ fun CharacterListScreen(
             Column {
                 CenterAlignedTopAppBar(
                     modifier = Modifier.height(48.dp),
-                    title = { Text("角色管理", color = TextPrimary, fontSize = 18.sp) },
-                    navigationIcon = {
-                        IconButton(onClick = onBackClick) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回", tint = TextPrimary)
-                        }
-                    },
+                    title = { Text("通讯录", color = TextPrimary, fontSize = 18.sp) },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = CardWhite
                     )

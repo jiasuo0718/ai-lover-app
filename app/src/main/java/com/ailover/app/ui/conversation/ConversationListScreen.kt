@@ -19,8 +19,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -65,8 +63,7 @@ import java.io.File
 @Composable
 fun ConversationListScreen(
     onConversationClick: (Long, String) -> Unit,
-    onCharacterManageClick: () -> Unit,
-    onSettingsClick: () -> Unit
+    onAddCharacterClick: () -> Unit
 ) {
     val viewModel: ConversationViewModel = viewModel(
         factory = ConversationViewModelFactory(
@@ -92,11 +89,9 @@ fun ConversationListScreen(
                         )
                     },
                     actions = {
-                        IconButton(onClick = onSettingsClick) {
-                            Icon(Icons.Filled.Settings, contentDescription = "设置", tint = TextPrimary)
-                        }
-                        IconButton(onClick = onCharacterManageClick) {
-                            Icon(Icons.Filled.Group, contentDescription = "角色管理", tint = TextPrimary)
+                        // 右上角「+」：新建角色
+                        IconButton(onClick = onAddCharacterClick) {
+                            Icon(Icons.Filled.Add, contentDescription = "新建角色", tint = TextPrimary)
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -170,7 +165,7 @@ fun ConversationListScreen(
             },
             onGoManageCharacters = {
                 showCharacterPicker = false
-                onCharacterManageClick()
+                onAddCharacterClick()
             }
         )
     }

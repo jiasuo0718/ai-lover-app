@@ -54,9 +54,7 @@ import com.ailover.app.ui.theme.TextSecondary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(
-    onBackClick: () -> Unit
-) {
+fun SettingsScreen() {
     val viewModel: SettingsViewModel = viewModel(
         factory = SettingsViewModelFactory(AppContainer.settingsRepository())
     )
@@ -70,12 +68,7 @@ fun SettingsScreen(
             Column {
                 CenterAlignedTopAppBar(
                     modifier = Modifier.height(48.dp),
-                    title = { Text("设置", color = TextPrimary, fontSize = 18.sp) },
-                    navigationIcon = {
-                        IconButton(onClick = onBackClick) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回", tint = TextPrimary)
-                        }
-                    },
+                    title = { Text("我", color = TextPrimary, fontSize = 18.sp) },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = CardWhite
                     )
