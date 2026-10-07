@@ -173,9 +173,7 @@ fun CharacterDetailScreen(
                             DropdownMenu(
                                 expanded = showMenu,
                                 onDismissRequest = { showMenu = false },
-                                colors = androidx.compose.material3.DropdownMenuDefaults.colors(
-                                    containerColor = CardWhite
-                                )
+                                modifier = Modifier.background(CardWhite, RoundedCornerShape(12.dp))
                             ) {
                                 DropdownMenuItem(
                                     text = { Text("编辑角色", color = TextPrimary) },
