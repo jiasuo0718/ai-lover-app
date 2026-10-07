@@ -21,6 +21,8 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.EmojiEmotions
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
+import io.github.qdsfdhvh.iconpark.IconParkIcons
+import io.github.qdsfdhvh.iconpark.outline.*
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
@@ -209,8 +211,8 @@ fun ProfileScreen(
                 )
                 // API 设置
                 ProfileListItem(
-                    icon = Icons.Filled.Settings,
-                    iconTint = Color(0xFF0A84FF),
+                    icon = IconParkIcons.Outline.SettingTwo,
+                    iconTint = TextPrimary,
                     title = "API 设置",
                     onClick = onApiSettingsClick
                 )
