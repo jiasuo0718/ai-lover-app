@@ -2,8 +2,6 @@ package com.ailover.app.ui.character
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -186,8 +184,8 @@ fun CharacterListScreen(
                 }
 
                 // 右侧字母索引条（完整 A-Z + #，支持点击和滑动）
-                val letterItemHeight = 13.dp
-                val letterBarWidth = 24.dp
+                val letterItemHeight = 16.dp
+                val letterBarWidth = 28.dp
 
                 // 根据 Y 坐标计算字母并跳转
                 fun scrollToLetterByY(y: Float, itemHeightPx: Float) {
@@ -206,18 +204,15 @@ fun CharacterListScreen(
                         .width(letterBarWidth)
                         .padding(end = 2.dp)
                         .pointerInput(allLetters, letterIndexMap) {
-                            awaitEachGesture {
-                                val down = awaitFirstDown()
-                                down.consume()
-                                // 按下时立即跳转
-                                scrollToLetterByY(down.position.y, letterItemHeight.toPx())
-                                // 滑动时持续跳转
+                            val itemHeightPx = letterItemHeight.toPx()
+                            awaitPointerEventScope {
                                 while (true) {
                                     val event = awaitPointerEvent()
-                                    val change = event.changes.firstOrNull() ?: break
-                                    if (!change.pressed) break
-                                    change.consume()
-                                    scrollToLetterByY(change.position.y, letterItemHeight.toPx())
+                                    val change = event.changes.firstOrNull() ?: continue
+                                    if (change.pressed) {
+                                        change.consume()
+                                        scrollToLetterByY(change.position.y, itemHeightPx)
+                                    }
                                 }
                             }
                         }
@@ -236,7 +231,7 @@ fun CharacterListScreen(
                             ) {
                                 Text(
                                     text = letter,
-                                    fontSize = 10.sp,
+                                    fontSize = 11.sp,
                                     color = if (hasCharacters) TextPrimary else Color(0xFFC7C7CC)
                                 )
                             }
