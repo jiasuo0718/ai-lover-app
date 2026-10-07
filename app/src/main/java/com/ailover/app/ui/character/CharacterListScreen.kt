@@ -60,7 +60,7 @@ import java.io.File
 @Composable
 fun CharacterListScreen(
     onAddClick: () -> Unit,
-    onEditClick: (Long) -> Unit
+    onCharacterClick: (Long) -> Unit
 ) {
     val viewModel: CharacterListViewModel = viewModel(
         factory = CharacterListViewModelFactory(AppContainer.characterRepository())
@@ -114,7 +114,7 @@ fun CharacterListScreen(
                 items(characters, key = { it.id }) { character ->
                     CharacterItem(
                         character = character,
-                        onClick = { onEditClick(character.id) },
+                        onClick = { onCharacterClick(character.id) },
                         onDeleteClick = { deleteTarget = character }
                     )
                 }
