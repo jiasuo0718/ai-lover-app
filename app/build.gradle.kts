@@ -97,6 +97,9 @@ dependencies {
     // DataStore (for settings)
     implementation("androidx.datastore:datastore-preferences:1.0.0")
 
+    // Pinyin (for contact sorting)
+    implementation("com.belerweb:pinyin4j:2.5.1")
+
     // Testing
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")

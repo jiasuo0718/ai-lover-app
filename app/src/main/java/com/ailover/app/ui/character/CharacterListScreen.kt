@@ -46,6 +46,7 @@ import com.ailover.app.ui.theme.CardWhite
 import com.ailover.app.ui.theme.Divider
 import com.ailover.app.ui.theme.TextPrimary
 import com.ailover.app.ui.theme.TextSecondary
+import com.ailover.app.util.PinyinUtils
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -82,14 +83,7 @@ fun CharacterListScreen(
                 )
             }
         },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = onAddClick,
-                containerColor = MaterialTheme.colorScheme.primary
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = "新建角色", tint = Color.White)
-            }
-        }
+        containerColor = CardWhite
     ) { paddingValues ->
         if (characters.isEmpty()) {
             Box(
@@ -101,16 +95,50 @@ fun CharacterListScreen(
                 Text("点击右上角 + 添加角色", color = TextSecondary, fontSize = 15.sp)
             }
         } else {
+            // 按拼音首字母分组排序
+            val grouped = PinyinUtils.groupByPinyin(characters) { it.name }
+
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
-                items(characters, key = { it.id }) { character ->
-                    CharacterItem(
-                        character = character,
-                        onClick = { onCharacterClick(character.id) }
-                    )
+                grouped.forEach { (letter, groupCharacters) ->
+                    // 分组标题条（浅灰底，字母左对齐）
+                    item(key = "header_$letter") {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color(0xFFEDEDED))
+                                .padding(horizontal = 16.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = letter,
+                                fontSize = 14.sp,
+                                color = TextSecondary,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
+                            )
+                        }
+                    }
+
+                    // 组内角色列表
+                    items(groupCharacters, key = { it.id }) { character ->
+                        CharacterItem(
+                            character = character,
+                            onClick = { onCharacterClick(character.id) }
+                        )
+                        // 组内分割线（除了最后一个）
+                        val index = groupCharacters.indexOf(character)
+                        if (index < groupCharacters.size - 1) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(0.5.dp)
+                                    .background(Divider)
+                                    .padding(start = 68.dp) // 从头像右侧开始
+                            )
+                        }
+                    }
                 }
             }
         }
