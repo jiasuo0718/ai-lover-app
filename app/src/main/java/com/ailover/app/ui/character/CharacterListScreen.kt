@@ -2,6 +2,9 @@ package com.ailover.app.ui.character
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitPointerEvent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -35,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -182,29 +186,62 @@ fun CharacterListScreen(
                     }
                 }
 
-                // 右侧字母索引条（完整 A-Z + #）
-                Column(
+                // 右侧字母索引条（完整 A-Z + #，支持点击和滑动）
+                val letterItemHeight = 13.dp
+                val letterBarWidth = 24.dp
+
+                // 根据 Y 坐标计算字母并跳转
+                fun scrollToLetterByY(y: Float, itemHeightPx: Float) {
+                    val index = (y / itemHeightPx).toInt().coerceIn(0, allLetters.size - 1)
+                    val letter = allLetters[index]
+                    scope.launch {
+                        findNearestLetter(letter)?.let { letterIndexMap[it] }?.let { idx ->
+                            listState.scrollToItem(idx)
+                        }
+                    }
+                }
+
+                Box(
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
+                        .width(letterBarWidth)
                         .padding(end = 2.dp)
-                ) {
-                    allLetters.forEach { letter ->
-                        val hasCharacters = letter in availableLetters
-                        Text(
-                            text = letter,
-                            fontSize = 10.sp,
-                            color = if (hasCharacters) TextPrimary else Color(0xFFC7C7CC),
-                            modifier = Modifier
-                                .clickable(enabled = hasCharacters) {
-                                    scope.launch {
-                                        val target = findNearestLetter(letter)
-                                        target?.let { letterIndexMap[it] }?.let { idx ->
-                                            listState.scrollToItem(idx)
-                                        }
-                                    }
+                        .pointerInput(allLetters, letterIndexMap) {
+                            awaitEachGesture {
+                                val down = awaitFirstDown()
+                                down.consume()
+                                // 按下时立即跳转
+                                scrollToLetterByY(down.position.y, letterItemHeight.toPx())
+                                // 滑动时持续跳转
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    val change = event.changes.firstOrNull() ?: break
+                                    if (!change.pressed) break
+                                    change.consume()
+                                    scrollToLetterByY(change.position.y, letterItemHeight.toPx())
                                 }
-                                .padding(horizontal = 6.dp, vertical = 0.5.dp)
-                        )
+                            }
+                        }
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        allLetters.forEach { letter ->
+                            val hasCharacters = letter in availableLetters
+                            Box(
+                                modifier = Modifier
+                                    .height(letterItemHeight)
+                                    .fillMaxWidth(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = letter,
+                                    fontSize = 10.sp,
+                                    color = if (hasCharacters) TextPrimary else Color(0xFFC7C7CC)
+                                )
+                            }
+                        }
                     }
                 }
             }
