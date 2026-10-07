@@ -41,6 +41,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.ailover.app.data.local.entity.CharacterEntity
 import com.ailover.app.di.AppContainer
+import com.ailover.app.ui.theme.BubbleSelf
 import com.ailover.app.ui.theme.CardWhite
 import com.ailover.app.ui.theme.Divider
 import com.ailover.app.ui.theme.TextPrimary
@@ -143,7 +144,7 @@ private fun CharacterItem(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.primary),
+                    .background(BubbleSelf),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
