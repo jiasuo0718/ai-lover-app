@@ -34,10 +34,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.Camera
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.EmojiEmotions
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -125,6 +131,7 @@ fun ChatScreen(
     // 输入模式：文本 / 语音
     var isVoiceMode by remember { mutableStateOf(false) }
     var showEmojiPanel by remember { mutableStateOf(false) }
+    var showPlusMenu by remember { mutableStateOf(false) }
 
     // 输入框焦点控制：点键盘图标后自动聚焦弹键盘
     val focusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
@@ -182,10 +189,13 @@ fun ChatScreen(
         }
     }
 
-    // 统一返回逻辑：先收浮层（表情面板/键盘），再退页面
+    // 统一返回逻辑：先收浮层（+菜单/表情面板/键盘），再退页面
     val keyboardVisible = WindowInsets.ime.getBottom(density) > 0
     val handleBack: () -> Unit = {
         when {
+            showPlusMenu -> {
+                showPlusMenu = false
+            }
             showEmojiPanel -> {
                 showEmojiPanel = false
             }
@@ -257,39 +267,21 @@ fun ChatScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .imePadding()
-                    .background(MaterialTheme.colorScheme.surface)
+                    .background(CardWhite)
             ) {
-                // 输入栏
+                // 输入栏：相机 | 输入框/按住说话 | 麦克风/键盘 | +
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 8.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // 语音/键盘切换按钮
-                    IconButton(onClick = {
-                        if (isVoiceMode) {
-                            // 从语音切到文字：收起表情面板 + 聚焦输入框 + 弹出键盘
-                            isVoiceMode = false
-                            showEmojiPanel = false
-                            focusTrigger++
-                        } else {
-                            // 从文字切到语音
-                            isVoiceMode = true
-                            showEmojiPanel = false
-                            focusManager.clearFocus()
-                            if (!hasRecordPermission) {
-                                permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                            }
-                        }
-                    }) {
+                    // 相机图标（功能先不做）
+                    IconButton(onClick = {}) {
                         Icon(
-                            imageVector = if (isVoiceMode)
-                                Icons.Filled.Keyboard
-                            else
-                                Icons.Filled.Mic,
-                            contentDescription = if (isVoiceMode) "键盘" else "语音",
-                            tint = MaterialTheme.colorScheme.onSurface
+                            imageVector = Icons.Filled.Camera,
+                            contentDescription = "相机",
+                            tint = TextPrimary
                         )
                     }
 
@@ -317,15 +309,27 @@ fun ChatScreen(
                             modifier = Modifier
                                 .weight(1f)
                                 .focusRequester(focusRequester),
-                            placeholder = { Text("输入消息...", fontSize = 15.sp) },
+                            placeholder = {
+                                Text(
+                                    "发消息或按住说话...",
+                                    fontSize = 15.sp,
+                                    color = TextSecondary
+                                )
+                            },
                             maxLines = 4,
-                            shape = RoundedCornerShape(20.dp),
+                            shape = RoundedCornerShape(24.dp),
                             enabled = !isStreaming,
+                            keyboardOptions = androidx.compose.ui.text.input.KeyboardOptions(
+                                imeAction = androidx.compose.ui.text.input.ImeAction.Send
+                            ),
+                            keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                                onSend = { viewModel.sendMessage() }
+                            ),
                             colors = TextFieldDefaults.colors(
-                                focusedContainerColor = CardWhite,
-                                unfocusedContainerColor = CardWhite,
-                                focusedIndicatorColor = Color(0xFFD0D0D5),
-                                unfocusedIndicatorColor = Color(0xFFE5E5EA),
+                                focusedContainerColor = Color(0xFFF2F2F7),
+                                unfocusedContainerColor = Color(0xFFF2F2F7),
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent,
                                 cursorColor = TextPrimary
                             )
                         )
@@ -333,49 +337,160 @@ fun ChatScreen(
 
                     Spacer(modifier = Modifier.width(4.dp))
 
-                    // 表情按钮：开关互斥，和键盘互斥
+                    // 麦克风/键盘切换
                     IconButton(onClick = {
-                        if (showEmojiPanel) {
-                            // 面板已开：收起面板 + 弹出键盘
+                        if (isVoiceMode) {
+                            isVoiceMode = false
                             showEmojiPanel = false
+                            showPlusMenu = false
                             focusTrigger++
                         } else {
-                            // 面板没开：收起键盘 + 打开面板
-                            isVoiceMode = false
-                            showEmojiPanel = true
+                            isVoiceMode = true
+                            showEmojiPanel = false
+                            showPlusMenu = false
+                            focusManager.clearFocus()
+                            if (!hasRecordPermission) {
+                                permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                            }
+                        }
+                    }) {
+                        Icon(
+                            imageVector = if (isVoiceMode)
+                                Icons.Filled.Keyboard
+                            else
+                                Icons.Filled.Mic,
+                            contentDescription = if (isVoiceMode) "键盘" else "语音",
+                            tint = TextPrimary
+                        )
+                    }
+
+                    // + / × 按钮
+                    IconButton(onClick = {
+                        showPlusMenu = !showPlusMenu
+                        if (showPlusMenu) {
+                            showEmojiPanel = false
                             focusManager.clearFocus()
                         }
                     }) {
                         Icon(
-                            imageVector = Icons.Filled.EmojiEmotions,
-                            contentDescription = "表情",
-                            tint = if (showEmojiPanel)
-                                MaterialTheme.colorScheme.primary
+                            imageVector = if (showPlusMenu)
+                                Icons.Filled.Close
                             else
-                                MaterialTheme.colorScheme.onSurface
+                                Icons.Filled.Add,
+                            contentDescription = if (showPlusMenu) "关闭" else "更多",
+                            tint = TextPrimary
                         )
                     }
+                }
 
-                    // 文本模式下显示发送按钮
-                    if (!isVoiceMode) {
-                        TextButton(
-                            onClick = { viewModel.sendMessage() },
-                            enabled = inputText.isNotBlank() && !isStreaming,
-                            modifier = Modifier.focusProperties { canFocus = false }
+                // + 展开菜单：相机/相册/文件/打电话（功能先不做）
+                if (showPlusMenu) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFFF7F7F8))
+                            .padding(horizontal = 16.dp, vertical = 16.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(
-                                "发送",
-                                fontSize = 16.sp,
-                                color = if (inputText.isNotBlank() && !isStreaming)
-                                    MaterialTheme.colorScheme.primary
-                                else
-                                    TextSecondary
-                            )
+                            // 相机
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.clickable { }
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(Color(0xFFF2F2F7)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Camera,
+                                        contentDescription = "相机",
+                                        tint = TextPrimary,
+                                        modifier = Modifier.size(28.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text("相机", fontSize = 12.sp, color = TextSecondary)
+                            }
+
+                            // 相册
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.clickable { }
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(Color(0xFFF2F2F7)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.PhotoLibrary,
+                                        contentDescription = "相册",
+                                        tint = TextPrimary,
+                                        modifier = Modifier.size(28.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text("相册", fontSize = 12.sp, color = TextSecondary)
+                            }
+
+                            // 文件
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.clickable { }
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(Color(0xFFF2F2F7)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.AttachFile,
+                                        contentDescription = "文件",
+                                        tint = TextPrimary,
+                                        modifier = Modifier.size(28.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text("文件", fontSize = 12.sp, color = TextSecondary)
+                            }
+
+                            // 打电话
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.clickable { }
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(Color(0xFFF2F2F7)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Phone,
+                                        contentDescription = "打电话",
+                                        tint = TextPrimary,
+                                        modifier = Modifier.size(28.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text("打电话", fontSize = 12.sp, color = TextSecondary)
+                            }
                         }
                     }
                 }
 
-                // 表情面板
+                // 表情面板（代码保留，暂未触发）
                 if (showEmojiPanel && !isVoiceMode) {
                     EmojiPanel(
                         onEmojiClick = { emoji ->
