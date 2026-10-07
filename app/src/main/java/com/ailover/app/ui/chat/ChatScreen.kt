@@ -79,6 +79,7 @@ import coil.compose.AsyncImage
 import com.ailover.app.data.local.converter.MessageType
 import com.ailover.app.data.local.converter.SenderType
 import com.ailover.app.data.local.entity.MessageEntity
+import com.ailover.app.data.settings.UserProfileRepository
 import com.ailover.app.di.AppContainer
 import com.ailover.app.ui.theme.BubbleOther
 import com.ailover.app.ui.theme.BubbleSelf
@@ -112,6 +113,8 @@ fun ChatScreen(
     )
     val messages by viewModel.messages.collectAsState()
     val character by viewModel.character.collectAsState()
+    val userProfile by remember { AppContainer.userProfileRepository().userProfile }
+        .collectAsState(initial = com.ailover.app.data.settings.UserProfileRepository.UserProfile())
     val inputText by viewModel.inputText.collectAsState()
     val isStreaming by viewModel.isStreaming.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
@@ -424,6 +427,8 @@ fun ChatScreen(
                             message = message,
                             characterName = title,
                             characterAvatarUri = character?.avatarUri,
+                            userNickname = userProfile.nickname,
+                            userAvatarUri = userProfile.avatarUri,
                             isPlaying = currentPlayingId == message.id,
                             onPlayClick = {
                                 if (currentPlayingId == message.id) {
@@ -507,13 +512,15 @@ private fun MessageBubble(
     message: MessageEntity,
     characterName: String,
     characterAvatarUri: String?,
+    userNickname: String,
+    userAvatarUri: String?,
     isPlaying: Boolean,
     onPlayClick: () -> Unit
 ) {
     val isSelf = message.senderType == SenderType.USER
     val isSystem = message.senderType == SenderType.SYSTEM
     val isVoice = message.messageType == MessageType.VOICE
-    val firstChar = if (isSelf) "我" else characterName.firstOrNull()?.toString() ?: "?"
+    val firstChar = if (isSelf) userNickname.firstOrNull()?.toString() ?: "我" else characterName.firstOrNull()?.toString() ?: "?"
     // 气泡最大宽度：屏幕的 70%，防止长消息把头像挤出屏幕
     val screenWidth = LocalConfiguration.current.screenWidthDp.dp
     val maxBubbleWidth = screenWidth * 0.7f
@@ -613,7 +620,7 @@ private fun MessageBubble(
 
         if (isSelf) {
             Spacer(modifier = Modifier.width(8.dp))
-            Avatar(firstChar = firstChar)
+            Avatar(firstChar = firstChar, avatarUri = userAvatarUri)
         }
     }
 }

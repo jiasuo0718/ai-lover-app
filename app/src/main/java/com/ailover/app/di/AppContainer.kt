@@ -7,6 +7,7 @@ import com.ailover.app.data.repository.ChatRepository
 import com.ailover.app.data.repository.ConversationRepository
 import com.ailover.app.data.repository.MessageRepository
 import com.ailover.app.data.settings.SettingsRepository
+import com.ailover.app.data.settings.UserProfileRepository
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import okhttp3.OkHttpClient
@@ -21,6 +22,7 @@ object AppContainer {
     private var messageRepo: MessageRepository? = null
     private var chatRepo: ChatRepository? = null
     private var settingsRepo: SettingsRepository? = null
+    private var userProfileRepo: UserProfileRepository? = null
     private var okHttpClient: OkHttpClient? = null
     private var gson: Gson? = null
 
@@ -50,6 +52,7 @@ object AppContainer {
 
                     // 设置
                     settingsRepo = SettingsRepository(appContext)
+                    userProfileRepo = UserProfileRepository(appContext)
                 }
             }
         }
@@ -68,5 +71,8 @@ object AppContainer {
         ?: error("AppContainer not initialized")
 
     fun settingsRepository(): SettingsRepository = settingsRepo
+        ?: error("AppContainer not initialized")
+
+    fun userProfileRepository(): UserProfileRepository = userProfileRepo
         ?: error("AppContainer not initialized")
 }

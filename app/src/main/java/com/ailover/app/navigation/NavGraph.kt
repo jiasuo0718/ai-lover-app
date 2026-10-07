@@ -31,6 +31,8 @@ import com.ailover.app.ui.character.CharacterListScreen
 import com.ailover.app.ui.character.CharacterSettingsScreen
 import com.ailover.app.ui.chat.ChatScreen
 import com.ailover.app.ui.conversation.ConversationListScreen
+import com.ailover.app.ui.profile.ProfileScreen
+import com.ailover.app.ui.profile.UserProfileEditScreen
 import com.ailover.app.ui.settings.SettingsScreen
 import com.ailover.app.ui.theme.CardWhite
 import com.ailover.app.ui.theme.Divider
@@ -45,6 +47,8 @@ object Routes {
     const val CHARACTER_EDIT = "character_edit/{characterId}"
     const val CHARACTER_DETAIL = "character_detail/{characterId}"
     const val CHARACTER_SETTINGS = "character_settings/{characterId}"
+    const val USER_PROFILE_EDIT = "user_profile_edit"
+    const val API_SETTINGS = "api_settings"
 
     fun createChatRoute(conversationId: Long, title: String): String =
         "chat/$conversationId/$title"
@@ -169,9 +173,16 @@ fun AppNavGraph() {
                 )
             }
 
-            // 我（设置）
+            // 我（个人资料）
             composable(Routes.SETTINGS) {
-                SettingsScreen()
+                ProfileScreen(
+                    onEditProfileClick = {
+                        navController.navigate(Routes.USER_PROFILE_EDIT)
+                    },
+                    onApiSettingsClick = {
+                        navController.navigate(Routes.API_SETTINGS)
+                    }
+                )
             }
 
             // ========== 二级页面（不显示底部导航） ==========
@@ -262,6 +273,19 @@ fun AppNavGraph() {
                         navigateToTopLevel(Routes.CONTACTS)
                     }
                 )
+            }
+
+            // 编辑个人信息页
+            composable(Routes.USER_PROFILE_EDIT) {
+                UserProfileEditScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onSaved = { navController.popBackStack() }
+                )
+            }
+
+            // API 设置页
+            composable(Routes.API_SETTINGS) {
+                SettingsScreen()
             }
         }
     }
