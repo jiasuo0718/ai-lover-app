@@ -21,8 +21,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.onGloballyPositioned
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
@@ -79,7 +78,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.style.TextOverflow
@@ -188,17 +186,16 @@ fun ChatScreen(
     }
 
     // 键盘弹出时自动滚到底部，确保最新消息不被键盘遮挡
-    val density = LocalDensity.current
-    val imeBottom = WindowInsets.ime.getBottom(density)
-    LaunchedEffect(imeBottom) {
-        if (imeBottom > 0 && messages.isNotEmpty()) {
+    val isImeVisible = androidx.compose.foundation.layout.isImeVisible
+    var listHeight by remember { mutableStateOf(0) }
+    LaunchedEffect(isImeVisible, listHeight) {
+        if (isImeVisible && messages.isNotEmpty()) {
             delay(100)
             listState.scrollToItem(messages.size - 1)
         }
     }
 
     // 统一返回逻辑：先收浮层（+菜单/表情面板/键盘），再退页面
-    val keyboardVisible = WindowInsets.ime.getBottom(density) > 0
     val handleBack: () -> Unit = {
         when {
             showPlusMenu -> {
@@ -207,7 +204,7 @@ fun ChatScreen(
             showEmojiPanel -> {
                 showEmojiPanel = false
             }
-            keyboardVisible -> {
+            isImeVisible -> {
                 focusManager.clearFocus()
             }
             else -> {
@@ -579,7 +576,11 @@ fun ChatScreen(
             } else {
                 LazyColumn(
                     state = listState,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .onGloballyPositioned { coordinates ->
+                            listHeight = coordinates.size.height
+                        },
                     contentPadding = PaddingValues(vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
