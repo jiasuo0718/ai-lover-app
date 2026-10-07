@@ -43,10 +43,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.ailover.app.data.local.entity.CharacterEntity
 import com.ailover.app.data.local.relation.ConversationWithCharacter
 import com.ailover.app.di.AppContainer
@@ -57,6 +59,7 @@ import com.ailover.app.ui.theme.TextPrimary
 import com.ailover.app.ui.theme.TextSecondary
 import com.ailover.app.util.TimeUtils
 import kotlinx.coroutines.launch
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -232,6 +235,7 @@ private fun CharacterPickerItem(
     val personalityPreview = character.personality.take(30).let {
         if (character.personality.length > 30) "$it..." else it
     }
+    val hasCustomAvatar = character.avatarUri != null && File(character.avatarUri!!).exists()
 
     Row(
         modifier = Modifier
@@ -241,18 +245,29 @@ private fun CharacterPickerItem(
         verticalAlignment = Alignment.CenterVertically
     ) {
         // 头像
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(BubbleSelf),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = firstChar,
-                color = Color.White,
-                fontSize = 16.sp
+        if (hasCustomAvatar) {
+            AsyncImage(
+                model = File(character.avatarUri!!),
+                contentDescription = character.name,
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.Crop
             )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(BubbleSelf),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = firstChar,
+                    color = Color.White,
+                    fontSize = 16.sp
+                )
+            }
         }
 
         Spacer(modifier = Modifier.width(12.dp))
@@ -288,6 +303,8 @@ private fun ConversationItem(
     val lastMessage = item.conversation.lastMessage ?: "开始聊天吧"
     val time = TimeUtils.formatConversationTime(item.conversation.updatedAt)
     val firstChar = name.firstOrNull()?.toString() ?: "?"
+    val avatarUri = item.character?.avatarUri
+    val hasCustomAvatar = avatarUri != null && File(avatarUri).exists()
 
     Row(
         modifier = Modifier
@@ -297,18 +314,29 @@ private fun ConversationItem(
         verticalAlignment = Alignment.CenterVertically
     ) {
         // 头像
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(BubbleSelf),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = firstChar,
-                color = Color.White,
-                fontSize = 20.sp
+        if (hasCustomAvatar) {
+            AsyncImage(
+                model = File(avatarUri!!),
+                contentDescription = name,
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.Crop
             )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(BubbleSelf),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = firstChar,
+                    color = Color.White,
+                    fontSize = 20.sp
+                )
+            }
         }
 
         Spacer(modifier = Modifier.width(12.dp))

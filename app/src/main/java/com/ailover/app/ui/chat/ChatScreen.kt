@@ -63,6 +63,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -72,6 +73,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.ailover.app.data.local.converter.MessageType
 import com.ailover.app.data.local.converter.SenderType
 import com.ailover.app.data.local.entity.MessageEntity
@@ -86,6 +88,7 @@ import com.ailover.app.ui.theme.TextSecondary
 import com.ailover.app.util.AudioPlayer
 import com.ailover.app.util.TimeUtils
 import kotlinx.coroutines.delay
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -105,6 +108,7 @@ fun ChatScreen(
         )
     )
     val messages by viewModel.messages.collectAsState()
+    val character by viewModel.character.collectAsState()
     val inputText by viewModel.inputText.collectAsState()
     val isStreaming by viewModel.isStreaming.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
@@ -402,6 +406,7 @@ fun ChatScreen(
                         MessageBubble(
                             message = message,
                             characterName = title,
+                            characterAvatarUri = character?.avatarUri,
                             isPlaying = currentPlayingId == message.id,
                             onPlayClick = {
                                 if (currentPlayingId == message.id) {
@@ -484,6 +489,7 @@ fun ChatScreen(
 private fun MessageBubble(
     message: MessageEntity,
     characterName: String,
+    characterAvatarUri: String?,
     isPlaying: Boolean,
     onPlayClick: () -> Unit
 ) {
@@ -516,7 +522,7 @@ private fun MessageBubble(
         }
     ) {
         if (!isSelf && !isSystem) {
-            Avatar(firstChar = firstChar)
+            Avatar(firstChar = firstChar, avatarUri = characterAvatarUri)
             Spacer(modifier = Modifier.width(8.dp))
         }
 
@@ -658,7 +664,8 @@ private fun PlayingWaveform() {
 }
 
 @Composable
-private fun Avatar(firstChar: String) {
+private fun Avatar(firstChar: String, avatarUri: String? = null) {
+    val hasCustomAvatar = avatarUri != null && File(avatarUri).exists()
     Box(
         modifier = Modifier
             .size(40.dp)
@@ -666,10 +673,19 @@ private fun Avatar(firstChar: String) {
             .background(MaterialTheme.colorScheme.primary),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = firstChar,
-            color = Color.White,
-            fontSize = 16.sp
-        )
+        if (hasCustomAvatar) {
+            AsyncImage(
+                model = File(avatarUri!!),
+                contentDescription = "头像",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Text(
+                text = firstChar,
+                color = Color.White,
+                fontSize = 16.sp
+            )
+        }
     }
 }

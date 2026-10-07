@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.ailover.app.data.local.converter.MessageType
 import com.ailover.app.data.local.converter.SenderType
+import com.ailover.app.data.local.entity.CharacterEntity
 import com.ailover.app.data.local.entity.MessageEntity
 import com.ailover.app.data.remote.model.ChatMessage
 import com.ailover.app.data.remote.model.ChatRequest
@@ -37,6 +38,18 @@ class ChatViewModel(
                 started = SharingStarted.WhileSubscribed(5000),
                 initialValue = emptyList()
             )
+
+    private val _character = MutableStateFlow<CharacterEntity?>(null)
+    val character: StateFlow<CharacterEntity?> = _character.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            val conversation = conversationRepository.getConversationById(conversationId)
+            conversation?.let {
+                _character.value = characterRepository.getCharacterById(it.characterId)
+            }
+        }
+    }
 
     private val _inputText = MutableStateFlow("")
     val inputText: StateFlow<String> = _inputText.asStateFlow()
