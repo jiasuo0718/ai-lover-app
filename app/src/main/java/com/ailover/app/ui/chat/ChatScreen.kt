@@ -1,6 +1,8 @@
 package com.ailover.app.ui.chat
 
 import android.Manifest
+import android.graphics.Rect
+import android.view.ViewTreeObserver
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -21,8 +23,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.LocalWindowInsets
-import androidx.compose.foundation.layout.onSizeChanged
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
@@ -62,6 +62,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -79,8 +80,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -188,11 +189,22 @@ fun ChatScreen(
     }
 
     // 键盘弹出时自动滚到底部，确保最新消息不被键盘遮挡
-    val density = LocalDensity.current
-    val imeBottom = LocalWindowInsets.current.ime.getBottom(density)
-    var listHeight by remember { mutableStateOf(0) }
-    LaunchedEffect(imeBottom, listHeight) {
-        if (imeBottom > 0 && messages.isNotEmpty()) {
+    val view = LocalView.current
+    var keyboardHeight by remember { mutableStateOf(0) }
+    DisposableEffect(view) {
+        val listener = ViewTreeObserver.OnGlobalLayoutListener {
+            val rect = Rect()
+            view.getWindowVisibleDisplayFrame(rect)
+            val screenHeight = view.rootView.height
+            keyboardHeight = screenHeight - rect.bottom
+        }
+        view.viewTreeObserver.addOnGlobalLayoutListener(listener)
+        onDispose {
+            view.viewTreeObserver.removeOnGlobalLayoutListener(listener)
+        }
+    }
+    LaunchedEffect(keyboardHeight) {
+        if (keyboardHeight > 0 && messages.isNotEmpty()) {
             delay(100)
             listState.scrollToItem(messages.size - 1)
         }
@@ -207,7 +219,7 @@ fun ChatScreen(
             showEmojiPanel -> {
                 showEmojiPanel = false
             }
-            imeBottom > 0 -> {
+            keyboardHeight > 0 -> {
                 focusManager.clearFocus()
             }
             else -> {
@@ -579,11 +591,7 @@ fun ChatScreen(
             } else {
                 LazyColumn(
                     state = listState,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .onSizeChanged { size ->
-                            listHeight = size.height
-                        },
+                    modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
