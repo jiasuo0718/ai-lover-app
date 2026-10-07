@@ -375,7 +375,7 @@ fun ChatScreen(
                                 }
                             }) {
                                 Icon(
-                                    imageVector = IconParkIcons.Outline.Microphone,
+                                    imageVector = IconParkIcons.Outline.VoiceMessage,
                                     contentDescription = "语音",
                                     modifier = Modifier.size(24.dp)
                                 )
@@ -398,7 +398,7 @@ fun ChatScreen(
                                     )
                                 } else {
                                     Icon(
-                                        imageVector = IconParkIcons.Outline.Add,
+                                        imageVector = IconParkIcons.Outline.AddOne,
                                         contentDescription = "更多",
                                         modifier = Modifier.size(24.dp)
                                     )
