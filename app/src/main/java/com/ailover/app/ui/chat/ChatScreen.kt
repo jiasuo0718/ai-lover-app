@@ -102,7 +102,7 @@ import com.ailover.app.ui.theme.TextPrimary
 import com.ailover.app.ui.theme.TextSecondary
 import com.ailover.app.util.AudioPlayer
 import com.ailover.app.util.TimeUtils
-import io.github.qdsfdhvh.iconpark.IconPark
+import io.github.qdsfdhvh.iconpark.IconParkIcons
 import kotlinx.coroutines.delay
 import java.io.File
 
@@ -294,7 +294,7 @@ fun ChatScreen(
                     ) {
                         // 相机图标（IconPark）
                         Icon(
-                            imageVector = IconPark.Outline.Camera,
+                            imageVector = IconParkIcons.Outline.Camera,
                             contentDescription = "相机",
                             modifier = Modifier.size(24.dp)
                         )
@@ -380,7 +380,7 @@ fun ChatScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
-                                        imageVector = IconPark.Outline.Mic,
+                                        imageVector = IconParkIcons.Outline.Microphone,
                                         contentDescription = "语音",
                                         modifier = Modifier.size(16.dp)
                                     )
@@ -410,7 +410,7 @@ fun ChatScreen(
                                         )
                                     } else {
                                         Icon(
-                                            imageVector = IconPark.Outline.Plus,
+                                            imageVector = IconParkIcons.Outline.Add,
                                             contentDescription = "更多",
                                             modifier = Modifier.size(16.dp)
                                         )
@@ -431,7 +431,7 @@ fun ChatScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
-                                        imageVector = IconPark.Outline.ArrowUp,
+                                        imageVector = IconParkIcons.Outline.ArrowUp,
                                         contentDescription = "发送",
                                         tint = Color.White,
                                         modifier = Modifier.size(18.dp)
