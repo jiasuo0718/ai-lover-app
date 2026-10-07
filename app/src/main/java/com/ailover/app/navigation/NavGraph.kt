@@ -1,6 +1,8 @@
 package com.ailover.app.navigation
 
 import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -152,26 +154,11 @@ fun AppNavGraph() {
             navController = navController,
             startDestination = Routes.CONVERSATION_LIST,
             modifier = Modifier,
-            enterTransition = {
-                // 二级页面：从右侧滑入 + 淡入，150ms
-                slideInHorizontally(
-                    initialOffsetX = { it / 4 },
-                    animationSpec = tween(150)
-                ) + fadeIn(animationSpec = tween(150))
-            },
-            exitTransition = {
-                fadeOut(animationSpec = tween(100))
-            },
-            popEnterTransition = {
-                fadeIn(animationSpec = tween(150))
-            },
-            popExitTransition = {
-                // 返回时：向右侧滑出 + 淡出，150ms
-                slideOutHorizontally(
-                    targetOffsetX = { it / 4 },
-                    animationSpec = tween(150)
-                ) + fadeOut(animationSpec = tween(150))
-            }
+            // 默认：所有页面切换无动画，直接出现
+            enterTransition = { EnterTransition.None },
+            exitTransition = { ExitTransition.None },
+            popEnterTransition = { EnterTransition.None },
+            popExitTransition = { ExitTransition.None }
         ) {
             // ========== 顶层页面 ==========
 
@@ -213,13 +200,31 @@ fun AppNavGraph() {
 
             // ========== 二级页面（不显示底部导航） ==========
 
-            // 聊天页
+            // 聊天页（唯一保留滑入动画的页面）
             composable(
                 route = Routes.CHAT,
                 arguments = listOf(
                     navArgument("conversationId") { type = NavType.LongType },
                     navArgument("title") { type = NavType.StringType }
-                )
+                ),
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { it / 4 },
+                        animationSpec = tween(150)
+                    ) + fadeIn(animationSpec = tween(150))
+                },
+                exitTransition = {
+                    fadeOut(animationSpec = tween(100))
+                },
+                popEnterTransition = {
+                    fadeIn(animationSpec = tween(150))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { it / 4 },
+                        animationSpec = tween(150)
+                    ) + fadeOut(animationSpec = tween(150))
+                }
             ) { backStackEntry ->
                 val conversationId = backStackEntry.arguments?.getLong("conversationId") ?: 0L
                 val title = backStackEntry.arguments?.getString("title") ?: "聊天"
