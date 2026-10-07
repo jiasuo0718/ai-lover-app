@@ -96,13 +96,25 @@ class CharacterEditViewModel(
         val trimmedName = _name.value.trim()
         if (trimmedName.isEmpty()) return null
 
-        val character = CharacterEntity(
-            id = characterId ?: 0,
-            name = trimmedName,
-            avatarUri = _avatarUri.value,
-            personality = _personality.value.trim()
-        )
-        return characterRepository.insertCharacter(character)
+        return if (characterId != null) {
+            // 编辑模式：用 update，不能用 insert REPLACE（会先删后插，级联删除会话和消息）
+            val character = CharacterEntity(
+                id = characterId,
+                name = trimmedName,
+                avatarUri = _avatarUri.value,
+                personality = _personality.value.trim()
+            )
+            characterRepository.updateCharacter(character)
+            characterId
+        } else {
+            // 新建模式：用 insert
+            val character = CharacterEntity(
+                name = trimmedName,
+                avatarUri = _avatarUri.value,
+                personality = _personality.value.trim()
+            )
+            characterRepository.insertCharacter(character)
+        }
     }
 
     suspend fun delete() {
