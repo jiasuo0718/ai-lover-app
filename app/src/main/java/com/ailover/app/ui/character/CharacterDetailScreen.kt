@@ -19,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChatBubble
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -190,120 +191,130 @@ fun CharacterDetailScreen(
                     .padding(paddingValues)
                     .verticalScroll(rememberScrollState())
             ) {
-                // ===== 顶部：头像 + 名字 + 人设（白卡，左对齐）=====
+                // ===== 顶部：头像 + 名字 + 人设 + 角色设定（同一块白卡）=====
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(CardWhite)
-                        .padding(horizontal = 16.dp, vertical = 20.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
+                    // 头像区
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 20.dp)
                     ) {
-                        // 头像（圆角方形 64dp）
-                        val hasCustomAvatar = char.avatarUri != null && File(char.avatarUri!!).exists()
-                        if (hasCustomAvatar) {
-                            AsyncImage(
-                                model = File(char.avatarUri!!),
-                                contentDescription = char.name,
-                                modifier = Modifier
-                                    .size(64.dp)
-                                    .clip(RoundedCornerShape(8.dp)),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            Box(
-                                modifier = Modifier
-                                    .size(64.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(BubbleSelf),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = char.name.firstOrNull()?.toString() ?: "?",
-                                    color = Color.White,
-                                    fontSize = 24.sp,
-                                    fontWeight = FontWeight.Medium
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // 头像（圆角方形 64dp）
+                            val hasCustomAvatar = char.avatarUri != null && File(char.avatarUri!!).exists()
+                            if (hasCustomAvatar) {
+                                AsyncImage(
+                                    model = File(char.avatarUri!!),
+                                    contentDescription = char.name,
+                                    modifier = Modifier
+                                        .size(64.dp)
+                                        .clip(RoundedCornerShape(8.dp)),
+                                    contentScale = ContentScale.Crop
                                 )
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .size(64.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(BubbleSelf),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = char.name.firstOrNull()?.toString() ?: "?",
+                                        color = Color.White,
+                                        fontSize = 24.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
                             }
-                        }
 
-                        Spacer(modifier = Modifier.width(16.dp))
+                            Spacer(modifier = Modifier.width(16.dp))
 
-                        // 名字 + 人设摘要 + 创建时间
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = char.name,
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = TextPrimary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            if (char.personality.isNotBlank()) {
-                                Spacer(modifier = Modifier.height(4.dp))
+                            // 名字 + 人设摘要 + 创建时间
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = char.personality.take(30).let {
-                                        if (char.personality.length > 30) "$it..." else it
-                                    },
-                                    fontSize = 13.sp,
-                                    color = TextSecondary,
+                                    text = char.name,
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextPrimary,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
+                                if (char.personality.isNotBlank()) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = char.personality.take(30).let {
+                                            if (char.personality.length > 30) "$it..." else it
+                                        },
+                                        fontSize = 13.sp,
+                                        color = TextSecondary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                val createTime = remember(char.createdAt) {
+                                    SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                                        .format(Date(char.createdAt))
+                                }
+                                Text(
+                                    text = "创建于 $createTime",
+                                    fontSize = 12.sp,
+                                    color = TextSecondary
+                                )
                             }
-                            Spacer(modifier = Modifier.height(4.dp))
-                            val createTime = remember(char.createdAt) {
-                                SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                                    .format(Date(char.createdAt))
-                            }
-                            Text(
-                                text = "创建于 $createTime",
-                                fontSize = 12.sp,
-                                color = TextSecondary
-                            )
                         }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // ===== 分组一：角色设定（白卡）=====
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(CardWhite)
-                ) {
-                    // 分组标题
-                    Text(
-                        text = "角色设定",
-                        fontSize = 13.sp,
-                        color = TextSecondary,
-                        modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp)
-                    )
-                    // 完整人设（点击进编辑页）
-                    Row(
+                    // 极细分割线
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable(onClick = onEditClick)
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                            .height(1.dp)
+                            .background(Color(0xFFE5E5EA))
+                    )
+
+                    // 角色设定
+                    Column(
+                        modifier = Modifier.fillMaxWidth()
                     ) {
+                        // 分组标题
                         Text(
-                            text = char.personality.ifBlank { "暂无设定，点击编辑" },
-                            fontSize = 15.sp,
-                            color = if (char.personality.isBlank()) TextSecondary else TextPrimary,
-                            modifier = Modifier.weight(1f),
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
+                            text = "角色设定",
+                            fontSize = 13.sp,
+                            color = TextSecondary,
+                            modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Icon(
-                            imageVector = Icons.Filled.ChevronRight,
-                            contentDescription = null,
-                            tint = TextSecondary,
-                            modifier = Modifier.size(20.dp)
-                        )
+                        // 完整人设（点击进编辑页）
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(onClick = onEditClick)
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = char.personality.ifBlank { "暂无设定，点击编辑" },
+                                fontSize = 15.sp,
+                                color = if (char.personality.isBlank()) TextSecondary else TextPrimary,
+                                modifier = Modifier.weight(1f),
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Icon(
+                                imageVector = Icons.Filled.ChevronRight,
+                                contentDescription = null,
+                                tint = TextSecondary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                 }
 
@@ -354,9 +365,9 @@ fun CharacterDetailScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                // ===== 底部按钮：发消息（白卡，左对齐）=====
+                // ===== 底部按钮：发消息（白卡，居中，空心气泡）=====
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -365,6 +376,7 @@ fun CharacterDetailScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .height(56.dp)
                             .clickable {
                                 scope.launch {
                                     val conversation = conversations.firstOrNull()
@@ -375,17 +387,17 @@ fun CharacterDetailScreen(
                                     }
                                     onStartChat(conversationId, char.name)
                                 }
-                            }
-                            .padding(horizontal = 16.dp, vertical = 16.dp),
+                            },
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.Center
                     ) {
                         Icon(
-                            Icons.Filled.ChatBubble,
+                            Icons.Outlined.ChatBubbleOutline,
                             contentDescription = null,
                             tint = TextPrimary,
                             modifier = Modifier.size(22.dp)
                         )
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "发消息",
                             color = TextPrimary,
