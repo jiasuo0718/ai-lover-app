@@ -114,6 +114,25 @@ fun CharacterListScreen(
                 map
             }
 
+            // 完整字母表 A-Z + #
+            val allLetters = remember { listOf("#") + ('A'..'Z').map { it.toString() } }
+            val availableLetters = remember(grouped) { grouped.map { it.first }.toSet() }
+
+            // 找最近的有角色的字母（用于点击没角色的字母时跳转）
+            fun findNearestLetter(target: String): String? {
+                if (target in availableLetters) return target
+                val targetIdx = allLetters.indexOf(target)
+                // 向前找
+                for (i in targetIdx - 1 downTo 0) {
+                    if (allLetters[i] in availableLetters) return allLetters[i]
+                }
+                // 向后找
+                for (i in targetIdx + 1 until allLetters.size) {
+                    if (allLetters[i] in availableLetters) return allLetters[i]
+                }
+                return null
+            }
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -163,26 +182,28 @@ fun CharacterListScreen(
                     }
                 }
 
-                // 右侧字母索引条
+                // 右侧字母索引条（完整 A-Z + #）
                 Column(
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
                         .padding(end = 2.dp)
                 ) {
-                    grouped.forEach { (letter, _) ->
+                    allLetters.forEach { letter ->
+                        val hasCharacters = letter in availableLetters
                         Text(
                             text = letter,
-                            fontSize = 11.sp,
-                            color = TextSecondary,
+                            fontSize = 10.sp,
+                            color = if (hasCharacters) TextPrimary else Color(0xFFC7C7CC),
                             modifier = Modifier
-                                .clickable {
+                                .clickable(enabled = hasCharacters) {
                                     scope.launch {
-                                        letterIndexMap[letter]?.let { idx ->
+                                        val target = findNearestLetter(letter)
+                                        target?.let { letterIndexMap[it] }?.let { idx ->
                                             listState.scrollToItem(idx)
                                         }
                                     }
                                 }
-                                .padding(horizontal = 6.dp, vertical = 1.dp)
+                                .padding(horizontal = 6.dp, vertical = 0.5.dp)
                         )
                     }
                 }
@@ -199,8 +220,9 @@ private fun CharacterItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .height(64.dp)
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // 头像（圆角方形 8dp，40dp，跟其他页面统一）
@@ -239,7 +261,7 @@ private fun CharacterItem(
                 color = MaterialTheme.colorScheme.onBackground,
                 maxLines = 1
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = character.personality.ifEmpty { "暂无设定" },
                 fontSize = 14.sp,
