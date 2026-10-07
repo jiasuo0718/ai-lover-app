@@ -2,6 +2,7 @@ package com.ailover.app.ui.character
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +25,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -153,6 +155,7 @@ fun CharacterDetailScreen(
     val conversations by viewModel.conversations.collectAsState()
     val scope = rememberCoroutineScope()
     var showDeleteDialog by remember { mutableStateOf(false) }
+    val personalityInteractionSource = remember { MutableInteractionSource() }
 
     Scaffold(
         topBar = {
@@ -295,7 +298,11 @@ fun CharacterDetailScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable(onClick = onEditClick)
+                                .clickable(
+                                    interactionSource = personalityInteractionSource,
+                                    indication = rememberRipple(color = Color(0xFFD0D0D5)),
+                                    onClick = onEditClick
+                                )
                                 .padding(horizontal = 16.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -455,12 +462,17 @@ private fun DetailRow(
     onClick: (() -> Unit)? = null,
     showArrow: Boolean = false
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(CardWhite)
             .then(
-                if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
+                if (onClick != null) Modifier.clickable(
+                    interactionSource = interactionSource,
+                    indication = rememberRipple(color = Color(0xFFD0D0D5)),
+                    onClick = onClick
+                ) else Modifier
             )
             .padding(horizontal = 24.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
