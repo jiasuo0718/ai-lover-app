@@ -190,9 +190,22 @@ fun ChatScreen(
         }
     }
 
-    // reverseLayout=true 后最新消息天然在顶部，不需要滚到底
-    // 键盘弹出时最新消息也在顶部可见，不需要滚动
+    // 新消息或 AI 流式更新时自动滚到底部（瞬间定位，无动画，避免"倒带"效果）
+    LaunchedEffect(messages.size, messages.lastOrNull()?.content) {
+        if (messages.isNotEmpty()) {
+            delay(50)
+            listState.scrollToItem(messages.size - 1)
+        }
+    }
+
+    // 键盘弹出时自动滚到底部（通过输入框焦点变化触发）
     var isInputFocused by remember { mutableStateOf(false) }
+    LaunchedEffect(isInputFocused) {
+        if (isInputFocused && messages.isNotEmpty()) {
+            delay(200)
+            listState.scrollToItem(messages.size - 1)
+        }
+    }
 
     // 统一返回逻辑：先收浮层（+菜单/表情面板/键盘），再退页面
     val handleBack: () -> Unit = {
@@ -581,8 +594,7 @@ fun ChatScreen(
                         .fillMaxSize()
                         .imePadding(),
                     contentPadding = PaddingValues(vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    reverseLayout = true
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(messages, key = { it.id }) { message ->
                         MessageBubble(
