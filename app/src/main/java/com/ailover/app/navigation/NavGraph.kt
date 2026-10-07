@@ -16,6 +16,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Person
+import io.github.qdsfdhvh.iconpark.IconParkIcons
+import io.github.qdsfdhvh.iconpark.outline.*
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -81,9 +83,9 @@ private data class BottomNavItem(
 )
 
 private val bottomNavItems = listOf(
-    BottomNavItem(Routes.CONVERSATION_LIST, "聊天", Icons.Filled.ChatBubble),
-    BottomNavItem(Routes.CONTACTS, "通讯录", Icons.Filled.Group),
-    BottomNavItem(Routes.SETTINGS, "我", Icons.Filled.Person)
+    BottomNavItem(Routes.CONVERSATION_LIST, "聊天", IconParkIcons.Outline.Comment),
+    BottomNavItem(Routes.CONTACTS, "通讯录", IconParkIcons.Outline.PersonalCollection),
+    BottomNavItem(Routes.SETTINGS, "我", IconParkIcons.Outline.People)
 )
 
 @Composable
