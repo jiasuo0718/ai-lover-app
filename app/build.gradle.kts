@@ -25,7 +25,7 @@ android {
 
     // 固定 debug 签名，保证每次构建签名一致，支持覆盖安装
     signingConfigs {
-        create("debug") {
+        create("fixed") {
             storeFile = file("../debug.keystore")
             storePassword = "android"
             keyAlias = "debug"
@@ -35,7 +35,7 @@ android {
 
     buildTypes {
         debug {
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("fixed")
         }
         release {
             isMinifyEnabled = false
