@@ -82,6 +82,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -291,11 +292,10 @@ fun ChatScreen(
                             .padding(horizontal = 14.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // 相机图标
+                        // 相机图标（IconPark 细线条风格）
                         Icon(
-                            imageVector = Icons.Outlined.PhotoCamera,
+                            painter = painterResource(id = R.drawable.ic_camera),
                             contentDescription = "相机",
-                            tint = TextPrimary,
                             modifier = Modifier.size(24.dp)
                         )
 
@@ -380,9 +380,8 @@ fun ChatScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Filled.Mic,
+                                        painter = painterResource(id = R.drawable.ic_mic),
                                         contentDescription = "语音",
-                                        tint = TextPrimary,
                                         modifier = Modifier.size(16.dp)
                                     )
                                 }
@@ -402,15 +401,20 @@ fun ChatScreen(
                                         .border(1.5.dp, TextPrimary, CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(
-                                        imageVector = if (showPlusMenu)
-                                            Icons.Filled.Close
-                                        else
-                                            Icons.Filled.Add,
-                                        contentDescription = if (showPlusMenu) "关闭" else "更多",
-                                        tint = TextPrimary,
-                                        modifier = Modifier.size(16.dp)
-                                    )
+                                    if (showPlusMenu) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Close,
+                                            contentDescription = "关闭",
+                                            tint = TextPrimary,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    } else {
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.ic_plus),
+                                            contentDescription = "更多",
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
                                 }
                             }
                         } else {
@@ -423,14 +427,13 @@ fun ChatScreen(
                                     modifier = Modifier
                                         .size(32.dp)
                                         .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.primary),
+                                        .background(Color(0xFF0A84FF)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Filled.ArrowUpward,
+                                        painter = painterResource(id = R.drawable.ic_arrow_up),
                                         contentDescription = "发送",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(20.dp)
+                                        modifier = Modifier.size(18.dp)
                                     )
                                 }
                             }
