@@ -177,6 +177,19 @@ fun ChatScreen(
     val audioPlayer = remember { AudioPlayer() }
     var currentPlayingId by remember { mutableStateOf<Long?>(null) }
 
+    // 空状态延迟显示：数据加载前显示空白，避免"闪一下"
+    var showEmptyState by remember { mutableStateOf(false) }
+    LaunchedEffect(messages.isEmpty()) {
+        if (messages.isEmpty()) {
+            delay(300)
+            if (messages.isEmpty()) {
+                showEmptyState = true
+            }
+        } else {
+            showEmptyState = false
+        }
+    }
+
     // 新消息或 AI 流式更新时自动滚到底部（瞬间定位，无动画，避免"倒带"效果）
     LaunchedEffect(messages.size, messages.lastOrNull()?.content) {
         if (messages.isNotEmpty()) {
@@ -563,7 +576,7 @@ fun ChatScreen(
                 .padding(paddingValues)
                 .background(MaterialTheme.colorScheme.background)
         ) {
-            if (messages.isEmpty()) {
+            if (showEmptyState && messages.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -574,7 +587,7 @@ fun ChatScreen(
                         fontSize = 15.sp
                     )
                 }
-            } else {
+            } else if (messages.isNotEmpty()) {
                 LazyColumn(
                     state = listState,
                     modifier = Modifier
