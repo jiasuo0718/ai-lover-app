@@ -172,26 +172,29 @@ fun CharacterDetailScreen(
                             }
                             DropdownMenu(
                                 expanded = showMenu,
-                                onDismissRequest = { showMenu = false }
+                                onDismissRequest = { showMenu = false },
+                                colors = androidx.compose.material3.DropdownMenuDefaults.colors(
+                                    containerColor = CardWhite
+                                )
                             ) {
                                 DropdownMenuItem(
-                                    text = { Text("编辑角色") },
+                                    text = { Text("编辑角色", color = TextPrimary) },
                                     onClick = {
                                         showMenu = false
                                         onEditClick()
                                     },
                                     leadingIcon = {
-                                        Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(20.dp))
+                                        Icon(Icons.Filled.Edit, contentDescription = null, tint = TextPrimary, modifier = Modifier.size(20.dp))
                                     }
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("删除角色", color = Color.Red) },
+                                    text = { Text("删除角色", color = Color(0xFFFF3B30)) },
                                     onClick = {
                                         showMenu = false
                                         showDeleteDialog = true
                                     },
                                     leadingIcon = {
-                                        Icon(Icons.Filled.Delete, contentDescription = null, tint = Color.Red, modifier = Modifier.size(20.dp))
+                                        Icon(Icons.Filled.Delete, contentDescription = null, tint = Color(0xFFFF3B30), modifier = Modifier.size(20.dp))
                                     }
                                 )
                             }
@@ -311,12 +314,11 @@ fun CharacterDetailScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // ===== 底部按钮 =====
+                // ===== 底部按钮：只保留发消息 =====
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                        .padding(horizontal = 24.dp)
                 ) {
                     // 发消息（主按钮）
                     Box(
@@ -355,40 +357,6 @@ fun CharacterDetailScreen(
                                 fontWeight = FontWeight.Medium
                             )
                         }
-                    }
-
-                    // 编辑角色（次按钮）
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(44.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(HintBg)
-                            .clickable { onEditClick() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "编辑角色",
-                            color = TextPrimary,
-                            fontSize = 15.sp
-                        )
-                    }
-
-                    // 删除角色（红色）
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(44.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(HintBg)
-                            .clickable { showDeleteDialog = true },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "删除角色",
-                            color = Color.Red,
-                            fontSize = 15.sp
-                        )
                     }
                 }
 

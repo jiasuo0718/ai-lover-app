@@ -94,19 +94,22 @@ fun AppNavGraph() {
                         tonalElevation = 0.dp
                     ) {
                         bottomNavItems.forEach { item ->
+                            val isSelected = currentRoute == item.route
                             NavigationBarItem(
-                                selected = currentRoute == item.route,
+                                selected = isSelected,
                                 onClick = { navigateToTopLevel(item.route) },
                                 icon = {
                                     Icon(
                                         imageVector = item.icon,
-                                        contentDescription = item.label
+                                        contentDescription = item.label,
+                                        tint = if (isSelected) TextPrimary else TextSecondary
                                     )
                                 },
                                 label = {
                                     Text(
                                         text = item.label,
-                                        fontSize = 11.sp
+                                        fontSize = 11.sp,
+                                        color = if (isSelected) TextPrimary else TextSecondary
                                     )
                                 },
                                 colors = NavigationBarItemDefaults.colors(
