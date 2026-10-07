@@ -117,8 +117,8 @@ fun CharacterListScreen(
                 map
             }
 
-            // 完整字母表 A-Z + #
-            val allLetters = remember { listOf("#") + ('A'..'Z').map { it.toString() } }
+            // 完整字母表 A-Z + #（# 在最后，跟列表分组一致）
+            val allLetters = remember { ('A'..'Z').map { it.toString() } + listOf("#") }
             val availableLetters = remember(grouped) { grouped.map { it.first }.toSet() }
 
             // 找最近的有角色的字母（用于点击没角色的字母时跳转）
@@ -143,7 +143,8 @@ fun CharacterListScreen(
             ) {
                 LazyColumn(
                     state = listState,
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 96.dp)
                 ) {
                     grouped.forEach { (letter, groupCharacters) ->
                         // 分组标题条（浅灰底，高度30dp，字母13sp）
@@ -256,26 +257,25 @@ fun CharacterListScreen(
                             }
                         }
                     }
+                }
 
-                    // 大字母气泡提示（滑动时显示）
-                    if (isDragging && selectedIndex >= 0) {
-                        val selectedLetter = allLetters[selectedIndex]
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.CenterStart)
-                                .padding(end = 36.dp)
-                                .size(56.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFF0A84FF)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = selectedLetter,
-                                fontSize = 28.sp,
-                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                                color = Color.White
-                            )
-                        }
+                // 大字母气泡提示（滑动时显示，屏幕中央）
+                if (isDragging && selectedIndex >= 0) {
+                    val selectedLetter = allLetters[selectedIndex]
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .size(80.dp)
+                            .clip(androidx.compose.foundation.shape.CircleShape)
+                            .background(Color(0xCC8E8E93)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = selectedLetter,
+                            fontSize = 40.sp,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                            color = Color.White
+                        )
                     }
                 }
             }
