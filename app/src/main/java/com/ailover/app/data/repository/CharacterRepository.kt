@@ -17,6 +17,9 @@ class CharacterRepository(private val characterDao: CharacterDao) {
             characters.forEach { cache[it.id] = it }
         }
 
+    /** 同步获取缓存中的角色列表（非 suspend，用于 StateFlow 初始值，避免进页面闪烁） */
+    fun getCachedCharacters(): List<CharacterEntity> = cache.values.toList()
+
     suspend fun getCharacterById(id: Long): CharacterEntity? {
         // 优先从内存缓存取，命中则不查数据库
         cache[id]?.let { return it }

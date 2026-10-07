@@ -21,8 +21,11 @@ class CharacterListViewModel(
     characterRepository: CharacterRepository
 ) : ViewModel() {
 
-    // 加载中状态：数据第一次到达前为 true，避免闪现空状态
-    private val _isLoading = MutableStateFlow(true)
+    // 初始值用缓存数据：缓存命中则直接显示列表，避免进页面闪烁
+    private val cachedCharacters = characterRepository.getCachedCharacters()
+
+    // 加载中状态：缓存有数据则直接 false，不显示加载中
+    private val _isLoading = MutableStateFlow(cachedCharacters.isEmpty())
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
     val characters: StateFlow<List<CharacterEntity>> =
@@ -31,7 +34,7 @@ class CharacterListViewModel(
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
-                initialValue = emptyList()
+                initialValue = cachedCharacters
             )
 }
 
