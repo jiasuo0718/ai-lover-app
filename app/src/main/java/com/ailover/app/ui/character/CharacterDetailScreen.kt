@@ -175,9 +175,7 @@ fun CharacterDetailScreen(
                                 onDismissRequest = { showMenu = false },
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(CardWhite),
-                                tonalElevation = 0.dp,
-                                shadowElevation = 0.dp
+                                    .background(CardWhite)
                             ) {
                                 DropdownMenuItem(
                                     text = { Text("编辑角色", color = TextPrimary) },
