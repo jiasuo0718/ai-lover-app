@@ -103,6 +103,7 @@ import com.ailover.app.ui.theme.TextSecondary
 import com.ailover.app.util.AudioPlayer
 import com.ailover.app.util.TimeUtils
 import io.github.qdsfdhvh.iconpark.IconParkIcons
+import io.github.qdsfdhvh.iconpark.outline.*
 import kotlinx.coroutines.delay
 import java.io.File
 
