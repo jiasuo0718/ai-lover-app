@@ -1,5 +1,11 @@
 package com.ailover.app.navigation
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -145,7 +151,27 @@ fun AppNavGraph() {
         NavHost(
             navController = navController,
             startDestination = Routes.CONVERSATION_LIST,
-            modifier = Modifier
+            modifier = Modifier,
+            enterTransition = {
+                // 二级页面：从右侧滑入 + 淡入，150ms
+                slideInHorizontally(
+                    initialOffsetX = { it / 4 },
+                    animationSpec = tween(150)
+                ) + fadeIn(animationSpec = tween(150))
+            },
+            exitTransition = {
+                fadeOut(animationSpec = tween(100))
+            },
+            popEnterTransition = {
+                fadeIn(animationSpec = tween(150))
+            },
+            popExitTransition = {
+                // 返回时：向右侧滑出 + 淡出，150ms
+                slideOutHorizontally(
+                    targetOffsetX = { it / 4 },
+                    animationSpec = tween(150)
+                ) + fadeOut(animationSpec = tween(150))
+            }
         ) {
             // ========== 顶层页面 ==========
 
