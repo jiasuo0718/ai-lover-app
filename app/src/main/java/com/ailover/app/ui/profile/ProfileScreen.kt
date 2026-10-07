@@ -2,7 +2,6 @@ package com.ailover.app.ui.profile
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,8 +31,6 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.ui.Alignment
 import com.ailover.app.BuildConfig
 import androidx.compose.ui.Modifier
@@ -94,7 +91,6 @@ fun ProfileScreen(
         factory = ProfileViewModelFactory(AppContainer.userProfileRepository())
     )
     val userProfile by viewModel.userProfile.collectAsState()
-    val headerInteractionSource = remember { MutableInteractionSource() }
 
     Scaffold(
         topBar = {
@@ -127,11 +123,7 @@ fun ProfileScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(CardWhite)
-                    .clickable(
-                        interactionSource = headerInteractionSource,
-                        indication = rememberRipple(color = Color(0xFFD0D0D5)),
-                        onClick = onEditProfileClick
-                    )
+                    .clickable(onClick = onEditProfileClick)
                     .padding(horizontal = 16.dp, vertical = 20.dp)
             ) {
                 Row(
@@ -242,16 +234,11 @@ private fun ProfileListItem(
     trailing: String? = null,
     onClick: () -> Unit
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(56.dp)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = rememberRipple(color = Color(0xFFD0D0D5)),
-                onClick = onClick
-            )
+            .clickable(onClick = onClick)
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

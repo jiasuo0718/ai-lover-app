@@ -2,7 +2,6 @@ package com.ailover.app.ui.conversation
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,7 +19,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -222,16 +220,11 @@ private fun CharacterPickerItem(
         if (character.personality.length > 30) "$it..." else it
     }
     val hasCustomAvatar = character.avatarUri != null && File(character.avatarUri!!).exists()
-    val interactionSource = remember { MutableInteractionSource() }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(
-                interactionSource = interactionSource,
-                indication = rememberRipple(color = Color(0xFFD0D0D5)),
-                onClick = onClick
-            )
+            .clickable(onClick = onClick)
             .padding(horizontal = 8.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -296,16 +289,11 @@ private fun ConversationItem(
     val firstChar = name.firstOrNull()?.toString() ?: "?"
     val avatarUri = item.character?.avatarUri
     val hasCustomAvatar = avatarUri != null && File(avatarUri).exists()
-    val interactionSource = remember { MutableInteractionSource() }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(
-                interactionSource = interactionSource,
-                indication = rememberRipple(color = Color(0xFFD0D0D5)),
-                onClick = onClick
-            )
+            .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
