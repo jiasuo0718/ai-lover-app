@@ -28,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavType
@@ -139,7 +140,7 @@ fun AppNavGraph() {
                                     selectedTextColor = TextPrimary,
                                     unselectedIconColor = TextSecondary,
                                     unselectedTextColor = TextSecondary,
-                                    indicatorColor = CardWhite
+                                    indicatorColor = Color.Transparent
                                 )
                             )
                         }
