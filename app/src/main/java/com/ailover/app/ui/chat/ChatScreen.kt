@@ -1,8 +1,6 @@
 package com.ailover.app.ui.chat
 
 import android.Manifest
-import android.graphics.Rect
-import android.view.ViewTreeObserver
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -62,7 +60,6 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -76,12 +73,12 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -188,24 +185,11 @@ fun ChatScreen(
         }
     }
 
-    // 键盘弹出时自动滚到底部，确保最新消息不被键盘遮挡
-    val view = LocalView.current
-    var keyboardHeight by remember { mutableStateOf(0) }
-    DisposableEffect(view) {
-        val listener = ViewTreeObserver.OnGlobalLayoutListener {
-            val rect = Rect()
-            view.getWindowVisibleDisplayFrame(rect)
-            val screenHeight = view.rootView.height
-            keyboardHeight = screenHeight - rect.bottom
-        }
-        view.viewTreeObserver.addOnGlobalLayoutListener(listener)
-        onDispose {
-            view.viewTreeObserver.removeOnGlobalLayoutListener(listener)
-        }
-    }
-    LaunchedEffect(keyboardHeight) {
-        if (keyboardHeight > 0 && messages.isNotEmpty()) {
-            delay(100)
+    // 键盘弹出时自动滚到底部（通过输入框焦点变化触发）
+    var isInputFocused by remember { mutableStateOf(false) }
+    LaunchedEffect(isInputFocused) {
+        if (isInputFocused && messages.isNotEmpty()) {
+            delay(200)
             listState.scrollToItem(messages.size - 1)
         }
     }
@@ -219,7 +203,7 @@ fun ChatScreen(
             showEmojiPanel -> {
                 showEmojiPanel = false
             }
-            keyboardHeight > 0 -> {
+            isInputFocused -> {
                 focusManager.clearFocus()
             }
             else -> {
@@ -337,7 +321,10 @@ fun ChatScreen(
                                 },
                                 modifier = Modifier
                                     .weight(1f)
-                                    .focusRequester(focusRequester),
+                                    .focusRequester(focusRequester)
+                                    .onFocusChanged { focusState ->
+                                        isInputFocused = focusState.isFocused
+                                    },
                                 textStyle = LocalTextStyle.current.copy(
                                     fontSize = 15.sp,
                                     color = TextPrimary
@@ -574,7 +561,6 @@ fun ChatScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .imePadding()
                 .background(MaterialTheme.colorScheme.background)
         ) {
             if (messages.isEmpty()) {
@@ -591,7 +577,9 @@ fun ChatScreen(
             } else {
                 LazyColumn(
                     state = listState,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .imePadding(),
                     contentPadding = PaddingValues(vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
