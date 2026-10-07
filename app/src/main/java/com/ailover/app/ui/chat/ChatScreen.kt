@@ -192,8 +192,8 @@ fun ChatScreen(
     val imeBottom = WindowInsets.ime.getBottom(density)
     LaunchedEffect(imeBottom) {
         if (imeBottom > 0 && messages.isNotEmpty()) {
-            delay(200)
-            listState.animateScrollToItem(messages.size - 1)
+            delay(100)
+            listState.scrollToItem(messages.size - 1)
         }
     }
 
