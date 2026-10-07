@@ -66,7 +66,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -191,10 +190,10 @@ fun ChatScreen(
         }
     }
 
-    // 新消息或 AI 流式更新时自动滚到底部（等一帧布局完成后立即滚动，避免看到顶部内容）
+    // 新消息或 AI 流式更新时自动滚到底部（瞬间定位，无动画，避免"倒带"效果）
     LaunchedEffect(messages.size, messages.lastOrNull()?.content) {
         if (messages.isNotEmpty()) {
-            withFrameNanos { }
+            delay(50)
             listState.scrollToItem(messages.size - 1)
         }
     }
