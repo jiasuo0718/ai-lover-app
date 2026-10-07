@@ -177,11 +177,11 @@ fun ChatScreen(
     val audioPlayer = remember { AudioPlayer() }
     var currentPlayingId by remember { mutableStateOf<Long?>(null) }
 
-    // 新消息或 AI 流式更新时自动滚到底部（延迟 150ms 确保 item 高度测量完成）
+    // 新消息或 AI 流式更新时自动滚到底部（瞬间定位，无动画，避免"倒带"效果）
     LaunchedEffect(messages.size, messages.lastOrNull()?.content) {
         if (messages.isNotEmpty()) {
-            delay(150)
-            listState.animateScrollToItem(messages.size - 1)
+            delay(50)
+            listState.scrollToItem(messages.size - 1)
         }
     }
 
