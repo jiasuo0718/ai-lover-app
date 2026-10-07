@@ -47,6 +47,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -316,7 +317,14 @@ fun ChatScreen(
                             placeholder = { Text("输入消息...", fontSize = 15.sp) },
                             maxLines = 4,
                             shape = RoundedCornerShape(20.dp),
-                            enabled = !isStreaming
+                            enabled = !isStreaming,
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = CardWhite,
+                                unfocusedContainerColor = CardWhite,
+                                focusedIndicatorColor = Color(0xFFD0D0D5),
+                                unfocusedIndicatorColor = Color(0xFFE5E5EA),
+                                cursorColor = TextPrimary
+                            )
                         )
                     }
 

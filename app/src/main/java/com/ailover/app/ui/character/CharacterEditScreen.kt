@@ -17,10 +17,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -31,6 +32,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -134,7 +136,7 @@ fun CharacterEditScreen(
                                 viewModel.save()
                             }
                         }) {
-                            Text("保存", color = AccentBlue, fontSize = 16.sp)
+                            Text("保存", color = TextPrimary, fontSize = 16.sp)
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -154,16 +156,16 @@ fun CharacterEditScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = 24.dp, vertical = 16.dp)
+                .padding(horizontal = 16.dp, vertical = 20.dp)
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 头像
+            // 头像（浅灰圆底 + 深灰「+」）
             Box(
                 modifier = Modifier
-                    .size(96.dp)
+                    .size(110.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary)
+                    .background(Color(0xFFF2F2F7))
                     .clickable { imagePicker.launch("image/*") },
                 contentAlignment = Alignment.Center
             ) {
@@ -175,45 +177,71 @@ fun CharacterEditScreen(
                         contentScale = ContentScale.Crop
                     )
                 } else {
-                    Text(
-                        name.firstOrNull()?.toString() ?: "+",
-                        color = Color.White,
-                        fontSize = 36.sp
+                    Icon(
+                        imageVector = Icons.Filled.Add,
+                        contentDescription = "添加头像",
+                        tint = Color(0xFF8E8E93),
+                        modifier = Modifier.size(40.dp)
                     )
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text("点击更换头像", color = TextSecondary, fontSize = 13.sp)
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
-            // 名称
+            // 角色名称输入框（浅灰底、圆角12dp、无边框、聚焦不变蓝）
             OutlinedTextField(
                 value = name,
                 onValueChange = {
                     viewModel.onNameChange(it)
                     showEmptyNameError = false
                 },
-                label = { Text("角色名称") },
+                placeholder = { Text("角色名称", color = TextSecondary, fontSize = 15.sp) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 isError = showEmptyNameError,
+                shape = RoundedCornerShape(12.dp),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color(0xFFF2F2F7),
+                    unfocusedContainerColor = Color(0xFFF2F2F7),
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    errorIndicatorColor = Color.Transparent,
+                    cursorColor = TextPrimary
+                ),
                 supportingText = {
                     if (showEmptyNameError) Text("请输入角色名称", color = Color.Red)
                 }
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
-            // 人设
+            // 人设标签（放在输入框上方）
+            Text(
+                text = "人设 / 性格 / 背景设定",
+                color = TextPrimary,
+                fontSize = 15.sp,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // 人设输入框（浅灰底、圆角12dp、无边框、聚焦不变蓝）
             OutlinedTextField(
                 value = personality,
                 onValueChange = viewModel::onPersonalityChange,
-                label = { Text("人设 / 性格 / 背景设定") },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(200.dp),
                 maxLines = 8,
+                shape = RoundedCornerShape(12.dp),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color(0xFFF2F2F7),
+                    unfocusedContainerColor = Color(0xFFF2F2F7),
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    cursorColor = TextPrimary
+                ),
                 placeholder = {
                     Text(
                         "例如：你是一个温柔体贴的AI恋人，喜欢倾听用户的烦恼...",
@@ -223,7 +251,7 @@ fun CharacterEditScreen(
                 }
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Text(
                 "此设定将作为 system prompt 注入对话",
