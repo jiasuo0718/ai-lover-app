@@ -68,6 +68,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -167,6 +168,7 @@ fun ChatScreen(
     // 语音转文字
     val voiceToText = remember { VoiceToText(context) }
     var isVoiceInput by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
     DisposableEffect(Unit) {
         onDispose { voiceToText.destroy() }
     }
@@ -373,7 +375,7 @@ fun ChatScreen(
                                                 return@awaitEachGesture
                                             }
                                             var longPressTriggered = false
-                                            val job = this@pointerInput.launch {
+                                            val job = coroutineScope.launch {
                                                 delay(500)
                                                 longPressTriggered = true
                                                 isVoiceInput = true
