@@ -169,10 +169,11 @@ fun ChatScreen(
 
     // 语音转文字
     val voiceToText = remember { VoiceToText(context) }
-    var isVoiceInput by remember { mutableStateOf(false) }
     var isRecording by remember { mutableStateOf(false) }
     var isCancelRecording by remember { mutableStateOf(false) }
     var recordingVolume by remember { mutableStateOf(0f) }
+    // 长按触发标记：AtomicBoolean 保证协程和手势循环共享稳定引用，重组不错位
+    val longPressTriggered = remember { java.util.concurrent.atomic.AtomicBoolean(false) }
     val coroutineScope = rememberCoroutineScope()
     DisposableEffect(Unit) {
         onDispose { voiceToText.destroy() }
@@ -362,6 +363,7 @@ fun ChatScreen(
                                 )
                             }
                         } else {
+                            Box(modifier = Modifier.weight(1f)) {
                             BasicTextField(
                                 value = inputText,
                                 onValueChange = {
@@ -369,77 +371,10 @@ fun ChatScreen(
                                     showEmojiPanel = false
                                 },
                                 modifier = Modifier
-                                    .weight(1f)
+                                    .fillMaxWidth()
                                     .focusRequester(focusRequester)
                                     .onFocusChanged { focusState ->
                                         isInputFocused = focusState.isFocused
-                                    }
-                                    .pointerInput(Unit) {
-                                        awaitEachGesture {
-                                            val down = awaitFirstDown(requireUnconsumed = false)
-                                            if (!hasRecordPermission) {
-                                                return@awaitEachGesture
-                                            }
-                                            var longPressTriggered = false
-                                            val startY = down.position.y
-                                            val cancelThreshold = with(density) { 100.dp.toPx() }
-                                            val job = coroutineScope.launch {
-                                                delay(500)
-                                                longPressTriggered = true
-                                                isVoiceInput = true
-                                                isRecording = true
-                                                isCancelRecording = false
-                                                recordingVolume = 0f
-                                                voiceToText.startListening(
-                                                    onResult = { text ->
-                                                        isVoiceInput = false
-                                                        isRecording = false
-                                                        isCancelRecording = false
-                                                        viewModel.onInputTextChange(text)
-                                                        viewModel.sendMessage()
-                                                    },
-                                                    onError = { error ->
-                                                        isVoiceInput = false
-                                                        isRecording = false
-                                                        isCancelRecording = false
-                                                        android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_SHORT).show()
-                                                    },
-                                                    onVolume = { volume ->
-                                                        recordingVolume = volume
-                                                    }
-                                                )
-                                            }
-                                            try {
-                                                while (true) {
-                                                    val event = awaitPointerEvent()
-                                                    val change = event.changes.firstOrNull() ?: break
-                                                    // 检测上移取消
-                                                    if (longPressTriggered) {
-                                                        val dy = startY - change.position.y
-                                                        isCancelRecording = dy > cancelThreshold
-                                                    }
-                                                    if (!change.pressed) {
-                                                        job.cancel()
-                                                        if (longPressTriggered) {
-                                                            if (isCancelRecording) {
-                                                                voiceToText.cancel()
-                                                            } else {
-                                                                voiceToText.stopListening()
-                                                            }
-                                                        }
-                                                        isRecording = false
-                                                        isCancelRecording = false
-                                                        break
-                                                    }
-                                                }
-                                            } catch (e: Exception) {
-                                                job.cancel()
-                                                voiceToText.cancel()
-                                                isVoiceInput = false
-                                                isRecording = false
-                                                isCancelRecording = false
-                                            }
-                                        }
                                     },
                                 textStyle = LocalTextStyle.current.copy(
                                     fontSize = 15.sp,
@@ -459,6 +394,86 @@ fun ChatScreen(
                                     innerTextField()
                                 }
                             )
+                            // 透明覆盖层：独占手势，不影响 TextField 显示
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .pointerInput(Unit) {
+                                        awaitEachGesture {
+                                            val down = awaitFirstDown(requireUnconsumed = false)
+                                            longPressTriggered.set(false)
+                                            if (!hasRecordPermission) {
+                                                return@awaitEachGesture
+                                            }
+                                            val startY = down.position.y
+                                            val cancelThreshold = with(density) { 100.dp.toPx() }
+                                            val job = coroutineScope.launch {
+                                                delay(500)
+                                                // 判定为长按：先清焦点，再 consume，然后启动录音
+                                                focusManager.clearFocus(force = true)
+                                                down.consume()
+                                                longPressTriggered.set(true)
+                                                isRecording = true
+                                                isCancelRecording = false
+                                                recordingVolume = 0f
+                                                voiceToText.startListening(
+                                                    onResult = { text ->
+                                                        isRecording = false
+                                                        isCancelRecording = false
+                                                        viewModel.onInputTextChange(text)
+                                                        viewModel.sendMessage()
+                                                    },
+                                                    onError = { error ->
+                                                        isRecording = false
+                                                        isCancelRecording = false
+                                                        android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_SHORT).show()
+                                                    },
+                                                    onVolume = { volume ->
+                                                        // 节流：变化超过 0.05 才更新，减少高频重组
+                                                        if (kotlin.math.abs(volume - recordingVolume) > 0.05f) {
+                                                            recordingVolume = volume
+                                                        }
+                                                    }
+                                                )
+                                            }
+                                            try {
+                                                while (true) {
+                                                    val event = awaitPointerEvent()
+                                                    val change = event.changes.firstOrNull() ?: break
+                                                    // 检测上移取消
+                                                    if (longPressTriggered.get()) {
+                                                        val dy = startY - change.position.y
+                                                        isCancelRecording = dy > cancelThreshold
+                                                    }
+                                                    if (!change.pressed) {
+                                                        job.cancel()
+                                                        if (longPressTriggered.get()) {
+                                                            if (isCancelRecording) {
+                                                                voiceToText.cancel()
+                                                            } else {
+                                                                voiceToText.stopListening()
+                                                            }
+                                                            // 长按松手：清焦点，防止键盘回弹
+                                                            focusManager.clearFocus(force = true)
+                                                        } else {
+                                                            // 点按松手：主动请求焦点，弹键盘
+                                                            focusRequester.requestFocus()
+                                                        }
+                                                        isRecording = false
+                                                        isCancelRecording = false
+                                                        break
+                                                    }
+                                                }
+                                            } catch (e: Exception) {
+                                                job.cancel()
+                                                voiceToText.cancel()
+                                                isRecording = false
+                                                isCancelRecording = false
+                                            }
+                                        }
+                                    }
+                            )
+                            }
                         }
 
                         Spacer(modifier = Modifier.width(8.dp))
