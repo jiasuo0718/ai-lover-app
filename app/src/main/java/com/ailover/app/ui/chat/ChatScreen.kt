@@ -300,23 +300,23 @@ fun ChatScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // 大输入框：图标全部内嵌
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .shadow(6.dp, RoundedCornerShape(24.dp))
-                            .background(Color(0xFFF2F2F7), RoundedCornerShape(24.dp))
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                            .shadow(2.dp, RoundedCornerShape(20.dp))
+                            .background(Color(0xFFFFFFFF), RoundedCornerShape(20.dp))
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // 相机图标（IconPark）
                         Icon(
                             imageVector = IconParkIcons.Outline.Camera,
                             contentDescription = "相机",
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(20.dp)
                         )
 
                         Spacer(modifier = Modifier.width(12.dp))
@@ -382,7 +382,7 @@ fun ChatScreen(
                                     imageVector = Icons.Filled.Keyboard,
                                     contentDescription = "键盘",
                                     tint = TextPrimary,
-                                    modifier = Modifier.size(24.dp)
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
                         } else if (inputText.isEmpty()) {
@@ -399,7 +399,7 @@ fun ChatScreen(
                                 Icon(
                                     imageVector = IconParkIcons.Outline.VoiceMessage,
                                     contentDescription = "语音",
-                                    modifier = Modifier.size(24.dp)
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
                             Spacer(modifier = Modifier.width(4.dp))
@@ -416,13 +416,13 @@ fun ChatScreen(
                                         imageVector = Icons.Filled.Close,
                                         contentDescription = "关闭",
                                         tint = TextPrimary,
-                                        modifier = Modifier.size(24.dp)
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 } else {
                                     Icon(
                                         imageVector = IconParkIcons.Outline.AddOne,
                                         contentDescription = "更多",
-                                        modifier = Modifier.size(24.dp)
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
                             }
@@ -434,7 +434,7 @@ fun ChatScreen(
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(32.dp)
+                                        .size(28.dp)
                                         .clip(CircleShape)
                                         .background(Color(0xFF0A84FF)),
                                     contentAlignment = Alignment.Center
@@ -443,7 +443,7 @@ fun ChatScreen(
                                         imageVector = IconParkIcons.Outline.ArrowUp,
                                         contentDescription = "发送",
                                         tint = Color.White,
-                                        modifier = Modifier.size(18.dp)
+                                        modifier = Modifier.size(16.dp)
                                     )
                                 }
                             }
