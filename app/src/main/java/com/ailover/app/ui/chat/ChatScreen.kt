@@ -307,9 +307,9 @@ fun ChatScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(40.dp)
-                            .shadow(2.dp, RoundedCornerShape(20.dp))
-                            .background(Color(0xFFFFFFFF), RoundedCornerShape(20.dp))
+                            .height(48.dp)
+                            .shadow(2.dp, RoundedCornerShape(12.dp))
+                            .background(Color(0xFFFFFFFF), RoundedCornerShape(12.dp))
                             .padding(horizontal = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
