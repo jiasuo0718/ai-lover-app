@@ -14,6 +14,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -86,6 +87,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -168,6 +170,9 @@ fun ChatScreen(
     // 语音转文字
     val voiceToText = remember { VoiceToText(context) }
     var isVoiceInput by remember { mutableStateOf(false) }
+    var isRecording by remember { mutableStateOf(false) }
+    var isCancelRecording by remember { mutableStateOf(false) }
+    var recordingVolume by remember { mutableStateOf(0f) }
     val coroutineScope = rememberCoroutineScope()
     DisposableEffect(Unit) {
         onDispose { voiceToText.destroy() }
@@ -375,19 +380,31 @@ fun ChatScreen(
                                                 return@awaitEachGesture
                                             }
                                             var longPressTriggered = false
+                                            val startY = down.position.y
+                                            val cancelThreshold = with(density) { 100.dp.toPx() }
                                             val job = coroutineScope.launch {
                                                 delay(500)
                                                 longPressTriggered = true
                                                 isVoiceInput = true
+                                                isRecording = true
+                                                isCancelRecording = false
+                                                recordingVolume = 0f
                                                 voiceToText.startListening(
                                                     onResult = { text ->
                                                         isVoiceInput = false
+                                                        isRecording = false
+                                                        isCancelRecording = false
                                                         viewModel.onInputTextChange(text)
                                                         viewModel.sendMessage()
                                                     },
                                                     onError = { error ->
                                                         isVoiceInput = false
+                                                        isRecording = false
+                                                        isCancelRecording = false
                                                         android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_SHORT).show()
+                                                    },
+                                                    onVolume = { volume ->
+                                                        recordingVolume = volume
                                                     }
                                                 )
                                             }
@@ -395,18 +412,31 @@ fun ChatScreen(
                                                 while (true) {
                                                     val event = awaitPointerEvent()
                                                     val change = event.changes.firstOrNull() ?: break
+                                                    // 检测上移取消
+                                                    if (longPressTriggered) {
+                                                        val dy = startY - change.position.y
+                                                        isCancelRecording = dy > cancelThreshold
+                                                    }
                                                     if (!change.pressed) {
                                                         job.cancel()
                                                         if (longPressTriggered) {
-                                                            voiceToText.stopListening()
+                                                            if (isCancelRecording) {
+                                                                voiceToText.cancel()
+                                                            } else {
+                                                                voiceToText.stopListening()
+                                                            }
                                                         }
+                                                        isRecording = false
+                                                        isCancelRecording = false
                                                         break
                                                     }
                                                 }
                                             } catch (e: Exception) {
                                                 job.cancel()
-                                                voiceToText.stopListening()
+                                                voiceToText.cancel()
                                                 isVoiceInput = false
+                                                isRecording = false
+                                                isCancelRecording = false
                                             }
                                         }
                                     },
@@ -822,6 +852,52 @@ fun ChatScreen(
                                 color = TextSecondary,
                                 fontSize = 12.sp
                             )
+                        }
+                    }
+                }
+            }
+
+            // 录音反馈面板（长按输入框时显示）
+            if (isRecording) {
+                val waveFactors = remember { List(30) { 0.4f + kotlin.random.Random.nextFloat() * 0.6f } }
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.4f))
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() }
+                        ) {},
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = if (isCancelRecording) "松手取消" else "松手发送，上滑取消",
+                            color = if (isCancelRecording) Color(0xFFFF3B30) else Color.White,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Spacer(modifier = Modifier.height(20.dp))
+                        // 波形条：高度随真实 RMS 音量变化
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(2.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            waveFactors.forEach { factor ->
+                                val barHeight = (8f + recordingVolume * 32f * factor).coerceAtLeast(4f).dp
+                                Box(
+                                    modifier = Modifier
+                                        .width(3.dp)
+                                        .height(barHeight)
+                                        .background(
+                                            color = if (isCancelRecording) Color(0xFFFF3B30) else Color(0xFF4A90E2),
+                                            shape = RoundedCornerShape(1.5.dp)
+                                        )
+                                )
+                            }
                         }
                     }
                 }

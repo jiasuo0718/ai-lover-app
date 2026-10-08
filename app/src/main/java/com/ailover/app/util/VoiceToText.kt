@@ -27,10 +27,12 @@ class VoiceToText(private val context: Context) {
      * 建立 WebSocket 连接，就绪后开始录音并实时上传。
      * @param onResult 识别成功回调（主线程），返回识别到的文字
      * @param onError 识别失败回调（主线程），返回错误信息
+     * @param onVolume 音量回调（主线程），0-1
      */
     fun startListening(
         onResult: (String) -> Unit,
-        onError: (String) -> Unit
+        onError: (String) -> Unit,
+        onVolume: ((Float) -> Unit)? = null
     ) {
         if (isListening) return
         isListening = true
@@ -39,17 +41,23 @@ class VoiceToText(private val context: Context) {
         xfyunClient.connect(
             onReady = {
                 // 连接就绪，开始录音（在子线程回调中执行，启动新录音线程）
-                pcmRecorder.start { audioData ->
-                    if (isListening) {
-                        val status = if (firstAudioFrame) {
-                            firstAudioFrame = false
-                            0 // 开始帧
-                        } else {
-                            1 // 中间帧
+                pcmRecorder.start(
+                    onAudioData = { audioData ->
+                        if (isListening) {
+                            val status = if (firstAudioFrame) {
+                                firstAudioFrame = false
+                                0 // 开始帧
+                            } else {
+                                1 // 中间帧
+                            }
+                            xfyunClient.sendAudio(audioData, status)
                         }
-                        xfyunClient.sendAudio(audioData, status)
+                    },
+                    onVolume = { volume ->
+                        // 音量回调切到主线程
+                        mainHandler.post { onVolume?.invoke(volume) }
                     }
-                }
+                )
             },
             onResult = { text ->
                 // 切到主线程回调
