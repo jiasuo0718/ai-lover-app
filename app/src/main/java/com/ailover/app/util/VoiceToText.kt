@@ -1,24 +1,26 @@
 package com.ailover.app.util
 
 import android.content.Context
-import android.content.Intent
-import android.os.Bundle
-import android.speech.RecognitionListener
-import android.speech.RecognizerIntent
-import android.speech.SpeechRecognizer
 
 /**
- * 语音转文字工具类。
- * 封装系统 SpeechRecognizer，支持中文识别。
- * （讯飞 SDK 需手动下载，暂时用系统识别）
+ * 语音转文字工具类（讯飞 WebSocket 版）。
+ * 长按/按住 → 录音 + 实时上传讯飞 → 松手 → 最终文字 → 回调。
  */
 class VoiceToText(private val context: Context) {
 
-    private var speechRecognizer: SpeechRecognizer? = null
+    private val pcmRecorder = PcmRecorder()
+    private val xfyunClient = XfyunIatClient(
+        appId = "5a6f2582",
+        apiKey = "5f2d4785bed8f9a75c9ee353305dcbc0",
+        apiSecret = "NWYyYWMzN2U5OTJjNjdiYTAyNzc2YTQw"
+    )
+
     private var isListening = false
+    private var firstAudioFrame = true
 
     /**
      * 开始语音识别。
+     * 建立 WebSocket 连接，就绪后开始录音并实时上传。
      * @param onResult 识别成功回调，返回识别到的文字
      * @param onError 识别失败回调，返回错误信息
      */
@@ -27,72 +29,58 @@ class VoiceToText(private val context: Context) {
         onError: (String) -> Unit
     ) {
         if (isListening) return
+        isListening = true
+        firstAudioFrame = true
 
-        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
-        speechRecognizer?.setRecognitionListener(object : RecognitionListener {
-            override fun onReadyForSpeech(params: Bundle?) {
-                isListening = true
-            }
-
-            override fun onBeginningOfSpeech() {}
-
-            override fun onRmsChanged(rmsdB: Float) {}
-
-            override fun onBufferReceived(buffer: ByteArray?) {}
-
-            override fun onEndOfSpeech() {
-                isListening = false
-            }
-
-            override fun onError(error: Int) {
-                isListening = false
-                val errorMsg = when (error) {
-                    SpeechRecognizer.ERROR_NO_MATCH -> "没听清，请重试"
-                    SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "没听清，请重试"
-                    SpeechRecognizer.ERROR_AUDIO -> "录音错误，请重试"
-                    SpeechRecognizer.ERROR_NETWORK -> "网络错误，请检查网络"
-                    SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "网络超时，请重试"
-                    else -> "识别失败，请重试"
+        xfyunClient.connect(
+            onReady = {
+                // 连接就绪，开始录音
+                pcmRecorder.start { audioData ->
+                    if (isListening) {
+                        val status = if (firstAudioFrame) {
+                            firstAudioFrame = false
+                            0 // 开始帧
+                        } else {
+                            1 // 中间帧
+                        }
+                        xfyunClient.sendAudio(audioData, status)
+                    }
                 }
-                onError(errorMsg)
-            }
-
-            override fun onResults(results: Bundle?) {
+            },
+            onResult = { text ->
                 isListening = false
-                val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                val text = matches?.firstOrNull() ?: ""
-                if (text.isNotEmpty()) {
-                    onResult(text)
-                } else {
-                    onError("没听清，请重试")
-                }
+                pcmRecorder.stop()
+                onResult(text)
+            },
+            onError = { error ->
+                isListening = false
+                pcmRecorder.stop()
+                xfyunClient.destroy()
+                onError(error)
             }
-
-            override fun onPartialResults(partialResults: Bundle?) {}
-
-            override fun onEvent(eventType: Int, params: Bundle?) {}
-        })
-
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "zh-CN")
-            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
-        }
-        speechRecognizer?.startListening(intent)
+        )
     }
 
-    /** 停止语音识别。 */
+    /** 停止语音识别（松手时调用）。 */
     fun stopListening() {
-        speechRecognizer?.stopListening()
+        if (!isListening) return
+        pcmRecorder.stop()
+        // 发送结束帧，等待最终结果
+        xfyunClient.finish()
+    }
+
+    /** 取消识别。 */
+    fun cancel() {
         isListening = false
+        pcmRecorder.stop()
+        xfyunClient.destroy()
     }
 
     /** 销毁资源。 */
     fun destroy() {
-        speechRecognizer?.destroy()
-        speechRecognizer = null
         isListening = false
+        pcmRecorder.stop()
+        xfyunClient.destroy()
     }
 
     /** 是否正在识别。 */
