@@ -210,14 +210,11 @@ class XfyunIatClient(
             Base64.NO_WRAP
         )
 
-        // 6. 用 HttpUrl 构建（自动正确 URL 编码，空格用 %20）
-        return okhttp3.HttpUrl.Builder()
-            .scheme("wss")
-            .host(host)
-            .encodedPath(path)
-            .addQueryParameter("authorization", authorization)
-            .addQueryParameter("date", date)
-            .build()
-            .toString()
+        // 6. URL 编码参数（空格用 %20，不用 +）
+        val encodedAuth = URLEncoder.encode(authorization, "UTF-8").replace("+", "%20")
+        val encodedDate = URLEncoder.encode(date, "UTF-8").replace("+", "%20")
+
+        // 7. 手动拼接 wss URL（HttpUrl 不支持 wss scheme）
+        return "wss://$host$path?authorization=$encodedAuth&date=$encodedDate"
     }
 }
