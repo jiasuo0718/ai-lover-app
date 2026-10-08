@@ -387,17 +387,19 @@ fun ChatScreen(
                             }
                         } else if (inputText.isEmpty()) {
                             // 麦克风：IconPark 细线条，切换语音模式
-                            IconButton(
-                                onClick = {
-                                    isVoiceMode = true
-                                    showEmojiPanel = false
-                                    showPlusMenu = false
-                                    focusManager.clearFocus()
-                                    if (!hasRecordPermission) {
-                                        permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                                    }
-                                },
-                                contentPadding = PaddingValues(horizontal = 4.dp)
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clickable {
+                                        isVoiceMode = true
+                                        showEmojiPanel = false
+                                        showPlusMenu = false
+                                        focusManager.clearFocus()
+                                        if (!hasRecordPermission) {
+                                            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = IconParkIcons.Outline.VoiceMessage,
@@ -405,17 +407,19 @@ fun ChatScreen(
                                     modifier = Modifier.size(24.dp)
                                 )
                             }
-                            Spacer(modifier = Modifier.width(0.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
                             // 加号：IconPark 细线条，展开菜单
-                            IconButton(
-                                onClick = {
-                                    showPlusMenu = !showPlusMenu
-                                    if (showPlusMenu) {
-                                        showEmojiPanel = false
-                                        focusManager.clearFocus()
-                                    }
-                                },
-                                contentPadding = PaddingValues(horizontal = 4.dp)
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clickable {
+                                        showPlusMenu = !showPlusMenu
+                                        if (showPlusMenu) {
+                                            showEmojiPanel = false
+                                            focusManager.clearFocus()
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
                             ) {
                                 if (showPlusMenu) {
                                     Icon(
