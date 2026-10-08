@@ -373,7 +373,7 @@ fun ChatScreen(
                                                 return@awaitEachGesture
                                             }
                                             var longPressTriggered = false
-                                            val job = launch {
+                                            val job = this@pointerInput.launch {
                                                 delay(500)
                                                 longPressTriggered = true
                                                 isVoiceInput = true
