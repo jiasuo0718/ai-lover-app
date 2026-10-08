@@ -12,6 +12,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -60,6 +62,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -77,6 +80,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -101,9 +105,11 @@ import com.ailover.app.ui.theme.TextPrimary
 import com.ailover.app.ui.theme.TextSecondary
 import com.ailover.app.util.AudioPlayer
 import com.ailover.app.util.TimeUtils
+import com.ailover.app.util.VoiceToText
 import io.github.qdsfdhvh.iconpark.IconParkIcons
 import io.github.qdsfdhvh.iconpark.outline.*
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -156,6 +162,13 @@ fun ChatScreen(
             ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
                 android.content.pm.PackageManager.PERMISSION_GRANTED
         )
+    }
+
+    // 语音转文字
+    val voiceToText = remember { VoiceToText(context) }
+    var isVoiceInput by remember { mutableStateOf(false) }
+    DisposableEffect(Unit) {
+        onDispose { voiceToText.destroy() }
     }
     var showPermissionSettingsHint by remember { mutableStateOf(false) }
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -326,13 +339,17 @@ fun ChatScreen(
                         if (isVoiceMode) {
                             Box(modifier = Modifier.weight(1f)) {
                                 VoiceRecorderButton(
-                                    conversationId = conversationId,
                                     hasPermission = hasRecordPermission,
                                     onRequestPermission = {
                                         permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                                     },
-                                    onVoiceRecorded = { filePath, duration ->
-                                        viewModel.sendVoiceMessage(filePath, duration)
+                                    onTextRecognized = { text ->
+                                        viewModel.onInputTextChange(text)
+                                        viewModel.sendMessage()
+                                    },
+                                    onError = { error ->
+                                        // 识别失败，简单提示
+                                        android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_SHORT).show()
                                     }
                                 )
                             }
@@ -348,6 +365,48 @@ fun ChatScreen(
                                     .focusRequester(focusRequester)
                                     .onFocusChanged { focusState ->
                                         isInputFocused = focusState.isFocused
+                                    }
+                                    .pointerInput(Unit) {
+                                        awaitEachGesture {
+                                            val down = awaitFirstDown(requireUnconsumed = false)
+                                            if (!hasRecordPermission) {
+                                                return@awaitEachGesture
+                                            }
+                                            var longPressTriggered = false
+                                            val job = launch {
+                                                delay(500)
+                                                longPressTriggered = true
+                                                isVoiceInput = true
+                                                voiceToText.startListening(
+                                                    onResult = { text ->
+                                                        isVoiceInput = false
+                                                        viewModel.onInputTextChange(text)
+                                                        viewModel.sendMessage()
+                                                    },
+                                                    onError = { error ->
+                                                        isVoiceInput = false
+                                                        android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_SHORT).show()
+                                                    }
+                                                )
+                                            }
+                                            try {
+                                                while (true) {
+                                                    val event = awaitPointerEvent()
+                                                    val change = event.changes.firstOrNull() ?: break
+                                                    if (!change.pressed) {
+                                                        job.cancel()
+                                                        if (longPressTriggered) {
+                                                            voiceToText.stopListening()
+                                                        }
+                                                        break
+                                                    }
+                                                }
+                                            } catch (e: Exception) {
+                                                job.cancel()
+                                                voiceToText.stopListening()
+                                                isVoiceInput = false
+                                            }
+                                        }
                                     },
                                 textStyle = LocalTextStyle.current.copy(
                                     fontSize = 15.sp,
