@@ -16,7 +16,7 @@ class VoiceToText(private val context: Context) {
     private val xfyunClient = XfyunIatClient(
         appId = "5a6f2582",
         apiKey = "5f2d4785bed8f9a75c9ee353305dcbc0",
-        apiSecret = "NWYyYWMzN2U5OTJjNjdiYTAyNzc2YTQw"
+        apiSecret = "NWYyYWMyNjg5OTJjNjdiYTAyNzc2YTQw"
     )
 
     private var isListening = false

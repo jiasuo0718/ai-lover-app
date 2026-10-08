@@ -213,8 +213,9 @@ class XfyunIatClient(
         // 6. URL 编码参数（空格用 %20，不用 +）
         val encodedAuth = URLEncoder.encode(authorization, "UTF-8").replace("+", "%20")
         val encodedDate = URLEncoder.encode(date, "UTF-8").replace("+", "%20")
+        val encodedHost = URLEncoder.encode(host, "UTF-8").replace("+", "%20")
 
-        // 7. 手动拼接 wss URL（HttpUrl 不支持 wss scheme）
-        return "wss://$host$path?authorization=$encodedAuth&date=$encodedDate"
+        // 7. 手动拼接 wss URL（三个参数：host/date/authorization）
+        return "wss://$host$path?host=$encodedHost&date=$encodedDate&authorization=$encodedAuth"
     }
 }
