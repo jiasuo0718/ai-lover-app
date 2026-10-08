@@ -27,35 +27,57 @@ class PcmRecorder {
     /**
      * 开始录音。
      * @param onAudioData 每帧音频数据回调（PCM 16k 16bit）
+     * @return true=开始成功，false=初始化失败
      */
-    fun start(onAudioData: (ByteArray) -> Unit) {
-        if (isRecording) return
+    fun start(onAudioData: (ByteArray) -> Unit): Boolean {
+        if (isRecording) return true
         isRecording = true
 
-        val minBufferSize = AudioRecord.getMinBufferSize(
-            SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT
-        )
-        val bufferSize = maxOf(minBufferSize, FRAME_SIZE * 4)
+        return try {
+            val minBufferSize = AudioRecord.getMinBufferSize(
+                SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT
+            )
+            val bufferSize = maxOf(minBufferSize, FRAME_SIZE * 4)
 
-        audioRecord = AudioRecord(
-            MediaRecorder.AudioSource.MIC,
-            SAMPLE_RATE,
-            CHANNEL_CONFIG,
-            AUDIO_FORMAT,
-            bufferSize
-        )
-        audioRecord?.startRecording()
+            audioRecord = AudioRecord(
+                MediaRecorder.AudioSource.MIC,
+                SAMPLE_RATE,
+                CHANNEL_CONFIG,
+                AUDIO_FORMAT,
+                bufferSize
+            )
 
-        recordingThread = Thread {
-            val buffer = ByteArray(FRAME_SIZE)
-            while (isRecording) {
-                val read = audioRecord?.read(buffer, 0, FRAME_SIZE) ?: 0
-                if (read > 0) {
-                    onAudioData(buffer.copyOf(read))
+            // 检查初始化状态
+            if (audioRecord?.state != AudioRecord.STATE_INITIALIZED) {
+                isRecording = false
+                audioRecord?.release()
+                audioRecord = null
+                return false
+            }
+
+            audioRecord?.startRecording()
+
+            recordingThread = Thread {
+                val buffer = ByteArray(FRAME_SIZE)
+                while (isRecording) {
+                    try {
+                        val read = audioRecord?.read(buffer, 0, FRAME_SIZE) ?: 0
+                        if (read > 0) {
+                            onAudioData(buffer.copyOf(read))
+                        }
+                    } catch (_: Exception) {
+                        // 读取异常，忽略
+                    }
                 }
             }
+            recordingThread?.start()
+            true
+        } catch (e: Exception) {
+            isRecording = false
+            audioRecord?.release()
+            audioRecord = null
+            false
         }
-        recordingThread?.start()
     }
 
     /** 停止录音。 */
@@ -65,8 +87,16 @@ class PcmRecorder {
             recordingThread?.join(1000)
         } catch (_: InterruptedException) {
         }
-        audioRecord?.stop()
-        audioRecord?.release()
+        try {
+            audioRecord?.stop()
+        } catch (_: Exception) {
+            // 停止异常，忽略
+        }
+        try {
+            audioRecord?.release()
+        } catch (_: Exception) {
+            // 释放异常，忽略
+        }
         audioRecord = null
     }
 

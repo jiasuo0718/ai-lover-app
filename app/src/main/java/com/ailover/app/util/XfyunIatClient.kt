@@ -186,8 +186,9 @@ class XfyunIatClient(
         val host = "iat-api.xfyun.cn"
         val path = "/v2/iat"
 
-        // 1. 生成 date（HTTP 格式）
-        val dateFormat = SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss GMT", Locale.US)
+        // 1. 生成 date（HTTP 格式，RFC 1123）
+        val dateFormat = SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss 'GMT'", Locale.US)
+        dateFormat.timeZone = java.util.TimeZone.getTimeZone("GMT")
         val date = dateFormat.format(Date())
 
         // 2. 构造签名原始串

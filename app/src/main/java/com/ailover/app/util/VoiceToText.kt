@@ -1,13 +1,17 @@
 package com.ailover.app.util
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 
 /**
  * 语音转文字工具类（讯飞 WebSocket 版）。
  * 长按/按住 → 录音 + 实时上传讯飞 → 松手 → 最终文字 → 回调。
+ * 回调统一在主线程执行，避免子线程更新 UI 崩溃。
  */
 class VoiceToText(private val context: Context) {
 
+    private val mainHandler = Handler(Looper.getMainLooper())
     private val pcmRecorder = PcmRecorder()
     private val xfyunClient = XfyunIatClient(
         appId = "5a6f2582",
@@ -21,8 +25,8 @@ class VoiceToText(private val context: Context) {
     /**
      * 开始语音识别。
      * 建立 WebSocket 连接，就绪后开始录音并实时上传。
-     * @param onResult 识别成功回调，返回识别到的文字
-     * @param onError 识别失败回调，返回错误信息
+     * @param onResult 识别成功回调（主线程），返回识别到的文字
+     * @param onError 识别失败回调（主线程），返回错误信息
      */
     fun startListening(
         onResult: (String) -> Unit,
@@ -34,7 +38,7 @@ class VoiceToText(private val context: Context) {
 
         xfyunClient.connect(
             onReady = {
-                // 连接就绪，开始录音
+                // 连接就绪，开始录音（在子线程回调中执行，启动新录音线程）
                 pcmRecorder.start { audioData ->
                     if (isListening) {
                         val status = if (firstAudioFrame) {
@@ -48,15 +52,21 @@ class VoiceToText(private val context: Context) {
                 }
             },
             onResult = { text ->
-                isListening = false
-                pcmRecorder.stop()
-                onResult(text)
+                // 切到主线程回调
+                mainHandler.post {
+                    isListening = false
+                    pcmRecorder.stop()
+                    onResult(text)
+                }
             },
             onError = { error ->
-                isListening = false
-                pcmRecorder.stop()
-                xfyunClient.destroy()
-                onError(error)
+                // 切到主线程回调
+                mainHandler.post {
+                    isListening = false
+                    pcmRecorder.stop()
+                    xfyunClient.destroy()
+                    onError(error)
+                }
             }
         )
     }
