@@ -387,30 +387,36 @@ fun ChatScreen(
                             }
                         } else if (inputText.isEmpty()) {
                             // 麦克风：IconPark 细线条，切换语音模式
-                            IconButton(onClick = {
-                                isVoiceMode = true
-                                showEmojiPanel = false
-                                showPlusMenu = false
-                                focusManager.clearFocus()
-                                if (!hasRecordPermission) {
-                                    permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                                }
-                            }) {
+                            IconButton(
+                                onClick = {
+                                    isVoiceMode = true
+                                    showEmojiPanel = false
+                                    showPlusMenu = false
+                                    focusManager.clearFocus()
+                                    if (!hasRecordPermission) {
+                                        permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                    }
+                                },
+                                contentPadding = PaddingValues(horizontal = 4.dp)
+                            ) {
                                 Icon(
                                     imageVector = IconParkIcons.Outline.VoiceMessage,
                                     contentDescription = "语音",
                                     modifier = Modifier.size(24.dp)
                                 )
                             }
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Spacer(modifier = Modifier.width(0.dp))
                             // 加号：IconPark 细线条，展开菜单
-                            IconButton(onClick = {
-                                showPlusMenu = !showPlusMenu
-                                if (showPlusMenu) {
-                                    showEmojiPanel = false
-                                    focusManager.clearFocus()
-                                }
-                            }) {
+                            IconButton(
+                                onClick = {
+                                    showPlusMenu = !showPlusMenu
+                                    if (showPlusMenu) {
+                                        showEmojiPanel = false
+                                        focusManager.clearFocus()
+                                    }
+                                },
+                                contentPadding = PaddingValues(horizontal = 4.dp)
+                            ) {
                                 if (showPlusMenu) {
                                     Icon(
                                         imageVector = Icons.Filled.Close,
