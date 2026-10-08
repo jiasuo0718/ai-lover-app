@@ -119,9 +119,6 @@ dependencies {
     // Pinyin (for contact sorting)
     implementation("com.belerweb:pinyin4j:2.5.1")
 
-    // 讯飞语音听写 SDK
-    implementation("com.iflytek:msc:5.5.1")
-
     // Testing
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
