@@ -371,7 +371,7 @@ fun ChatScreen(
 
                         Spacer(modifier = Modifier.width(8.dp))
 
-                        // 右侧：语音模式→键盘；空→麦克风；有字→发送
+                        // 右侧：语音模式→键盘+加号；空→麦克风+加号；有字→发送
                         if (isVoiceMode) {
                             IconButton(onClick = {
                                 isVoiceMode = false
@@ -385,6 +385,35 @@ fun ChatScreen(
                                     tint = TextPrimary,
                                     modifier = Modifier.size(24.dp)
                                 )
+                            }
+                            Spacer(modifier = Modifier.width(4.dp))
+                            // 加号：IconPark 细线条，展开菜单
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clickable {
+                                        showPlusMenu = !showPlusMenu
+                                        if (showPlusMenu) {
+                                            showEmojiPanel = false
+                                            focusManager.clearFocus()
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (showPlusMenu) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Close,
+                                        contentDescription = "关闭",
+                                        tint = TextPrimary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = IconParkIcons.Outline.AddOne,
+                                        contentDescription = "更多",
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
                             }
                         } else if (inputText.isEmpty()) {
                             // 麦克风：IconPark 细线条，切换语音模式
