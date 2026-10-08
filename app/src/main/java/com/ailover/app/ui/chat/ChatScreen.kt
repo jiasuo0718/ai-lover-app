@@ -462,7 +462,8 @@ fun ChatScreen(
                                                             // 长按松手：清焦点，防止键盘回弹
                                                             focusManager.clearFocus(force = true)
                                                         } else {
-                                                            // 点按松手：不干预，让 BasicTextField 自己处理聚焦和光标定位
+                                                            // 点按松手：主动请求焦点，弹键盘
+                                                            focusRequester.requestFocus()
                                                         }
                                                         isRecording = false
                                                         isCancelRecording = false
