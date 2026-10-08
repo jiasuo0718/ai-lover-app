@@ -182,7 +182,6 @@ class XfyunIatClient(
      * 生成讯飞 WebSocket 鉴权 URL。
      */
     private fun generateAuthUrl(): String {
-        val baseUrl = "wss://iat-api.xfyun.cn/v2/iat"
         val host = "iat-api.xfyun.cn"
         val path = "/v2/iat"
 
@@ -194,7 +193,7 @@ class XfyunIatClient(
         // 2. 构造签名原始串
         val signatureOrigin = "host: $host\ndate: $date\nGET $path HTTP/1.1"
 
-        // 3. HMAC-SHA256 签名
+        // 3. HMAC-SHA256 签名（密钥=APISecret，数据=signatureOrigin）
         val mac = Mac.getInstance("HmacSHA256")
         val secretKey = SecretKeySpec(apiSecret.toByteArray(StandardCharsets.UTF_8), "HmacSHA256")
         mac.init(secretKey)
@@ -211,10 +210,14 @@ class XfyunIatClient(
             Base64.NO_WRAP
         )
 
-        // 6. URL 编码并拼接
-        val encodedAuth = URLEncoder.encode(authorization, "UTF-8")
-        val encodedDate = URLEncoder.encode(date, "UTF-8")
-
-        return "$baseUrl?authorization=$encodedAuth&date=$encodedDate"
+        // 6. 用 HttpUrl 构建（自动正确 URL 编码，空格用 %20）
+        return okhttp3.HttpUrl.Builder()
+            .scheme("wss")
+            .host(host)
+            .encodedPath(path)
+            .addQueryParameter("authorization", authorization)
+            .addQueryParameter("date", date)
+            .build()
+            .toString()
     }
 }
