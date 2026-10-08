@@ -84,8 +84,8 @@ fun VoiceRecorderButton(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(48.dp)
-            .clip(RoundedCornerShape(24.dp))
+            .height(32.dp)
+            .clip(RoundedCornerShape(16.dp))
             .background(if (isRecording) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surface)
             .pointerInput(Unit) {
                 val cancelThresholdPx = CANCEL_THRESHOLD_DP.toPx()
@@ -146,13 +146,13 @@ fun VoiceRecorderButton(
             ) {
                 Text(
                     text = if (isCancelMode) "松开取消" else "${elapsedSeconds}s",
-                    fontSize = 16.sp,
+                    fontSize = 14.sp,
                     color = if (isCancelMode) Color.Red else MaterialTheme.colorScheme.primary
                 )
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(1.dp))
                 Text(
                     text = if (isCancelMode) "松开手指取消发送" else "上滑取消",
-                    fontSize = 11.sp,
+                    fontSize = 10.sp,
                     color = TextSecondary
                 )
             }
@@ -165,12 +165,12 @@ fun VoiceRecorderButton(
                     imageVector = Icons.Default.Mic,
                     contentDescription = "按住说话",
                     tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(16.dp)
                 )
-                Spacer(modifier = Modifier.size(8.dp))
+                Spacer(modifier = Modifier.size(6.dp))
                 Text(
                     text = if (hasPermission) "按住说话" else "点击授权录音权限",
-                    fontSize = 16.sp,
+                    fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurface
                 )
             }
