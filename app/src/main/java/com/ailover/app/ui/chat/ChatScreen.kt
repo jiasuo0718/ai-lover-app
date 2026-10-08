@@ -400,7 +400,8 @@ fun ChatScreen(
                                     innerTextField()
                                 }
                             )
-                            // 手势层：只覆盖输入框列，不覆盖左右按钮
+                            // 手势层：未聚焦或录音时挂载，聚焦时卸载让 BasicTextField 处理长按选词
+                            if (!isInputFocused || isRecording) {
                             Box(
                                 modifier = Modifier
                                     .matchParentSize()
@@ -479,6 +480,7 @@ fun ChatScreen(
                                         }
                                     }
                             )
+                            }
                             }
                         }
 
