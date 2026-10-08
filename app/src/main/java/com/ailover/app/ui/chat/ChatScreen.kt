@@ -307,9 +307,9 @@ fun ChatScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .shadow(6.dp, RoundedCornerShape(28.dp))
-                            .background(Color(0xFFF2F2F7), RoundedCornerShape(28.dp))
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                            .shadow(6.dp, RoundedCornerShape(24.dp))
+                            .background(Color(0xFFF2F2F7), RoundedCornerShape(24.dp))
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // 相机图标（IconPark）
