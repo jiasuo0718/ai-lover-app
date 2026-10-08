@@ -300,7 +300,7 @@ fun ChatScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 4.dp, vertical = 3.dp),
+                        .padding(start = 8.dp, end = 8.dp, top = 3.dp, bottom = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // 大输入框：图标全部内嵌
@@ -309,7 +309,7 @@ fun ChatScreen(
                             .fillMaxWidth()
                             .shadow(2.dp, RoundedCornerShape(20.dp))
                             .background(Color(0xFFFFFFFF), RoundedCornerShape(20.dp))
-                            .padding(horizontal = 12.dp, vertical = 3.dp),
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // 相机图标（IconPark）
