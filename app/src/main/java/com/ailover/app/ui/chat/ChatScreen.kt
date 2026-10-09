@@ -1,6 +1,9 @@
 package com.ailover.app.ui.chat
 
 import android.Manifest
+import android.content.Context
+import android.os.VibrationEffect
+import android.os.Vibrator
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -183,6 +186,20 @@ fun ChatScreen(
     val coroutineScope = rememberCoroutineScope()
     DisposableEffect(Unit) {
         onDispose { voiceToText.destroy() }
+    }
+    // 开始录音时震动反馈（所有入口统一触发：isRecording=true）
+    LaunchedEffect(isRecording) {
+        if (isRecording) {
+            val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+            if (vibrator.hasVibrator()) {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    vibrator.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
+                } else {
+                    @Suppress("DEPRECATION")
+                    vibrator.vibrate(50)
+                }
+            }
+        }
     }
     var showPermissionSettingsHint by remember { mutableStateOf(false) }
     val permissionLauncher = rememberLauncherForActivityResult(
