@@ -28,5 +28,12 @@ data class MessageEntity(
     val content: String,
     val voiceDuration: Int? = null,
     val timestamp: Long = System.currentTimeMillis(),
-    val isRead: Boolean = true
-)
+    val isRead: Boolean = true,
+    val sendStatus: Int = 0
+) {
+    companion object {
+        const val SEND_STATUS_SUCCESS = 0
+        const val SEND_STATUS_SENDING = 1
+        const val SEND_STATUS_FAILED = 2
+    }
+}

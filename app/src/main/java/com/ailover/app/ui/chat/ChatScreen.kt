@@ -856,7 +856,8 @@ fun ChatScreen(
                                     }
                                     currentPlayingId = message.id
                                 }
-                            }
+                            },
+                            onResend = { viewModel.resendMessage(it) }
                         )
                     }
                 }
@@ -928,7 +929,8 @@ private fun MessageBubble(
     userNickname: String,
     userAvatarUri: String?,
     isPlaying: Boolean,
-    onPlayClick: () -> Unit
+    onPlayClick: () -> Unit,
+    onResend: (Long) -> Unit = {}
 ) {
     val isSelf = message.senderType == SenderType.USER
     val isSystem = message.senderType == SenderType.SYSTEM
@@ -1029,11 +1031,39 @@ private fun MessageBubble(
                 }
             }
             Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = TimeUtils.formatMessageTime(message.timestamp),
-                fontSize = 11.sp,
-                color = TextSecondary
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = if (isSelf) Arrangement.End else Arrangement.Start
+            ) {
+                if (isSelf && message.sendStatus == MessageEntity.SEND_STATUS_SENDING) {
+                    Text(
+                        text = "发送中...",
+                        fontSize = 11.sp,
+                        color = TextSecondary
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                }
+                if (isSelf && message.sendStatus == MessageEntity.SEND_STATUS_FAILED) {
+                    Text(
+                        text = "发送失败",
+                        fontSize = 11.sp,
+                        color = Color(0xFFFF3B30)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "重发",
+                        fontSize = 11.sp,
+                        color = Color(0xFF0A84FF),
+                        modifier = Modifier.clickable { onResend(message.id) }
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                }
+                Text(
+                    text = TimeUtils.formatMessageTime(message.timestamp),
+                    fontSize = 11.sp,
+                    color = TextSecondary
+                )
+            }
         }
 
         if (isSelf) {
