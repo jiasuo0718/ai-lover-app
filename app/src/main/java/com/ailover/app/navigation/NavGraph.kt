@@ -319,9 +319,6 @@ fun AppNavGraph() {
                     onDeleted = {
                         // 删除后回通讯录 tab
                         navigateToTopLevel(Routes.CONTACTS)
-                    },
-                    onApiProfileListClick = {
-                        navController.navigate(Routes.API_PROFILE_LIST)
                     }
                 )
             }

@@ -86,8 +86,15 @@ class ChatViewModel(
             // 2. 更新会话最后消息
             updateConversationLastMessage(text)
 
-            // 3. 获取 API 配置
-            val settings = settingsRepository.getActiveProfileOnce()
+            // 3. 获取角色（提前，用于 API 配置优先级判断和 system prompt）
+            val conversation = conversationRepository.getConversationById(conversationId)
+            val character = conversation?.let {
+                characterRepository.getCharacterById(it.characterId)
+            }
+            val systemPrompt = character?.personality?.takeIf { it.isNotBlank() }
+
+            // 4. 获取 API 配置（优先级：角色绑定 → 全局active → 内存兜底）
+            val settings = resolveApiProfile(character)
             if (!settings.isConfigured()) {
                 _errorMessage.value = "请先在设置中配置 API Key"
                 // 插入一条提示消息
@@ -101,13 +108,6 @@ class ChatViewModel(
                 )
                 return@launch
             }
-
-            // 4. 获取角色人设（system prompt）
-            val conversation = conversationRepository.getConversationById(conversationId)
-            val character = conversation?.let {
-                characterRepository.getCharacterById(it.characterId)
-            }
-            val systemPrompt = character?.personality?.takeIf { it.isNotBlank() }
 
             // 5. 创建 AI 回复占位消息
             val aiMessageId = messageRepository.insertMessage(
@@ -225,6 +225,22 @@ class ChatViewModel(
                 conversation.copy(lastMessage = text)
             )
         }
+    }
+
+    /**
+     * 解析当前聊天应该用哪套 API 配置。
+     * 优先级：角色绑定的 apiProfileId → 全局 active → 内存兜底默认。
+     * 如果角色绑定的配置已被删除，静默 fallback 到全局 active。
+     */
+    private suspend fun resolveApiProfile(character: CharacterEntity?): com.ailover.app.data.settings.ApiProfile {
+        val boundId = character?.apiProfileId
+        if (!boundId.isNullOrBlank()) {
+            val profiles = settingsRepository.getProfilesOnce()
+            val bound = profiles.firstOrNull { it.id == boundId }
+            if (bound != null) return bound
+            // 角色绑定的配置被删了，fallthrough 到全局
+        }
+        return settingsRepository.getActiveProfileOnce()
     }
 }
 

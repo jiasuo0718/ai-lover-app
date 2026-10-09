@@ -24,12 +24,14 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -43,6 +45,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ailover.app.data.settings.ApiPlatforms
+import com.ailover.app.data.settings.ApiProfile
 import com.ailover.app.di.AppContainer
 import com.ailover.app.ui.theme.BubbleSelf
 import com.ailover.app.ui.theme.CardWhite
@@ -56,8 +60,7 @@ fun CharacterSettingsScreen(
     characterId: Long,
     onBackClick: () -> Unit,
     onEditClick: (Long) -> Unit,
-    onDeleted: () -> Unit,
-    onApiProfileListClick: () -> Unit = {}
+    onDeleted: () -> Unit
 ) {
     val viewModel: CharacterDetailViewModel = viewModel(
         factory = CharacterDetailViewModelFactory(
@@ -67,9 +70,13 @@ fun CharacterSettingsScreen(
         )
     )
     val character by viewModel.character.collectAsState()
+    val settingsRepository = AppContainer.settingsRepository()
+    val profiles by settingsRepository.apiProfiles.collectAsState(initial = emptyList())
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showApiSheet by remember { mutableStateOf(false) }
     var pinned by remember { mutableStateOf(false) }
     var muted by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState()
 
     Scaffold(
         topBar = {
@@ -118,8 +125,12 @@ fun CharacterSettingsScreen(
             SettingsGroup {
                 SettingsItem(
                     title = "选择 API",
+                    subtitle = if (character?.apiProfileId == null)
+                        "跟随全局默认"
+                    else
+                        profiles.firstOrNull { it.id == character?.apiProfileId }?.name ?: "跟随全局默认",
                     disabled = false,
-                    onClick = { onApiProfileListClick() }
+                    onClick = { showApiSheet = true }
                 )
                 SettingsDivider()
                 SettingsSwitchItem(
@@ -184,6 +195,57 @@ fun CharacterSettingsScreen(
             containerColor = CardWhite
         )
     }
+
+    // 选择 API 底部弹窗
+    if (showApiSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showApiSheet = false },
+            sheetState = sheetState,
+            containerColor = CardWhite
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 32.dp)
+            ) {
+                Text(
+                    "选择 API",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = TextPrimary,
+                    modifier = Modifier.padding(vertical = 12.dp)
+                )
+
+                // 跟随全局默认
+                ApiSelectRow(
+                    title = "跟随全局默认",
+                    subtitle = "使用全局设置中的当前默认配置",
+                    selected = character?.apiProfileId == null,
+                    onClick = {
+                        viewModel.updateApiProfileId(null)
+                        showApiSheet = false
+                    }
+                )
+
+                DividerLine()
+
+                // 所有 API 配置
+                profiles.forEach { profile ->
+                    ApiSelectRow(
+                        title = profile.name,
+                        subtitle = "${ApiPlatforms.getById(profile.platform).name} · ${profile.modelName}",
+                        selected = character?.apiProfileId == profile.id,
+                        onClick = {
+                            viewModel.updateApiProfileId(profile.id)
+                            showApiSheet = false
+                        }
+                    )
+                    DividerLine()
+                }
+            }
+        }
+    }
 }
 
 // ========== 小组件 ==========
@@ -206,7 +268,8 @@ private fun SettingsGroup(content: @Composable () -> Unit) {
 private fun SettingsItem(
     title: String,
     onClick: () -> Unit,
-    disabled: Boolean = false
+    disabled: Boolean = false,
+    subtitle: String? = null
 ) {
     Row(
         modifier = Modifier
@@ -215,12 +278,21 @@ private fun SettingsItem(
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = title,
-            color = if (disabled) TextSecondary else TextPrimary,
-            fontSize = 16.sp
-        )
-        Spacer(modifier = Modifier.weight(1f))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                color = if (disabled) TextSecondary else TextPrimary,
+                fontSize = 16.sp
+            )
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    color = TextSecondary,
+                    fontSize = 13.sp
+                )
+            }
+        }
+        Spacer(modifier = Modifier.width(8.dp))
         Icon(
             imageVector = Icons.Filled.ChevronRight,
             contentDescription = null,
@@ -268,6 +340,49 @@ private fun SettingsDivider() {
             .fillMaxWidth()
             .height(0.5.dp)
             .padding(start = 16.dp)
+            .background(Divider)
+    )
+}
+
+@Composable
+private fun ApiSelectRow(
+    title: String,
+    subtitle: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                fontSize = 16.sp,
+                color = TextPrimary,
+                fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal
+            )
+            Text(
+                text = subtitle,
+                fontSize = 13.sp,
+                color = TextSecondary
+            )
+        }
+        if (selected) {
+            Text("✓", fontSize = 18.sp, color = Color(0xFF0A84FF))
+        }
+    }
+}
+
+@Composable
+private fun DividerLine() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(0.5.dp)
             .background(Divider)
     )
 }

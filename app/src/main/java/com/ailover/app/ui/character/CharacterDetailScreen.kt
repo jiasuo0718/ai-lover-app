@@ -118,6 +118,15 @@ class CharacterDetailViewModel(
             characterRepository.deleteCharacterById(characterId)
         }
     }
+
+    fun updateApiProfileId(profileId: String?) {
+        viewModelScope.launch {
+            val char = _character.value ?: return@launch
+            val updated = char.copy(apiProfileId = profileId)
+            characterRepository.updateCharacter(updated)
+            _character.value = updated
+        }
+    }
 }
 
 class CharacterDetailViewModelFactory(
