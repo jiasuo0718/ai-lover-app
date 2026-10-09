@@ -149,21 +149,6 @@ fun ChatScreen(
     val listState = rememberLazyListState()
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
-    val density = LocalDensity.current
-    val scrollThresholdPx = with(density) { 10.dp.toPx() }
-    val scrollConnection = remember {
-        object : NestedScrollConnection {
-            private var accumulated = 0f
-            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-                accumulated += kotlin.math.abs(consumed.y)
-                if (accumulated > scrollThresholdPx && isInputFocused) {
-                    focusManager.clearFocus()
-                    accumulated = 0f
-                }
-                return Offset.Zero
-            }
-        }
-    }
 
     // 输入模式：文本 / 语音
     var isVoiceMode by remember { mutableStateOf(false) }
@@ -256,6 +241,23 @@ fun ChatScreen(
         if (isInputFocused && messages.isNotEmpty()) {
             delay(200)
             listState.scrollToItem(messages.size - 1)
+        }
+    }
+
+    // 滑动清焦点：滚动超过 10dp 阈值时清焦点
+    val density = LocalDensity.current
+    val scrollThresholdPx = with(density) { 10.dp.toPx() }
+    val scrollConnection = remember {
+        object : NestedScrollConnection {
+            private var accumulated = 0f
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                accumulated += kotlin.math.abs(consumed.y)
+                if (accumulated > scrollThresholdPx && isInputFocused) {
+                    focusManager.clearFocus()
+                    accumulated = 0f
+                }
+                return Offset.Zero
+            }
         }
     }
 
