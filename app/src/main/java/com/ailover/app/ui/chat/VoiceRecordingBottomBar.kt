@@ -120,8 +120,8 @@ private fun DeepSeekWaveform(
         val startX = (size.width - totalWidth) / 2f
 
         for (i in 0 until barCount) {
-            // 细长方头竖条：最小4dp最大40dp，像梳子齿
-            val h = (4f + 40f * baseFactors[i] * smoothedVolume).dp.toPx()
+            // 细长方头竖条：最小5dp最大7dp，不发声有基础高度，发声上限压短
+            val h = (5f + 7f * baseFactors[i] * smoothedVolume).dp.toPx()
             val x = startX + i * (barWidth + gap)
             val y = (size.height - h) / 2f
             drawRoundRect(

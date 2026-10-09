@@ -425,7 +425,7 @@ fun ChatScreen(
                                                     return@awaitEachGesture
                                                 }
                                                 val startY = down.position.y
-                                                val cancelThreshold = with(density) { 45.dp.toPx() }
+                                                val cancelThreshold = with(density) { 35.dp.toPx() }
                                                 // 立即开始录音
                                                 isRecording = true
                                                 isCancelRecording = false
@@ -517,7 +517,7 @@ fun ChatScreen(
                                             val down = awaitFirstDown(requireUnconsumed = false)
                                             longPressTriggered.set(false)
                                             val startY = down.position.y
-                                            val cancelThreshold = with(density) { 45.dp.toPx() }
+                                            val cancelThreshold = with(density) { 35.dp.toPx() }
                                             // 按下立即预连接（有权限时），WebSocket建连与长按判定并行
                                             var preConnected = false
                                             if (hasRecordPermission) {
