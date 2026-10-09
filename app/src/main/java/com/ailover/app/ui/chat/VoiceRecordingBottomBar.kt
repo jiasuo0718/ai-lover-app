@@ -50,8 +50,8 @@ fun VoiceRecordingBottomBar(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Bottom
     ) {
-        // 顶部留白，把文字和声波推到中间偏下位置
-        Spacer(modifier = Modifier.weight(2f))
+        // 上方留白，把内容推到中下部
+        Spacer(modifier = Modifier.weight(1f))
 
         // 文字
         Text(
@@ -61,7 +61,7 @@ fun VoiceRecordingBottomBar(
             fontWeight = FontWeight.Normal
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         // 底部波形
         DeepSeekWaveform(
@@ -70,7 +70,8 @@ fun VoiceRecordingBottomBar(
             barCount = 40
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        // 底部留白
+        Spacer(modifier = Modifier.height(32.dp))
     }
 }
 
@@ -119,8 +120,8 @@ private fun DeepSeekWaveform(
         val startX = (size.width - totalWidth) / 2f
 
         for (i in 0 until barCount) {
-            // 原地跳动：固定系数 × 当前音量，竖条形状，最大36dp不顶满（Canvas高40dp，留4dp空间）
-            val h = (8f + 28f * baseFactors[i] * smoothedVolume).dp.toPx()
+            // 原地跳动：固定系数 × 当前音量，最大32dp不顶满（Canvas高40dp，留8dp空间）
+            val h = (8f + 32f * baseFactors[i] * smoothedVolume).dp.toPx()
             val x = startX + i * (barWidth + gap)
             val y = (size.height - h) / 2f
             drawRoundRect(
