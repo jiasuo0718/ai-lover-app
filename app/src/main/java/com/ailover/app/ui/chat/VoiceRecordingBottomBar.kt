@@ -33,7 +33,7 @@ fun VoiceRecordingBottomBar(
     val textColor = Color(0xFF8E8E93)
 
     // 录音栏高度：蓝红两态共用同一个值，保证高度一致
-    val barHeight = 120.dp
+    val barHeight = 160.dp
 
     // 背景渐变：底部明显的淡蓝/淡红渐变，向上渐变透明，两态alpha一致
     val bgGradient = if (isCancelling) {
@@ -50,7 +50,8 @@ fun VoiceRecordingBottomBar(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Bottom
     ) {
-        Spacer(modifier = Modifier.weight(1f))
+        // 顶部留白，把文字和声波推到中间偏下位置
+        Spacer(modifier = Modifier.weight(2f))
 
         // 文字
         Text(
@@ -60,16 +61,16 @@ fun VoiceRecordingBottomBar(
             fontWeight = FontWeight.Normal
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         // 底部波形
         DeepSeekWaveform(
             volumeLevel = volumeLevel,
             color = waveColor,
-            barCount = 32
+            barCount = 40
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
@@ -77,7 +78,7 @@ fun VoiceRecordingBottomBar(
 private fun DeepSeekWaveform(
     volumeLevel: Float,
     color: Color,
-    barCount: Int = 32
+    barCount: Int = 40
 ) {
     // 每根竖条的固定高度系数（伪随机，范围0.2~1.0，高低差异大，层次分明）
     val baseFactors = remember {
@@ -106,20 +107,20 @@ private fun DeepSeekWaveform(
 
     Canvas(
         modifier = Modifier
-            .height(24.dp)
+            .height(40.dp)
             .fillMaxWidth()
     ) {
         tick.let { }
 
-        val barWidth = 3.dp.toPx()
-        val gap = 3.dp.toPx()
-        val cornerRadius = 1.5.dp.toPx()
+        val barWidth = 4.dp.toPx()
+        val gap = 4.dp.toPx()
+        val cornerRadius = 2.dp.toPx()
         val totalWidth = barCount * barWidth + (barCount - 1) * gap
         val startX = (size.width - totalWidth) / 2f
 
         for (i in 0 until barCount) {
-            // 原地跳动：固定系数 × 当前音量，最大22dp不顶满（Canvas高24dp，留2dp空间）
-            val h = (4f + 18f * baseFactors[i] * smoothedVolume).dp.toPx()
+            // 原地跳动：固定系数 × 当前音量，竖条形状，最大36dp不顶满（Canvas高40dp，留4dp空间）
+            val h = (8f + 28f * baseFactors[i] * smoothedVolume).dp.toPx()
             val x = startX + i * (barWidth + gap)
             val y = (size.height - h) / 2f
             drawRoundRect(
