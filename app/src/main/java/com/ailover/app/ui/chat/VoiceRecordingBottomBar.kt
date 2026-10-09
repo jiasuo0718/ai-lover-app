@@ -85,13 +85,13 @@ private fun DeepSeekWaveform(
     // 始终读取最新的 volumeLevel
     val currentVolume by rememberUpdatedState(volumeLevel)
 
-    // 波形驱动循环：每30ms更新一次历史数据+低通滤波，触发重绘
+    // 波形驱动循环：每16ms更新一次（每帧），低通滤波0.3/0.7（新值占70%，跟手灵敏）
     LaunchedEffect(Unit) {
         while (true) {
-            kotlinx.coroutines.delay(30)
-            // 低通滤波：新值 = 旧值*0.6 + 目标*0.4，等效平滑约75ms
+            kotlinx.coroutines.delay(16)
+            // 低通滤波：新值 = 旧值*0.3 + 目标*0.7，响应快、跟手
             val target = (currentVolume * 8f).coerceIn(0f, 1f)
-            smoothedVolume = smoothedVolume * 0.6f + target * 0.4f
+            smoothedVolume = smoothedVolume * 0.3f + target * 0.7f
             // 历史数据左移
             for (i in 0 until barCount - 1) {
                 history[i] = history[i + 1]
