@@ -29,13 +29,13 @@ fun VoiceRecordingBottomBar(
         targetValue = if (isCancelling) Color(0xFFFF3B30) else Color(0xFF4A90E2),
         animationSpec = tween(150), label = "waveColor"
     )
-    // 文字颜色：淡淡的灰色
+    // 文字颜色
     val textColor = Color(0xFF8E8E93)
 
     // 录音栏高度：蓝红两态共用同一个值，保证高度一致
     val barHeight = 120.dp
 
-    // 背景渐变：豆包风格，底部明显的淡蓝/淡红渐变，向上渐变透明，两态alpha一致
+    // 背景渐变：底部明显的淡蓝/淡红渐变，向上渐变透明，两态alpha一致
     val bgGradient = if (isCancelling) {
         Brush.verticalGradient(listOf(Color(0x00FF3B30), Color(0x33FF3B30)))
     } else {
@@ -45,31 +45,31 @@ fun VoiceRecordingBottomBar(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(barHeight) // 蓝红两态共用同一个高度变量
+            .height(barHeight)
             .background(bgGradient),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Bottom
     ) {
         Spacer(modifier = Modifier.weight(1f))
 
-        // 文字：变小
+        // 文字
         Text(
             text = if (isCancelling) "松手取消" else "松手发送，上滑取消",
             color = textColor,
-            fontSize = 12.sp,
+            fontSize = 14.sp,
             fontWeight = FontWeight.Normal
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-        // 底部细密矮小波形
+        // 底部波形
         DeepSeekWaveform(
             volumeLevel = volumeLevel,
             color = waveColor,
-            barCount = 50 // 更细密
+            barCount = 32
         )
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 
@@ -77,7 +77,7 @@ fun VoiceRecordingBottomBar(
 private fun DeepSeekWaveform(
     volumeLevel: Float,
     color: Color,
-    barCount: Int = 50
+    barCount: Int = 32
 ) {
     // 每根竖条的固定高度系数（伪随机，范围0.2~1.0，高低差异大，层次分明）
     val baseFactors = remember {
@@ -106,20 +106,20 @@ private fun DeepSeekWaveform(
 
     Canvas(
         modifier = Modifier
-            .height(14.dp) // 声波压矮
+            .height(24.dp)
             .fillMaxWidth()
     ) {
         tick.let { }
 
-        val barWidth = 1.5.dp.toPx() // 更细
-        val gap = 1.5.dp.toPx() // 更密
-        val cornerRadius = 0.75.dp.toPx()
+        val barWidth = 3.dp.toPx()
+        val gap = 3.dp.toPx()
+        val cornerRadius = 1.5.dp.toPx()
         val totalWidth = barCount * barWidth + (barCount - 1) * gap
         val startX = (size.width - totalWidth) / 2f
 
         for (i in 0 until barCount) {
-            // 原地跳动：固定系数 × 当前音量，最大12dp不顶满（Canvas高14dp，留2dp空间）
-            val h = (2f + 10f * baseFactors[i] * smoothedVolume).dp.toPx()
+            // 原地跳动：固定系数 × 当前音量，最大22dp不顶满（Canvas高24dp，留2dp空间）
+            val h = (4f + 18f * baseFactors[i] * smoothedVolume).dp.toPx()
             val x = startX + i * (barWidth + gap)
             val y = (size.height - h) / 2f
             drawRoundRect(
