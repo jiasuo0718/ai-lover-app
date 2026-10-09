@@ -51,7 +51,6 @@ import com.ailover.app.ui.profile.ProfileScreen
 import com.ailover.app.ui.profile.UserProfileEditScreen
 import com.ailover.app.ui.settings.ApiProfileEditScreen
 import com.ailover.app.ui.settings.ApiProfileListScreen
-import com.ailover.app.ui.settings.SettingsScreen
 import com.ailover.app.ui.theme.CardWhite
 import com.ailover.app.ui.theme.Divider
 import com.ailover.app.ui.theme.TextPrimary
@@ -66,7 +65,6 @@ object Routes {
     const val CHARACTER_DETAIL = "character_detail/{characterId}"
     const val CHARACTER_SETTINGS = "character_settings/{characterId}"
     const val USER_PROFILE_EDIT = "user_profile_edit"
-    const val API_SETTINGS = "api_settings"
     const val API_PROFILE_LIST = "api_profile_list"
     const val API_PROFILE_EDIT = "api_profile_edit/{profileId}"
 
@@ -212,7 +210,7 @@ fun AppNavGraph() {
                         navController.navigate(Routes.USER_PROFILE_EDIT)
                     },
                     onApiSettingsClick = {
-                        navController.navigate(Routes.API_SETTINGS)
+                        navController.navigate(Routes.API_PROFILE_LIST)
                     }
                 )
             }
@@ -333,15 +331,6 @@ fun AppNavGraph() {
                 UserProfileEditScreen(
                     onBackClick = { navController.popBackStack() },
                     onSaved = { navController.popBackStack() }
-                )
-            }
-
-            // API 设置页
-            composable(Routes.API_SETTINGS) {
-                SettingsScreen(
-                    onApiProfileListClick = {
-                        navController.navigate(Routes.API_PROFILE_LIST)
-                    }
                 )
             }
 
