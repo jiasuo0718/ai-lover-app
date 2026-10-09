@@ -14,6 +14,10 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -87,9 +91,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -143,6 +149,21 @@ fun ChatScreen(
     val listState = rememberLazyListState()
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
+    val density = LocalDensity.current
+    val scrollThresholdPx = with(density) { 10.dp.toPx() }
+    val scrollConnection = remember {
+        object : NestedScrollConnection {
+            private var accumulated = 0f
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                accumulated += kotlin.math.abs(consumed.y)
+                if (accumulated > scrollThresholdPx && isInputFocused) {
+                    focusManager.clearFocus()
+                    accumulated = 0f
+                }
+                return Offset.Zero
+            }
+        }
+    }
 
     // 输入模式：文本 / 语音
     var isVoiceMode by remember { mutableStateOf(false) }
@@ -392,7 +413,7 @@ fun ChatScreen(
                                 decorationBox = { innerTextField ->
                                     if (inputText.isEmpty()) {
                                         Text(
-                                            "发消息或按住说话...",
+                                            text = if (isInputFocused) "发信息" else "发消息或按住说话...",
                                             fontSize = 15.sp,
                                             color = TextSecondary
                                         )
@@ -804,7 +825,11 @@ fun ChatScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .imePadding()
-                        .alpha(if (isListReady) 1f else 0f),
+                        .alpha(if (isListReady) 1f else 0f)
+                        .nestedScroll(scrollConnection)
+                        .pointerInput(Unit) {
+                            detectTapGestures(onTap = { if (isInputFocused) focusManager.clearFocus() })
+                        },
                     contentPadding = PaddingValues(vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -952,7 +977,12 @@ private fun MessageBubble(
                     .clip(RoundedCornerShape(20.dp))
                     .background(bubbleColor)
                     .then(
-                        if (isVoice) Modifier.clickable(onClick = onPlayClick) else Modifier
+                        if (isVoice) Modifier.clickable(onClick = onPlayClick)
+                        else Modifier.clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = {}
+                        )
                     )
                     .padding(
                         horizontal = 14.dp,
