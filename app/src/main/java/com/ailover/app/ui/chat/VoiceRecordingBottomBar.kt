@@ -90,7 +90,7 @@ private fun DeepSeekWaveform(
         while (true) {
             kotlinx.coroutines.delay(16)
             // 低通滤波：新值 = 旧值*0.3 + 目标*0.7，响应快、跟手
-            val target = (currentVolume * 8f).coerceIn(0f, 1f)
+            val target = (currentVolume * 12f).coerceIn(0f, 1f)
             smoothedVolume = smoothedVolume * 0.3f + target * 0.7f
             // 历史数据左移
             for (i in 0 until barCount - 1) {
