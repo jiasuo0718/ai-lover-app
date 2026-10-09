@@ -26,7 +26,7 @@ fun VoiceRecordingBottomBar(
 ) {
     // 波纹颜色：正常是亮蓝色，取消是红色
     val waveColor by animateColorAsState(
-        targetValue = if (isCancelling) Color(0xFFFF3B30) else Color(0xFF0A84FF),
+        targetValue = if (isCancelling) Color(0xFFFF3B30) else Color(0xFF007AFF),
         animationSpec = tween(150), label = "waveColor"
     )
     // 文字颜色
@@ -39,7 +39,7 @@ fun VoiceRecordingBottomBar(
     val bgGradient = if (isCancelling) {
         Brush.verticalGradient(listOf(Color(0x00FF3B30), Color(0x33FF3B30)))
     } else {
-        Brush.verticalGradient(listOf(Color(0x000A84FF), Color(0x330A84FF)))
+        Brush.verticalGradient(listOf(Color(0x00007AFF), Color(0x33007AFF)))
     }
 
     Column(
