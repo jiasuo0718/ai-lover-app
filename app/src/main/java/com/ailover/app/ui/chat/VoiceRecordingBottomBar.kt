@@ -32,6 +32,9 @@ fun VoiceRecordingBottomBar(
     // 文字颜色：淡淡的灰色
     val textColor = Color(0xFF8E8E93)
 
+    // 录音栏高度：蓝红两态共用同一个值，保证高度一致
+    val barHeight = 60.dp
+
     // 背景渐变：豆包风格，底部明显的淡蓝/淡红渐变，向上渐变透明，两态alpha一致
     val bgGradient = if (isCancelling) {
         Brush.verticalGradient(listOf(Color(0x00FF3B30), Color(0x33FF3B30)))
@@ -42,7 +45,7 @@ fun VoiceRecordingBottomBar(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(60.dp) // 整体压矮
+            .height(barHeight) // 蓝红两态共用同一个高度变量
             .background(bgGradient),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Bottom
