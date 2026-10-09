@@ -32,11 +32,11 @@ fun VoiceRecordingBottomBar(
     // 文字颜色：淡淡的灰色
     val textColor = Color(0xFF8E8E93)
 
-    // 背景渐变：豆包风格，底部明显的淡蓝/淡红渐变，向上渐变透明
+    // 背景渐变：豆包风格，底部明显的淡蓝/淡红渐变，向上渐变透明，两态alpha一致
     val bgGradient = if (isCancelling) {
         Brush.verticalGradient(listOf(Color(0x00FF3B30), Color(0x33FF3B30)))
     } else {
-        Brush.verticalGradient(listOf(Color(0x004A90E2), Color(0x2E4A90E2)))
+        Brush.verticalGradient(listOf(Color(0x004A90E2), Color(0x334A90E2)))
     }
 
     Column(
