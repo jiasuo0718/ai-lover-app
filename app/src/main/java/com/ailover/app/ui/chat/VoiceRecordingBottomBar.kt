@@ -76,10 +76,10 @@ private fun DeepSeekWaveform(
     color: Color,
     barCount: Int = 40
 ) {
-    // 每根竖条的固定高度系数（伪随机，高低起伏明显，原地不滚动）
+    // 每根竖条的固定高度系数（伪随机，范围0.2~1.0，高低差异大，层次分明）
     val baseFactors = remember {
         FloatArray(barCount) { i ->
-            0.35f + 0.65f * abs(kotlin.math.sin(i * 1.7f))
+            0.2f + 0.8f * abs(kotlin.math.sin(i * 1.7f))
         }
     }
     // 触发 Canvas 重绘的 tick
@@ -114,8 +114,8 @@ private fun DeepSeekWaveform(
         val startX = (size.width - totalWidth) / 2f
 
         for (i in 0 until barCount) {
-            // 原地跳动：固定系数 × 当前音量，每条高度不一样
-            val h = (4f + 20f * baseFactors[i] * smoothedVolume).dp.toPx()
+            // 原地跳动：固定系数 × 当前音量，最大22dp不顶满（Canvas高24dp，留2dp空间）
+            val h = (4f + 18f * baseFactors[i] * smoothedVolume).dp.toPx()
             val x = startX + i * (barWidth + gap)
             val y = (size.height - h) / 2f
             drawRoundRect(
