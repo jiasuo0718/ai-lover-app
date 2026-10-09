@@ -67,7 +67,7 @@ fun VoiceRecordingBottomBar(
         DeepSeekWaveform(
             volumeLevel = volumeLevel,
             color = waveColor,
-            barCount = 40
+            barCount = 32
         )
 
         // 底部留白
@@ -79,7 +79,7 @@ fun VoiceRecordingBottomBar(
 private fun DeepSeekWaveform(
     volumeLevel: Float,
     color: Color,
-    barCount: Int = 40
+    barCount: Int = 32
 ) {
     // 每根竖条的固定高度系数（伪随机，范围0.2~1.0，高低差异大，层次分明）
     val baseFactors = remember {
@@ -113,9 +113,9 @@ private fun DeepSeekWaveform(
     ) {
         tick.let { }
 
-        val barWidth = 4.dp.toPx()
-        val gap = 4.dp.toPx()
-        val cornerRadius = 2.dp.toPx()
+        val barWidth = 3.dp.toPx()
+        val gap = 3.dp.toPx()
+        val cornerRadius = 1.5.dp.toPx()
         val totalWidth = barCount * barWidth + (barCount - 1) * gap
         val startX = (size.width - totalWidth) / 2f
 
