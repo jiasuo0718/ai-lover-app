@@ -87,7 +87,7 @@ class ChatViewModel(
             updateConversationLastMessage(text)
 
             // 3. 获取 API 配置
-            val settings = settingsRepository.getSettingsOnce()
+            val settings = settingsRepository.getActiveProfileOnce()
             if (!settings.isConfigured()) {
                 _errorMessage.value = "请先在设置中配置 API Key"
                 // 插入一条提示消息

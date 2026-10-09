@@ -4,33 +4,36 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.ailover.app.data.settings.ApiPlatforms
-import com.ailover.app.data.settings.ApiSettings
+import com.ailover.app.data.settings.ApiProfile
 import com.ailover.app.data.settings.SettingsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 class SettingsViewModel(
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     private val _settings = MutableStateFlow(
-        ApiSettings(
+        ApiProfile(
+            id = UUID.randomUUID().toString(),
+            name = "默认配置",
+            platform = "deepseek",
             baseUrl = ApiPlatforms.DEEPSEEK.defaultBaseUrl,
             apiKey = "",
-            modelName = ApiPlatforms.DEEPSEEK.defaultModel,
-            platform = "deepseek"
+            modelName = ApiPlatforms.DEEPSEEK.defaultModel
         )
     )
-    val settings: StateFlow<ApiSettings> = _settings.asStateFlow()
+    val settings: StateFlow<ApiProfile> = _settings.asStateFlow()
 
     private val _saveState = MutableStateFlow<SaveState>(SaveState.Idle)
     val saveState: StateFlow<SaveState> = _saveState.asStateFlow()
 
     init {
         viewModelScope.launch {
-            val saved = settingsRepository.getSettingsOnce()
+            val saved = settingsRepository.getActiveProfileOnce()
             _settings.value = saved
         }
     }
@@ -60,7 +63,7 @@ class SettingsViewModel(
         viewModelScope.launch {
             _saveState.value = SaveState.Saving
             try {
-                settingsRepository.saveSettings(_settings.value)
+                settingsRepository.updateActiveProfile(_settings.value)
                 _saveState.value = SaveState.Saved
             } catch (e: Exception) {
                 _saveState.value = SaveState.Error(e.message ?: "保存失败")

@@ -1,13 +1,15 @@
 package com.ailover.app.data.settings
 
 /**
- * API 设置数据类
+ * 单套 API 配置（多套列表中的一项）
  */
-data class ApiSettings(
+data class ApiProfile(
+    val id: String,
+    val name: String,
+    val platform: String = "deepseek",
     val baseUrl: String,
     val apiKey: String,
-    val modelName: String,
-    val platform: String = "deepseek"
+    val modelName: String
 ) {
     fun isConfigured(): Boolean = apiKey.isNotBlank() && baseUrl.isNotBlank() && modelName.isNotBlank()
 }
@@ -36,7 +38,6 @@ object ApiPlatforms {
         DEEPSEEK,
         Platform("openai", "OpenAI", "https://api.openai.com/v1", "gpt-4o-mini", supported = true),
         Platform("custom", "自定义", "", "", supported = true),
-        // 以下平台暂不支持 OpenAI 兼容格式
         Platform("claude", "Claude (Anthropic)", "", "", supported = false),
         Platform("gemini", "Google Gemini", "", "", supported = false),
         Platform("ernie", "文心一言", "", "", supported = false),
