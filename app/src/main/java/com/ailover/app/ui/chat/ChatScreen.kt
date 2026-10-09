@@ -376,19 +376,77 @@ fun ChatScreen(
                         // 输入区 或 按住说话
                         if (isVoiceMode) {
                             Box(modifier = Modifier.weight(1f)) {
-                                VoiceRecorderButton(
-                                    hasPermission = hasRecordPermission,
-                                    onRequestPermission = {
-                                        permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                                    },
-                                    onTextRecognized = { text ->
-                                        viewModel.onInputTextChange(text)
-                                        viewModel.sendMessage()
-                                    },
-                                    onError = { error ->
-                                        // 识别失败，简单提示
-                                        android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_SHORT).show()
-                                    }
+                                // 静态提示（未录音时）
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = if (hasRecordPermission) "按住说话" else "点击授权录音权限",
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = TextSecondary
+                                    )
+                                }
+                                // 手势层：按下立即录音（语音模式无delay），统一UI-B
+                                Box(
+                                    modifier = Modifier
+                                        .matchParentSize()
+                                        .pointerInput(Unit) {
+                                            awaitEachGesture {
+                                                val down = awaitFirstDown(requireUnconsumed = false)
+                                                if (!hasRecordPermission) {
+                                                    permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                                    return@awaitEachGesture
+                                                }
+                                                val startY = down.position.y
+                                                val cancelThreshold = with(density) { 100.dp.toPx() }
+                                                // 立即开始录音
+                                                isRecording = true
+                                                isCancelRecording = false
+                                                recordingVolume = 0f
+                                                voiceToText.startListening(
+                                                    onResult = { text ->
+                                                        isRecording = false
+                                                        isCancelRecording = false
+                                                        viewModel.onInputTextChange(text)
+                                                        viewModel.sendMessage()
+                                                    },
+                                                    onError = { error ->
+                                                        isRecording = false
+                                                        isCancelRecording = false
+                                                        android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_SHORT).show()
+                                                    },
+                                                    onVolume = { volume ->
+                                                        if (kotlin.math.abs(volume - recordingVolume) > 0.05f) {
+                                                            recordingVolume = volume
+                                                        }
+                                                    }
+                                                )
+                                                try {
+                                                    while (true) {
+                                                        val event = awaitPointerEvent()
+                                                        val change = event.changes.firstOrNull() ?: break
+                                                        val dy = startY - change.position.y
+                                                        isCancelRecording = dy > cancelThreshold
+                                                        if (!change.pressed) {
+                                                            if (isCancelRecording) {
+                                                                voiceToText.cancel()
+                                                            } else {
+                                                                voiceToText.stopListening()
+                                                            }
+                                                            isRecording = false
+                                                            isCancelRecording = false
+                                                            break
+                                                        }
+                                                    }
+                                                } catch (e: Exception) {
+                                                    voiceToText.cancel()
+                                                    isRecording = false
+                                                    isCancelRecording = false
+                                                }
+                                            }
+                                        }
                                 )
                             }
                         } else {
@@ -434,19 +492,9 @@ fun ChatScreen(
                                             longPressTriggered.set(false)
                                             val startY = down.position.y
                                             val cancelThreshold = with(density) { 100.dp.toPx() }
-                                            val job = coroutineScope.launch {
-                                                delay(500)
-                                                // 判定为长按：先清焦点，再 consume，然后启动录音
-                                                focusManager.clearFocus(force = true)
-                                                down.consume()
-                                                longPressTriggered.set(true)
-                                                if (!hasRecordPermission) {
-                                                    permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                                                    return@launch
-                                                }
-                                                isRecording = true
-                                                isCancelRecording = false
-                                                recordingVolume = 0f
+                                            // 按下立即预连接（有权限时），WebSocket建连与长按判定并行
+                                            var preConnected = false
+                                            if (hasRecordPermission) {
                                                 voiceToText.startListening(
                                                     onResult = { text ->
                                                         isRecording = false
@@ -460,12 +508,27 @@ fun ChatScreen(
                                                         android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_SHORT).show()
                                                     },
                                                     onVolume = { volume ->
-                                                        // 节流：变化超过 0.05 才更新，减少高频重组
                                                         if (kotlin.math.abs(volume - recordingVolume) > 0.05f) {
                                                             recordingVolume = volume
                                                         }
                                                     }
                                                 )
+                                                preConnected = true
+                                            }
+                                            val job = coroutineScope.launch {
+                                                delay(300)
+                                                // 判定为长按：先清焦点，再 consume，然后显示录音UI
+                                                focusManager.clearFocus(force = true)
+                                                down.consume()
+                                                longPressTriggered.set(true)
+                                                if (!hasRecordPermission) {
+                                                    permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                                    return@launch
+                                                }
+                                                isRecording = true
+                                                isCancelRecording = false
+                                                recordingVolume = 0f
+                                                // startListening 已在按下时预连接，此处不重复调用
                                             }
                                             try {
                                                 while (true) {
@@ -487,7 +550,10 @@ fun ChatScreen(
                                                             // 长按松手：清焦点，防止键盘回弹
                                                             focusManager.clearFocus(force = true)
                                                         } else {
-                                                            // 点按松手：主动请求焦点，弹键盘
+                                                            // 点按松手：取消预连接，弹键盘
+                                                            if (preConnected) {
+                                                                voiceToText.cancel()
+                                                            }
                                                             focusRequester.requestFocus()
                                                         }
                                                         isRecording = false
