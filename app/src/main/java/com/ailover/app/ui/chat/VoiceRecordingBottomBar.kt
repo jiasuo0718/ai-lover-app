@@ -93,7 +93,8 @@ private fun DeepSeekWaveform(
     LaunchedEffect(Unit) {
         while (true) {
             kotlinx.coroutines.delay(16)
-            val target = (currentVolume * 3f).coerceIn(0f, 1f)
+            // 非线性映射：×2后开平方(sqrt压缩)，普通说话中等高度，大声才接近顶
+            val target = kotlin.math.sqrt((currentVolume * 2f).coerceIn(0f, 1f))
             // 低通滤波：新值占85%，声音一出迅速变高，一停迅速变矮
             smoothedVolume = smoothedVolume * 0.15f + target * 0.85f
             tick++

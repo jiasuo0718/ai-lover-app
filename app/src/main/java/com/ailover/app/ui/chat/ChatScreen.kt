@@ -187,19 +187,25 @@ fun ChatScreen(
     DisposableEffect(Unit) {
         onDispose { voiceToText.destroy() }
     }
-    // 开始录音时震动反馈（所有入口统一触发：isRecording=true）
-    LaunchedEffect(isRecording) {
-        if (isRecording) {
-            val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-            if (vibrator.hasVibrator()) {
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                    vibrator.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
-                } else {
-                    @Suppress("DEPRECATION")
-                    vibrator.vibrate(50)
-                }
+    // 震动一次（50ms）
+    fun vibrateOnce() {
+        val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        if (vibrator.hasVibrator()) {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                vibrator.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator.vibrate(50)
             }
         }
+    }
+    // 开始录音时震动
+    LaunchedEffect(isRecording) {
+        if (isRecording) vibrateOnce()
+    }
+    // 上滑进入取消区域时震动（一次取消只震一次：false→true时触发）
+    LaunchedEffect(isCancelRecording) {
+        if (isCancelRecording) vibrateOnce()
     }
     var showPermissionSettingsHint by remember { mutableStateOf(false) }
     val permissionLauncher = rememberLauncherForActivityResult(
