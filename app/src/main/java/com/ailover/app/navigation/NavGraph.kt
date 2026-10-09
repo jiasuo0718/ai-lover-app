@@ -49,6 +49,8 @@ import com.ailover.app.ui.chat.ChatScreen
 import com.ailover.app.ui.conversation.ConversationListScreen
 import com.ailover.app.ui.profile.ProfileScreen
 import com.ailover.app.ui.profile.UserProfileEditScreen
+import com.ailover.app.ui.settings.ApiProfileEditScreen
+import com.ailover.app.ui.settings.ApiProfileListScreen
 import com.ailover.app.ui.settings.SettingsScreen
 import com.ailover.app.ui.theme.CardWhite
 import com.ailover.app.ui.theme.Divider
@@ -65,6 +67,11 @@ object Routes {
     const val CHARACTER_SETTINGS = "character_settings/{characterId}"
     const val USER_PROFILE_EDIT = "user_profile_edit"
     const val API_SETTINGS = "api_settings"
+    const val API_PROFILE_LIST = "api_profile_list"
+    const val API_PROFILE_EDIT = "api_profile_edit/{profileId}"
+
+    fun createApiProfileEditRoute(profileId: String): String =
+        "api_profile_edit/$profileId"
 
     fun createChatRoute(conversationId: Long, title: String): String =
         "chat/$conversationId/$title"
@@ -329,6 +336,31 @@ fun AppNavGraph() {
             // API 设置页
             composable(Routes.API_SETTINGS) {
                 SettingsScreen()
+            }
+
+            // API 配置列表页
+            composable(Routes.API_PROFILE_LIST) {
+                ApiProfileListScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onAddClick = { navController.navigate(Routes.createApiProfileEditRoute("new")) },
+                    onEditClick = { id -> navController.navigate(Routes.createApiProfileEditRoute(id)) }
+                )
+            }
+
+            // API 配置编辑页
+            composable(
+                route = Routes.API_PROFILE_EDIT,
+                arguments = listOf(
+                    navArgument("profileId") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val profileId = backStackEntry.arguments?.getString("profileId")
+                val effectiveId = if (profileId == "new") null else profileId
+                ApiProfileEditScreen(
+                    profileId = effectiveId,
+                    onBackClick = { navController.popBackStack() },
+                    onSaved = { navController.popBackStack() }
+                )
             }
         }
     }
