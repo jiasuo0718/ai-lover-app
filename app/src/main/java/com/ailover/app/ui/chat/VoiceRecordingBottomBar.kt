@@ -67,7 +67,7 @@ fun VoiceRecordingBottomBar(
         DeepSeekWaveform(
             volumeLevel = volumeLevel,
             color = waveColor,
-            barCount = 32
+            barCount = 28
         )
 
         // 底部留白
@@ -79,7 +79,7 @@ fun VoiceRecordingBottomBar(
 private fun DeepSeekWaveform(
     volumeLevel: Float,
     color: Color,
-    barCount: Int = 32
+    barCount: Int = 28
 ) {
     // 每根竖条的固定高度系数（伪随机，范围0.2~1.0，高低差异大，层次分明）
     val baseFactors = remember {
@@ -98,8 +98,8 @@ private fun DeepSeekWaveform(
     LaunchedEffect(Unit) {
         while (true) {
             kotlinx.coroutines.delay(16)
-            // 非线性映射：×2后开平方(sqrt压缩)，普通说话中等高度，大声才接近顶
-            val target = kotlin.math.sqrt((currentVolume * 2f).coerceIn(0f, 1f))
+            // 线性放大×4：普通说话就有中高高度，不再像圆点
+            val target = (currentVolume * 4f).coerceIn(0f, 1f)
             // 低通滤波：新值占85%，声音一出迅速变高，一停迅速变矮
             smoothedVolume = smoothedVolume * 0.15f + target * 0.85f
             tick++
@@ -108,20 +108,20 @@ private fun DeepSeekWaveform(
 
     Canvas(
         modifier = Modifier
-            .height(40.dp)
+            .height(36.dp)
             .fillMaxWidth()
     ) {
         tick.let { }
 
-        val barWidth = 3.dp.toPx()
-        val gap = 3.dp.toPx()
-        val cornerRadius = 1.5.dp.toPx()
+        val barWidth = 3.5.dp.toPx()
+        val gap = 3.5.dp.toPx()
+        val cornerRadius = 1.75.dp.toPx()
         val totalWidth = barCount * barWidth + (barCount - 1) * gap
         val startX = (size.width - totalWidth) / 2f
 
         for (i in 0 until barCount) {
-            // 原地跳动：固定系数 × 当前音量，最大32dp不顶满（Canvas高40dp，留8dp空间）
-            val h = (8f + 32f * baseFactors[i] * smoothedVolume).dp.toPx()
+            // 原地跳动：固定系数 × 当前音量，最小2dp最大34dp，高低差大
+            val h = (2f + 34f * baseFactors[i] * smoothedVolume).dp.toPx()
             val x = startX + i * (barWidth + gap)
             val y = (size.height - h) / 2f
             drawRoundRect(
