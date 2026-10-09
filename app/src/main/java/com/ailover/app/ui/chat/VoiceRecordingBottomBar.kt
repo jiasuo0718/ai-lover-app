@@ -76,8 +76,12 @@ private fun DeepSeekWaveform(
     color: Color,
     barCount: Int = 40
 ) {
-    // 历史数据：FloatArray（替代 mutableStateListOf，减少状态开销）
-    val history = remember { FloatArray(barCount) }
+    // 每根竖条的固定高度系数（伪随机，高低起伏明显，原地不滚动）
+    val baseFactors = remember {
+        FloatArray(barCount) { i ->
+            0.35f + 0.65f * abs(kotlin.math.sin(i * 1.7f))
+        }
+    }
     // 触发 Canvas 重绘的 tick
     var tick by remember { mutableStateOf(0) }
     // 低通滤波后的平滑音量
@@ -85,28 +89,22 @@ private fun DeepSeekWaveform(
     // 始终读取最新的 volumeLevel
     val currentVolume by rememberUpdatedState(volumeLevel)
 
-    // 波形驱动循环：每16ms更新一次（每帧），低通滤波0.3/0.7（新值占70%，跟手灵敏）
+    // 波形驱动循环：每16ms更新，低通滤波0.15/0.85（新值占85%，涨落都快）
     LaunchedEffect(Unit) {
         while (true) {
             kotlinx.coroutines.delay(16)
-            // 低通滤波：新值 = 旧值*0.3 + 目标*0.7，响应快、跟手
             val target = (currentVolume * 12f).coerceIn(0f, 1f)
-            smoothedVolume = smoothedVolume * 0.3f + target * 0.7f
-            // 历史数据左移
-            for (i in 0 until barCount - 1) {
-                history[i] = history[i + 1]
-            }
-            history[barCount - 1] = smoothedVolume
+            // 低通滤波：新值占85%，声音一出迅速变高，一停迅速变矮
+            smoothedVolume = smoothedVolume * 0.15f + target * 0.85f
             tick++
         }
     }
 
     Canvas(
         modifier = Modifier
-            .height(24.dp) // 最大高度与原Box实现一致
+            .height(24.dp)
             .fillMaxWidth()
     ) {
-        // 引用 tick 触发重组（Kotlin 不允许下划线变量名）
         tick.let { }
 
         val barWidth = 2.dp.toPx()
@@ -114,16 +112,12 @@ private fun DeepSeekWaveform(
         val cornerRadius = 1.dp.toPx()
         val totalWidth = barCount * barWidth + (barCount - 1) * gap
         val startX = (size.width - totalWidth) / 2f
-        val center = (barCount - 1) / 2f
 
         for (i in 0 until barCount) {
-            // 中心高，两边低（与原实现完全一致）
-            val dist = abs(i - center) / center
-            val shape = 0.3f + (1f - dist) * 0.7f
-            // 高度 4dp 到 24dp（与原实现完全一致）
-            val h = (4f + 20f * shape * (0.1f + history[i] * 0.9f)).dp.toPx()
+            // 原地跳动：固定系数 × 当前音量，每条高度不一样
+            val h = (4f + 20f * baseFactors[i] * smoothedVolume).dp.toPx()
             val x = startX + i * (barWidth + gap)
-            val y = (size.height - h) / 2f // 垂直居中
+            val y = (size.height - h) / 2f
             drawRoundRect(
                 color = color,
                 topLeft = Offset(x, y),
