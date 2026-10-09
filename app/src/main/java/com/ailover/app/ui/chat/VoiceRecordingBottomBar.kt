@@ -106,8 +106,8 @@ private fun DeepSeekWaveform(
             .height(24.dp) // 最大高度与原Box实现一致
             .fillMaxWidth()
     ) {
-        // 引用 tick 触发重组
-        val _ = tick
+        // 引用 tick 触发重组（Kotlin 不允许下划线变量名）
+        tick.let { }
 
         val barWidth = 2.dp.toPx()
         val gap = 2.dp.toPx()
