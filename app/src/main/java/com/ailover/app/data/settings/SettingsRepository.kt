@@ -92,7 +92,8 @@ class SettingsRepository(private val context: Context) {
             prefs[KEY_API_PROFILES] = gson.toJson(list)
             // 如果删的是 active，自动切到列表第一个
             if (prefs[KEY_ACTIVE_PROFILE_ID] == id) {
-                prefs[KEY_ACTIVE_PROFILE_ID] = list.firstOrNull()?.id
+                list.firstOrNull()?.id?.let { prefs[KEY_ACTIVE_PROFILE_ID] = it }
+                    ?: prefs.remove(KEY_ACTIVE_PROFILE_ID)
             }
         }
     }
