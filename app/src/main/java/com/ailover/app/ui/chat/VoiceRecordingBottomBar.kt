@@ -1,16 +1,17 @@
 package com.ailover.app.ui.chat
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -58,11 +59,11 @@ fun VoiceRecordingBottomBar(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // 底部密集的细长波形
+        // 底部密集的细长波形（Canvas 一次性绘制，替代40个Box）
         DeepSeekWaveform(
             volumeLevel = volumeLevel,
             color = waveColor,
-            barCount = 40 // 条数很多，铺满底部
+            barCount = 40
         )
 
         Spacer(modifier = Modifier.height(16.dp)) // 距离底部导航栏的距离
@@ -75,39 +76,59 @@ private fun DeepSeekWaveform(
     color: Color,
     barCount: Int = 40
 ) {
-    // 对音量进行平滑过滤
-    val smoothed by animateFloatAsState(
-        targetValue = (volumeLevel * 8f).coerceIn(0f, 1f),
-        animationSpec = tween(50), label = "volume"
-    )
+    // 历史数据：FloatArray（替代 mutableStateListOf，减少状态开销）
+    val history = remember { FloatArray(barCount) }
+    // 触发 Canvas 重绘的 tick
+    var tick by remember { mutableStateOf(0) }
+    // 低通滤波后的平滑音量
+    var smoothedVolume by remember { mutableStateOf(0f) }
+    // 始终读取最新的 volumeLevel
+    val currentVolume by rememberUpdatedState(volumeLevel)
 
-    // 历史数据缓冲，用于产生流动效果
-    val history = remember {
-        mutableStateListOf<Float>().apply { repeat(barCount) { add(0f) } }
-    }
-    LaunchedEffect(smoothed) {
-        history.removeAt(0)
-        history.add(smoothed)
+    // 波形驱动循环：每30ms更新一次历史数据+低通滤波，触发重绘
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(30)
+            // 低通滤波：新值 = 旧值*0.6 + 目标*0.4，等效平滑约75ms
+            val target = (currentVolume * 8f).coerceIn(0f, 1f)
+            smoothedVolume = smoothedVolume * 0.6f + target * 0.4f
+            // 历史数据左移
+            for (i in 0 until barCount - 1) {
+                history[i] = history[i + 1]
+            }
+            history[barCount - 1] = smoothedVolume
+            tick++
+        }
     }
 
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(2.dp) // 竖线之间的间距
+    Canvas(
+        modifier = Modifier
+            .height(24.dp) // 最大高度与原Box实现一致
+            .fillMaxWidth()
     ) {
+        // 引用 tick 触发重组
+        val _ = tick
+
+        val barWidth = 2.dp.toPx()
+        val gap = 2.dp.toPx()
+        val cornerRadius = 1.dp.toPx()
+        val totalWidth = barCount * barWidth + (barCount - 1) * gap
+        val startX = (size.width - totalWidth) / 2f
         val center = (barCount - 1) / 2f
-        history.forEachIndexed { i, v ->
-            // 中心高，两边低
+
+        for (i in 0 until barCount) {
+            // 中心高，两边低（与原实现完全一致）
             val dist = abs(i - center) / center
             val shape = 0.3f + (1f - dist) * 0.7f
-
-            // DeepSeek 的波形是很细长的，这里定死最小高度 4dp，最大高度 24dp
-            val h = (4f + 20f * shape * (0.1f + v * 0.9f)).dp
-            Box(
-                modifier = Modifier
-                    .width(2.dp) // 非常细的线
-                    .height(h)
-                    .clip(RoundedCornerShape(1.dp)) // 小圆角
-                    .background(color)
+            // 高度 4dp 到 24dp（与原实现完全一致）
+            val h = (4f + 20f * shape * (0.1f + history[i] * 0.9f)).dp.toPx()
+            val x = startX + i * (barWidth + gap)
+            val y = (size.height - h) / 2f // 垂直居中
+            drawRoundRect(
+                color = color,
+                topLeft = Offset(x, y),
+                size = Size(barWidth, h),
+                cornerRadius = CornerRadius(cornerRadius, cornerRadius)
             )
         }
     }
