@@ -108,20 +108,20 @@ private fun DeepSeekWaveform(
 
     Canvas(
         modifier = Modifier
-            .height(36.dp)
+            .height(44.dp)
             .fillMaxWidth()
     ) {
         tick.let { }
 
-        val barWidth = 3.5.dp.toPx()
+        val barWidth = 2.dp.toPx()
         val gap = 3.5.dp.toPx()
-        val cornerRadius = 1.75.dp.toPx()
+        val cornerRadius = 0.dp.toPx()
         val totalWidth = barCount * barWidth + (barCount - 1) * gap
         val startX = (size.width - totalWidth) / 2f
 
         for (i in 0 until barCount) {
-            // 原地跳动：固定系数 × 当前音量，最小2dp最大34dp，高低差大
-            val h = (2f + 34f * baseFactors[i] * smoothedVolume).dp.toPx()
+            // 细长方头竖条：最小4dp最大40dp，像梳子齿
+            val h = (4f + 40f * baseFactors[i] * smoothedVolume).dp.toPx()
             val x = startX + i * (barWidth + gap)
             val y = (size.height - h) / 2f
             drawRoundRect(
