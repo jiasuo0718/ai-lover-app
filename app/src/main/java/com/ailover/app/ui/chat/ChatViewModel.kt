@@ -96,14 +96,14 @@ class ChatViewModel(
             // 4. 获取 API 配置（优先级：角色绑定 → 全局active → 内存兜底）
             val settings = resolveApiProfile(character)
             if (!settings.isConfigured()) {
-                _errorMessage.value = "请先在设置中配置 API Key"
+                _errorMessage.value = "「${settings.name}」缺少 API Key，请先在设置中配置"
                 // 插入一条提示消息
                 messageRepository.insertMessage(
                     MessageEntity(
                         conversationId = conversationId,
                         senderType = SenderType.SYSTEM,
                         messageType = MessageType.TEXT,
-                        content = "请先在设置中配置 API Key 和模型名称"
+                        content = "「${settings.name}」缺少 API Key，请先在设置中配置"
                     )
                 )
                 return@launch
@@ -147,6 +147,7 @@ class ChatViewModel(
                 chatRepository.streamChat(
                     baseUrl = settings.baseUrl,
                     apiKey = settings.apiKey,
+                    profileName = settings.name,
                     request = ChatRequest(
                         model = settings.modelName,
                         messages = requestMessages,

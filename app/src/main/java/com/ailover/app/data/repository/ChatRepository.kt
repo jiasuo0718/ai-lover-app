@@ -27,13 +27,13 @@ class ChatApiException(
     companion object {
         private const val TAG = "ChatApi"
 
-        fun fromHttpError(code: Int, rawBody: String): ChatApiException {
+        fun fromHttpError(code: Int, rawBody: String, profileName: String): ChatApiException {
             val userMessage = when (code) {
-                401 -> "API Key 无效，请到设置中检查"
-                402 -> "余额不足，请充值"
-                429 -> "请求太频繁，请稍后再试"
-                in 500..599 -> "服务器繁忙，请稍后再试"
-                else -> "请求失败，请重试"
+                401, 403 -> "「$profileName」API Key 无效，请检查后重试"
+                402 -> "「$profileName」余额不足，请充值"
+                429 -> "「$profileName」请求太频繁，请稍后再试"
+                in 500..599 -> "「$profileName」服务器繁忙，请稍后再试"
+                else -> "「$profileName」请求失败（HTTP $code），请稍后重试"
             }
             Log.d(TAG, "HTTP $code error: $rawBody")
             return ChatApiException(code, userMessage, rawBody)
@@ -64,6 +64,7 @@ class ChatRepository(
      *
      * @param baseUrl API 基础地址，如 https://api.deepseek.com
      * @param apiKey API 密钥
+     * @param profileName 当前使用的配置名称，用于错误提示
      * @param request 请求体（stream 字段会被强制设为 true）
      * @return 文本片段的 Flow
      * @throws ChatApiException 当 HTTP 错误或网络错误时抛出，携带用户友好提示
@@ -71,6 +72,7 @@ class ChatRepository(
     fun streamChat(
         baseUrl: String,
         apiKey: String,
+        profileName: String,
         request: ChatRequest
     ): Flow<String> = flow {
         val url = baseUrl.trimEnd('/') + "/chat/completions"
@@ -88,7 +90,7 @@ class ChatRepository(
             okHttpClient.newCall(httpRequest).execute().use { response ->
                 if (!response.isSuccessful) {
                     val errorBody = response.body?.string() ?: "无错误详情"
-                    throw ChatApiException.fromHttpError(response.code, errorBody)
+                    throw ChatApiException.fromHttpError(response.code, errorBody, profileName)
                 }
 
                 val body = response.body
