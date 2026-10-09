@@ -33,7 +33,7 @@ fun VoiceRecordingBottomBar(
     val textColor = Color(0xFF8E8E93)
 
     // 录音栏高度：蓝红两态共用同一个值，保证高度一致
-    val barHeight = 60.dp
+    val barHeight = 120.dp
 
     // 背景渐变：豆包风格，底部明显的淡蓝/淡红渐变，向上渐变透明，两态alpha一致
     val bgGradient = if (isCancelling) {
