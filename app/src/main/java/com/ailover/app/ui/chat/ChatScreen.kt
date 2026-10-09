@@ -432,9 +432,6 @@ fun ChatScreen(
                                         awaitEachGesture {
                                             val down = awaitFirstDown(requireUnconsumed = false)
                                             longPressTriggered.set(false)
-                                            if (!hasRecordPermission) {
-                                                return@awaitEachGesture
-                                            }
                                             val startY = down.position.y
                                             val cancelThreshold = with(density) { 100.dp.toPx() }
                                             val job = coroutineScope.launch {
@@ -443,6 +440,10 @@ fun ChatScreen(
                                                 focusManager.clearFocus(force = true)
                                                 down.consume()
                                                 longPressTriggered.set(true)
+                                                if (!hasRecordPermission) {
+                                                    permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                                    return@launch
+                                                }
                                                 isRecording = true
                                                 isCancelRecording = false
                                                 recordingVolume = 0f
