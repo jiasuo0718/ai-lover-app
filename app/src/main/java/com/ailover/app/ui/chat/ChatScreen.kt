@@ -424,7 +424,7 @@ fun ChatScreen(
                                                     permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                                                     return@awaitEachGesture
                                                 }
-                                                val startY = down.position.y
+                                                var startY = down.position.y
                                                 val cancelThreshold = with(density) { 35.dp.toPx() }
                                                 // 立即开始录音
                                                 isRecording = true
@@ -449,9 +449,16 @@ fun ChatScreen(
                                                     }
                                                 )
                                                 try {
+                                                    var startYReset = false
                                                     while (true) {
                                                         val event = awaitPointerEvent()
                                                         val change = event.changes.firstOrNull() ?: break
+                                                        // 录音开始后布局撑开（48dp→160dp），坐标原点上移，
+                                                        // 第一次move时用当前位置重置startY，消除偏移
+                                                        if (!startYReset && isRecording) {
+                                                            startY = change.position.y
+                                                            startYReset = true
+                                                        }
                                                         val dy = startY - change.position.y
                                                         isCancelRecording = dy > cancelThreshold
                                                         android.util.Log.d("CancelDebug", "语音 threshold=${cancelThreshold}px, dy=${dy.toInt()}, canceled=$isCancelRecording")
@@ -516,7 +523,7 @@ fun ChatScreen(
                                         awaitEachGesture {
                                             val down = awaitFirstDown(requireUnconsumed = false)
                                             longPressTriggered.set(false)
-                                            val startY = down.position.y
+                                            var startY = down.position.y
                                             val cancelThreshold = with(density) { 35.dp.toPx() }
                                             // 按下立即预连接（有权限时），WebSocket建连与长按判定并行
                                             var preConnected = false
@@ -557,9 +564,15 @@ fun ChatScreen(
                                                 // startListening 已在按下时预连接，此处不重复调用
                                             }
                                             try {
+                                                var startYReset = false
                                                 while (true) {
                                                     val event = awaitPointerEvent()
                                                     val change = event.changes.firstOrNull() ?: break
+                                                    // 录音开始后布局可能变化，第一次move时重置startY消除坐标偏移
+                                                    if (!startYReset && isRecording) {
+                                                        startY = change.position.y
+                                                        startYReset = true
+                                                    }
                                                     // 检测上移取消
                                                     if (longPressTriggered.get()) {
                                                         val dy = startY - change.position.y
