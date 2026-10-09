@@ -321,6 +321,9 @@ fun AppNavGraph() {
                     onDeleted = {
                         // 删除后回通讯录 tab
                         navigateToTopLevel(Routes.CONTACTS)
+                    },
+                    onApiProfileListClick = {
+                        navController.navigate(Routes.API_PROFILE_LIST)
                     }
                 )
             }
@@ -335,7 +338,11 @@ fun AppNavGraph() {
 
             // API 设置页
             composable(Routes.API_SETTINGS) {
-                SettingsScreen()
+                SettingsScreen(
+                    onApiProfileListClick = {
+                        navController.navigate(Routes.API_PROFILE_LIST)
+                    }
+                )
             }
 
             // API 配置列表页

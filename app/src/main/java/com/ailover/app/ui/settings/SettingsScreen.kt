@@ -18,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -54,7 +55,9 @@ import com.ailover.app.ui.theme.TextSecondary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen() {
+fun SettingsScreen(
+    onApiProfileListClick: () -> Unit = {}
+) {
     val viewModel: SettingsViewModel = viewModel(
         factory = SettingsViewModelFactory(AppContainer.settingsRepository())
     )
@@ -90,6 +93,22 @@ fun SettingsScreen() {
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // API 配置管理入口
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .clickable { onApiProfileListClick() }
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("API 配置管理", fontSize = 16.sp, color = TextPrimary, modifier = Modifier.weight(1f))
+                Icon(Icons.Filled.ChevronRight, "进入", tint = TextSecondary)
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
             // 平台选择
             Text("AI 平台", fontSize = 14.sp, color = TextSecondary)
             Box {

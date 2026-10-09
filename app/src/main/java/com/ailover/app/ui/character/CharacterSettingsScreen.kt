@@ -56,7 +56,8 @@ fun CharacterSettingsScreen(
     characterId: Long,
     onBackClick: () -> Unit,
     onEditClick: (Long) -> Unit,
-    onDeleted: () -> Unit
+    onDeleted: () -> Unit,
+    onApiProfileListClick: () -> Unit = {}
 ) {
     val viewModel: CharacterDetailViewModel = viewModel(
         factory = CharacterDetailViewModelFactory(
@@ -117,8 +118,8 @@ fun CharacterSettingsScreen(
             SettingsGroup {
                 SettingsItem(
                     title = "选择 API",
-                    disabled = true,
-                    onClick = {}
+                    disabled = false,
+                    onClick = { onApiProfileListClick() }
                 )
                 SettingsDivider()
                 SettingsSwitchItem(
