@@ -95,7 +95,7 @@ fun ProfileScreen(
                     modifier = Modifier.height(48.dp),
                     title = { Text("我", color = TextPrimary, fontSize = 18.sp) },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = CardWhite
+                        containerColor = NavBarBg
                     )
                 )
                 Box(

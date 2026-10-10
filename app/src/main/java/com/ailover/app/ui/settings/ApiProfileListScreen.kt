@@ -75,7 +75,7 @@ fun ApiProfileListScreen(
                             Icon(Icons.Filled.Add, "新增", tint = TextPrimary)
                         }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = CardWhite)
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = NavBarBg)
                 )
                 Box(
                     modifier = Modifier

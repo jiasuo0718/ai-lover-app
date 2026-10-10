@@ -90,7 +90,7 @@ fun ConversationListScreen(
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = CardWhite
+                        containerColor = NavBarBg
                     )
                 )
                 Box(
@@ -202,7 +202,7 @@ private fun CharacterPickerDialog(
                 Text("取消", color = TextSecondary)
             }
         },
-        containerColor = CardWhite
+        containerColor = NavBarBg
     )
 }
 

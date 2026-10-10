@@ -75,7 +75,7 @@ fun SettingsScreen(
                     modifier = Modifier.height(48.dp),
                     title = { Text("设置", color = TextPrimary, fontSize = 18.sp) },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = CardWhite
+                        containerColor = NavBarBg
                     )
                 )
                 Box(

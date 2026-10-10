@@ -174,7 +174,7 @@ fun CharacterDetailScreen(
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = CardWhite
+                        containerColor = NavBarBg
                     )
                 )
                 Box(
@@ -435,7 +435,7 @@ fun CharacterDetailScreen(
                     Text("取消")
                 }
             },
-            containerColor = CardWhite
+            containerColor = NavBarBg
         )
     }
 }

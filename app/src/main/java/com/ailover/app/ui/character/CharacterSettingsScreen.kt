@@ -86,7 +86,7 @@ fun CharacterSettingsScreen(
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = CardWhite
+                        containerColor = NavBarBg
                     )
                 )
                 Box(
@@ -188,7 +188,7 @@ fun CharacterSettingsScreen(
                     Text("取消")
                 }
             },
-            containerColor = CardWhite
+            containerColor = NavBarBg
         )
     }
 
@@ -197,7 +197,7 @@ fun CharacterSettingsScreen(
         ModalBottomSheet(
             onDismissRequest = { showApiSheet = false },
             sheetState = sheetState,
-            containerColor = CardWhite
+            containerColor = NavBarBg
         ) {
             Column(
                 modifier = Modifier

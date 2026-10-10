@@ -77,7 +77,7 @@ fun CharacterListScreen(
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = CardWhite
+                        containerColor = NavBarBg
                     )
                 )
                 Box(
@@ -88,7 +88,7 @@ fun CharacterListScreen(
                 )
             }
         },
-        containerColor = CardWhite
+        containerColor = NavBarBg
     ) { paddingValues ->
         if (isLoading) {
             // 加载中：显示空白，不闪现空状态

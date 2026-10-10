@@ -132,7 +132,7 @@ fun ApiProfileEditScreen(
                             Text(if (saving) "保存中..." else "保存", fontSize = 15.sp)
                         }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = CardWhite)
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = NavBarBg)
                 )
                 Box(
                     modifier = Modifier

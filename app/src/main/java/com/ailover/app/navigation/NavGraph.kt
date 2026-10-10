@@ -130,7 +130,7 @@ fun AppNavGraph() {
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp)
-                            .background(CardWhite),
+                            .background(NavBarBg),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         bottomNavItems.forEach { item ->
