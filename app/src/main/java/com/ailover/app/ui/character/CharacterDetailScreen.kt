@@ -1,5 +1,6 @@
 package com.ailover.app.ui.character
 
+import com.ailover.app.ui.theme.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -61,13 +62,6 @@ import com.ailover.app.data.local.entity.ConversationEntity
 import com.ailover.app.data.repository.CharacterRepository
 import com.ailover.app.data.repository.ConversationRepository
 import com.ailover.app.di.AppContainer
-import com.ailover.app.ui.theme.AccentBlue
-import com.ailover.app.ui.theme.BubbleSelf
-import com.ailover.app.ui.theme.CardWhite
-import com.ailover.app.ui.theme.Divider
-import com.ailover.app.ui.theme.HintBg
-import com.ailover.app.ui.theme.TextPrimary
-import com.ailover.app.ui.theme.TextSecondary
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -191,7 +185,7 @@ fun CharacterDetailScreen(
                 )
             }
         },
-        containerColor = Color(0xFFEDEDED)
+        containerColor = PageBg
     ) { paddingValues ->
         character?.let { char ->
             Column(
@@ -286,7 +280,7 @@ fun CharacterDetailScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(1.dp)
-                            .background(Color(0xFFE5E5EA))
+                            .background(LightGray)
                     )
 
                     // 角色设定

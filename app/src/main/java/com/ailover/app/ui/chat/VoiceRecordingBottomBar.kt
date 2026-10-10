@@ -1,5 +1,6 @@
 package com.ailover.app.ui.chat
 
+import com.ailover.app.ui.theme.*
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -27,11 +28,11 @@ fun VoiceRecordingBottomBar(
 ) {
     // 波纹颜色：正常是亮蓝色，取消是红色
     val waveColor by animateColorAsState(
-        targetValue = if (isCancelling) Color(0xFFFF3B30) else Color(0xFF007AFF),
+        targetValue = if (isCancelling) DangerRed else Color(0xFF007AFF),
         animationSpec = tween(150), label = "waveColor"
     )
     // 文字颜色
-    val textColor = Color(0xFF8E8E93)
+    val textColor = TextSecondary
 
     // 录音栏高度：蓝红两态共用同一个值，保证高度一致
     val barHeight = 160.dp

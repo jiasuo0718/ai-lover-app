@@ -1,5 +1,6 @@
 package com.ailover.app.ui.profile
 
+import com.ailover.app.ui.theme.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -47,11 +48,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.ailover.app.data.settings.UserProfileRepository
 import com.ailover.app.di.AppContainer
-import com.ailover.app.ui.theme.BubbleSelf
-import com.ailover.app.ui.theme.CardWhite
-import com.ailover.app.ui.theme.Divider
-import com.ailover.app.ui.theme.TextPrimary
-import com.ailover.app.ui.theme.TextSecondary
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -110,7 +106,7 @@ fun ProfileScreen(
                 )
             }
         },
-        containerColor = Color(0xFFEDEDED)
+        containerColor = PageBg
     ) { paddingValues ->
         Column(
             modifier = Modifier

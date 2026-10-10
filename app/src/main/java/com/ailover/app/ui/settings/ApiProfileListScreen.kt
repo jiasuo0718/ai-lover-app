@@ -1,5 +1,6 @@
 package com.ailover.app.ui.settings
 
+import com.ailover.app.ui.theme.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -42,11 +43,6 @@ import androidx.compose.ui.unit.sp
 import com.ailover.app.data.settings.ApiPlatforms
 import com.ailover.app.data.settings.ApiProfile
 import com.ailover.app.di.AppContainer
-import com.ailover.app.ui.theme.AccentBlue
-import com.ailover.app.ui.theme.CardWhite
-import com.ailover.app.ui.theme.Divider
-import com.ailover.app.ui.theme.TextPrimary
-import com.ailover.app.ui.theme.TextSecondary
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -89,7 +85,7 @@ fun ApiProfileListScreen(
                 )
             }
         },
-        containerColor = Color(0xFFF2F2F7)
+        containerColor = HintBg
     ) { paddingValues ->
         if (profiles.isEmpty()) {
             Box(
@@ -165,7 +161,7 @@ fun ApiProfileListScreen(
                             Icon(
                                 Icons.Filled.Delete,
                                 "删除",
-                                tint = Color(0xFFFF3B30),
+                                tint = DangerRed,
                                 modifier = Modifier.size(20.dp)
                             )
                         }

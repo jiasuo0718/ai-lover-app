@@ -1,5 +1,6 @@
 package com.ailover.app.ui.character
 
+import com.ailover.app.ui.theme.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -46,11 +47,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.ailover.app.data.local.entity.CharacterEntity
 import com.ailover.app.di.AppContainer
-import com.ailover.app.ui.theme.BubbleSelf
-import com.ailover.app.ui.theme.CardWhite
-import com.ailover.app.ui.theme.Divider
-import com.ailover.app.ui.theme.TextPrimary
-import com.ailover.app.ui.theme.TextSecondary
 import com.ailover.app.util.PinyinUtils
 import kotlinx.coroutines.launch
 import java.io.File
@@ -173,13 +169,13 @@ fun CharacterListScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(30.dp)
-                                    .background(Color(0xFFEDEDED)),
+                                    .background(PageBg),
                                 contentAlignment = Alignment.CenterStart
                             ) {
                                 Text(
                                     text = letter,
                                     fontSize = 13.sp,
-                                    color = Color(0xFF8E8E93),
+                                    color = TextSecondary,
                                     modifier = Modifier.padding(start = 16.dp)
                                 )
                             }
@@ -354,9 +350,9 @@ private fun AlphabetIndexBar(
                         fontSize = if (isSelected) 14.sp else 11.sp,
                         fontWeight = if (isSelected) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Normal,
                         color = when {
-                            isSelected -> Color(0xFF0A84FF)
+                            isSelected -> AccentBlue
                             hasCharacters -> TextPrimary
-                            else -> Color(0xFFC7C7CC)
+                            else -> DisabledGray
                         }
                     )
                 }

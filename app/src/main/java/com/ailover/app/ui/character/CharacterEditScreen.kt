@@ -1,5 +1,6 @@
 package com.ailover.app.ui.character
 
+import com.ailover.app.ui.theme.*
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -56,11 +57,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.ailover.app.di.AppContainer
-import com.ailover.app.ui.theme.AccentBlue
-import com.ailover.app.ui.theme.CardWhite
-import com.ailover.app.ui.theme.Divider
-import com.ailover.app.ui.theme.TextPrimary
-import com.ailover.app.ui.theme.TextSecondary
 import com.ailover.app.util.ImageUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -166,7 +162,7 @@ fun CharacterEditScreen(
                 modifier = Modifier
                     .size(110.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFF2F2F7))
+                    .background(HintBg)
                     .clickable { imagePicker.launch("image/*") },
                 contentAlignment = Alignment.Center
             ) {
@@ -181,7 +177,7 @@ fun CharacterEditScreen(
                     Icon(
                         imageVector = Icons.Filled.Add,
                         contentDescription = "添加头像",
-                        tint = Color(0xFF8E8E93),
+                        tint = TextSecondary,
                         modifier = Modifier.size(40.dp)
                     )
                 }
@@ -204,8 +200,8 @@ fun CharacterEditScreen(
                 isError = showEmptyNameError,
                 shape = RoundedCornerShape(12.dp),
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color(0xFFF2F2F7),
-                    unfocusedContainerColor = Color(0xFFF2F2F7),
+                    focusedContainerColor = HintBg,
+                    unfocusedContainerColor = HintBg,
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
                     errorIndicatorColor = Color.Transparent,
@@ -237,8 +233,8 @@ fun CharacterEditScreen(
                 maxLines = 8,
                 shape = RoundedCornerShape(12.dp),
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color(0xFFF2F2F7),
-                    unfocusedContainerColor = Color(0xFFF2F2F7),
+                    focusedContainerColor = HintBg,
+                    unfocusedContainerColor = HintBg,
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
                     cursorColor = TextPrimary

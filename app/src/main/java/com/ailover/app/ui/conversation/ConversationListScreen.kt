@@ -1,5 +1,6 @@
 package com.ailover.app.ui.conversation
 
+import com.ailover.app.ui.theme.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -49,11 +50,6 @@ import coil.compose.AsyncImage
 import com.ailover.app.data.local.entity.CharacterEntity
 import com.ailover.app.data.local.relation.ConversationWithCharacter
 import com.ailover.app.di.AppContainer
-import com.ailover.app.ui.theme.BubbleSelf
-import com.ailover.app.ui.theme.CardWhite
-import com.ailover.app.ui.theme.Divider
-import com.ailover.app.ui.theme.TextPrimary
-import com.ailover.app.ui.theme.TextSecondary
 import com.ailover.app.util.TimeUtils
 import kotlinx.coroutines.launch
 import java.io.File

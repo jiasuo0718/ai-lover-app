@@ -1,5 +1,6 @@
 package com.ailover.app.ui.chat
 
+import com.ailover.app.ui.theme.*
 import android.Manifest
 import android.content.Context
 import android.os.VibrationEffect
@@ -108,13 +109,6 @@ import com.ailover.app.data.local.converter.SenderType
 import com.ailover.app.data.local.entity.MessageEntity
 import com.ailover.app.data.settings.UserProfileRepository
 import com.ailover.app.di.AppContainer
-import com.ailover.app.ui.theme.BubbleOther
-import com.ailover.app.ui.theme.BubbleSelf
-import com.ailover.app.ui.theme.CardWhite
-import com.ailover.app.ui.theme.Divider
-import com.ailover.app.ui.theme.HintBg
-import com.ailover.app.ui.theme.TextPrimary
-import com.ailover.app.ui.theme.TextSecondary
 import com.ailover.app.util.AudioPlayer
 import com.ailover.app.util.TimeUtils
 import com.ailover.app.util.VoiceToText
@@ -383,7 +377,7 @@ fun ChatScreen(
                             .fillMaxWidth()
                             .height(48.dp)
                             .shadow(2.dp, RoundedCornerShape(12.dp))
-                            .background(Color(0xFFFFFFFF), RoundedCornerShape(12.dp))
+                            .background(CardWhite, RoundedCornerShape(12.dp))
                             .padding(horizontal = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -717,7 +711,7 @@ fun ChatScreen(
                                     modifier = Modifier
                                         .size(32.dp)
                                         .clip(CircleShape)
-                                        .background(Color(0xFF0A84FF)),
+                                        .background(AccentBlue),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
@@ -737,7 +731,7 @@ fun ChatScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color(0xFFF7F7F8))
+                            .background(BubbleOther)
                             .padding(horizontal = 16.dp, vertical = 16.dp)
                     ) {
                         Row(
@@ -753,7 +747,7 @@ fun ChatScreen(
                                     modifier = Modifier
                                         .size(56.dp)
                                         .clip(RoundedCornerShape(12.dp))
-                                        .background(Color(0xFFF2F2F7)),
+                                        .background(HintBg),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
@@ -776,7 +770,7 @@ fun ChatScreen(
                                     modifier = Modifier
                                         .size(56.dp)
                                         .clip(RoundedCornerShape(12.dp))
-                                        .background(Color(0xFFF2F2F7)),
+                                        .background(HintBg),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
@@ -799,7 +793,7 @@ fun ChatScreen(
                                     modifier = Modifier
                                         .size(56.dp)
                                         .clip(RoundedCornerShape(12.dp))
-                                        .background(Color(0xFFF2F2F7)),
+                                        .background(HintBg),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
@@ -822,7 +816,7 @@ fun ChatScreen(
                                     modifier = Modifier
                                         .size(56.dp)
                                         .clip(RoundedCornerShape(12.dp))
-                                        .background(Color(0xFFF2F2F7)),
+                                        .background(HintBg),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
@@ -910,7 +904,7 @@ fun ChatScreen(
                                     modifier = Modifier
                                         .size(40.dp)
                                         .clip(RoundedCornerShape(8.dp))
-                                        .background(Color(0xFFF0F0F0))
+                                        .background(Divider)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                             }
@@ -919,7 +913,7 @@ fun ChatScreen(
                                     .width(if (isLeft) 180.dp else 140.dp)
                                     .height(if (index % 3 == 0) 60.dp else 40.dp)
                                     .clip(RoundedCornerShape(20.dp))
-                                    .background(Color(0xFFF0F0F0))
+                                    .background(Divider)
                             )
                         }
                     }
@@ -977,7 +971,7 @@ fun ChatScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color(0xFFFF9800).copy(alpha = 0.9f))
+                            .background(WarningOrange.copy(alpha = 0.9f))
                             .clickable {
                                 val intent = android.content.Intent(
                                     android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS
@@ -1150,13 +1144,13 @@ private fun MessageBubble(
                     Text(
                         text = "发送失败",
                         fontSize = 11.sp,
-                        color = Color(0xFFFF3B30)
+                        color = DangerRed
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "重发",
                         fontSize = 11.sp,
-                        color = Color(0xFF0A84FF),
+                        color = AccentBlue,
                         modifier = Modifier.clickable { onResend(message.id) }
                     )
                     Spacer(modifier = Modifier.width(6.dp))

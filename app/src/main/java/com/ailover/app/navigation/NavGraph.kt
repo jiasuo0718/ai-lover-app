@@ -1,5 +1,6 @@
 package com.ailover.app.navigation
 
+import com.ailover.app.ui.theme.*
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -52,10 +53,6 @@ import com.ailover.app.ui.profile.UserProfileEditScreen
 import com.ailover.app.ui.settings.ApiProfileEditScreen
 import com.ailover.app.ui.settings.ApiProfileListScreen
 import com.ailover.app.ui.settings.SettingsScreen
-import com.ailover.app.ui.theme.CardWhite
-import com.ailover.app.ui.theme.Divider
-import com.ailover.app.ui.theme.TextPrimary
-import com.ailover.app.ui.theme.TextSecondary
 
 object Routes {
     const val CONVERSATION_LIST = "conversation_list"

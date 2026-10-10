@@ -1,5 +1,6 @@
 package com.ailover.app.ui.profile
 
+import com.ailover.app.ui.theme.*
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -58,10 +59,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.ailover.app.data.settings.UserProfileRepository
 import com.ailover.app.di.AppContainer
-import com.ailover.app.ui.theme.CardWhite
-import com.ailover.app.ui.theme.Divider
-import com.ailover.app.ui.theme.TextPrimary
-import com.ailover.app.ui.theme.TextSecondary
 import com.ailover.app.util.ImageUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -179,7 +176,7 @@ fun UserProfileEditScreen(
                 )
             }
         },
-        containerColor = Color(0xFFEDEDED)
+        containerColor = PageBg
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -198,7 +195,7 @@ fun UserProfileEditScreen(
                     modifier = Modifier
                         .size(100.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFFF2F2F7))
+                        .background(HintBg)
                         .clickable { imagePicker.launch("image/*") },
                     contentAlignment = Alignment.Center
                 ) {
@@ -214,7 +211,7 @@ fun UserProfileEditScreen(
                         Icon(
                             imageVector = Icons.Filled.Add,
                             contentDescription = "添加头像",
-                            tint = Color(0xFF8E8E93),
+                            tint = TextSecondary,
                             modifier = Modifier.size(36.dp)
                         )
                     }
@@ -252,8 +249,8 @@ fun UserProfileEditScreen(
                     placeholder = { Text("请输入昵称", color = TextSecondary, fontSize = 15.sp) },
                     shape = RoundedCornerShape(12.dp),
                     colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color(0xFFF2F2F7),
-                        unfocusedContainerColor = Color(0xFFF2F2F7),
+                        focusedContainerColor = HintBg,
+                        unfocusedContainerColor = HintBg,
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent,
                         cursorColor = TextPrimary

@@ -1,5 +1,6 @@
 package com.ailover.app
 
+import com.ailover.app.ui.theme.*
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -15,7 +16,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.core.view.WindowInsetsControllerCompat
 import com.ailover.app.di.AppContainer
 import com.ailover.app.navigation.AppNavGraph
-import com.ailover.app.ui.theme.AILoverTheme
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 

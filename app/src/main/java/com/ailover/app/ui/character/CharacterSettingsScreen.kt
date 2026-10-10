@@ -1,5 +1,6 @@
 package com.ailover.app.ui.character
 
+import com.ailover.app.ui.theme.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -48,11 +49,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ailover.app.data.settings.ApiPlatforms
 import com.ailover.app.data.settings.ApiProfile
 import com.ailover.app.di.AppContainer
-import com.ailover.app.ui.theme.BubbleSelf
-import com.ailover.app.ui.theme.CardWhite
-import com.ailover.app.ui.theme.Divider
-import com.ailover.app.ui.theme.TextPrimary
-import com.ailover.app.ui.theme.TextSecondary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -101,7 +97,7 @@ fun CharacterSettingsScreen(
                 )
             }
         },
-        containerColor = Color(0xFFF2F2F7)
+        containerColor = HintBg
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -161,7 +157,7 @@ fun CharacterSettingsScreen(
                 ) {
                     Text(
                         text = "删除角色",
-                        color = Color(0xFFFF3B30),
+                        color = DangerRed,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium
                     )
@@ -296,7 +292,7 @@ private fun SettingsItem(
         Icon(
             imageVector = Icons.Filled.ChevronRight,
             contentDescription = null,
-            tint = if (disabled) Color(0xFFC7C7CC) else TextSecondary,
+            tint = if (disabled) DisabledGray else TextSecondary,
             modifier = Modifier.size(20.dp)
         )
     }
@@ -372,7 +368,7 @@ private fun ApiSelectRow(
             )
         }
         if (selected) {
-            Text("✓", fontSize = 18.sp, color = Color(0xFF0A84FF))
+            Text("✓", fontSize = 18.sp, color = AccentBlue)
         }
     }
 }
