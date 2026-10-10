@@ -12,18 +12,18 @@ import androidx.compose.ui.graphics.Color
 // 通过 CompositionLocal 传递用户选择的主题状态，让所有颜色属性都能读取
 val LocalDarkTheme = compositionLocalOf { false }
 
-// 主题感知颜色：浅色保持原样，深色自动切换
+// 主题感知颜色：浅色保持原样，深色参考iOS/微信，层次分明
 val AccentBlue: Color @Composable get() = Color(0xFF0A84FF)
 val BgMain: Color @Composable get() = if (LocalDarkTheme.current) Color(0xFF121212) else Color(0xFFFFFFFF)
-val CardWhite: Color @Composable get() = if (LocalDarkTheme.current) Color(0xFF1E1E1E) else Color(0xFFFFFFFF)
+val CardWhite: Color @Composable get() = if (LocalDarkTheme.current) Color(0xFF1C1C1E) else Color(0xFFFFFFFF)
 val TextPrimary: Color @Composable get() = if (LocalDarkTheme.current) Color(0xFFFFFFFF) else Color(0xFF1A1A1A)
 val TextSecondary: Color @Composable get() = if (LocalDarkTheme.current) Color(0xFF98989F) else Color(0xFF8E8E93)
-val Divider: Color @Composable get() = if (LocalDarkTheme.current) Color(0xFF2C2C2E) else Color(0xFFF0F0F0)
+val Divider: Color @Composable get() = if (LocalDarkTheme.current) Color(0xFF38383A) else Color(0xFFF0F0F0)
 val HintBg: Color @Composable get() = if (LocalDarkTheme.current) Color(0xFF2C2C2E) else Color(0xFFF2F2F7)
-val PageBg: Color @Composable get() = if (LocalDarkTheme.current) Color(0xFF0A0A0A) else Color(0xFFEDEDED)
+val PageBg: Color @Composable get() = if (LocalDarkTheme.current) Color(0xFF121212) else Color(0xFFEDEDED)
 val DangerRed: Color @Composable get() = Color(0xFFFF3B30)
 val DisabledGray: Color @Composable get() = if (LocalDarkTheme.current) Color(0xFF636366) else Color(0xFFC7C7CC)
-val LightGray: Color @Composable get() = if (LocalDarkTheme.current) Color(0xFF2C2C2E) else Color(0xFFE5E5EA)
+val LightGray: Color @Composable get() = if (LocalDarkTheme.current) Color(0xFF38383A) else Color(0xFFE5E5EA)
 val WarningOrange: Color @Composable get() = Color(0xFFFF9800)
 
 // 气泡颜色
@@ -47,7 +47,7 @@ private val DarkColorScheme = darkColorScheme(
     secondary = Color(0xFF0A84FF),
     background = Color(0xFF121212),
     onBackground = Color.White,
-    surface = Color(0xFF1E1E1E),
+    surface = Color(0xFF1C1C1E),
     onSurface = Color.White
 )
 
