@@ -367,7 +367,7 @@ private fun AlphabetIndexBar(
                     .align(Alignment.Center)
                     .size(80.dp)
                     .clip(androidx.compose.foundation.shape.CircleShape)
-                    .background(Color(0xCC8E8E93)),
+                    .background(TextSecondary.copy(alpha = 0.8f)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
