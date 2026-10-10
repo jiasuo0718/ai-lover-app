@@ -85,7 +85,7 @@ class ProfileViewModelFactory(
 @Composable
 fun ProfileScreen(
     onEditProfileClick: () -> Unit,
-    onApiSettingsClick: () -> Unit
+    onSettingsClick: () -> Unit
 ) {
     val viewModel: ProfileViewModel = viewModel(
         factory = ProfileViewModelFactory(AppContainer.userProfileRepository())
@@ -189,35 +189,18 @@ fun ProfileScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // ===== 分组一：API 设置（白卡）=====
+            // ===== 分组一：设置（白卡）=====
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(CardWhite)
             ) {
-                // API 设置
+                // 设置
                 ProfileListItem(
                     icon = IconParkIcons.Outline.SettingTwo,
                     iconTint = TextPrimary,
-                    title = "API 设置",
-                    onClick = onApiSettingsClick
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // ===== 分组二：关于（白卡）=====
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(CardWhite)
-            ) {
-                ProfileListItem(
-                    icon = Icons.Filled.Info,
-                    iconTint = TextSecondary,
-                    title = "关于",
-                    trailing = "v${BuildConfig.VERSION_NAME}",
-                    onClick = {}
+                    title = "设置",
+                    onClick = onSettingsClick
                 )
             }
 

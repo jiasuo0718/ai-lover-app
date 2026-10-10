@@ -28,6 +28,7 @@ class SettingsRepository(private val context: Context) {
     // 新 key
     private val KEY_API_PROFILES = stringPreferencesKey("api_profiles")
     private val KEY_ACTIVE_PROFILE_ID = stringPreferencesKey("active_api_profile_id")
+    private val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
 
     // 旧 key（迁移用，迁移后保留不删）
     private val KEY_OLD_BASE_URL = stringPreferencesKey("api_base_url")
@@ -60,6 +61,16 @@ class SettingsRepository(private val context: Context) {
         .onStart { ensureMigrated() }
 
     suspend fun getActiveProfileOnce(): ApiProfile = activeApiProfile.first()
+
+    // 深色模式：system / light / dark，默认 system
+    val themeMode: Flow<String> = context.dataStore.data
+        .map { prefs -> prefs[KEY_THEME_MODE] ?: "system" }
+
+    suspend fun setThemeMode(mode: String) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_THEME_MODE] = mode
+        }
+    }
 
     suspend fun getProfilesOnce(): List<ApiProfile> = apiProfiles.first()
 

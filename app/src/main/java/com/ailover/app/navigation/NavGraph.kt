@@ -51,6 +51,7 @@ import com.ailover.app.ui.profile.ProfileScreen
 import com.ailover.app.ui.profile.UserProfileEditScreen
 import com.ailover.app.ui.settings.ApiProfileEditScreen
 import com.ailover.app.ui.settings.ApiProfileListScreen
+import com.ailover.app.ui.settings.SettingsScreen
 import com.ailover.app.ui.theme.CardWhite
 import com.ailover.app.ui.theme.Divider
 import com.ailover.app.ui.theme.TextPrimary
@@ -65,6 +66,7 @@ object Routes {
     const val CHARACTER_DETAIL = "character_detail/{characterId}"
     const val CHARACTER_SETTINGS = "character_settings/{characterId}"
     const val USER_PROFILE_EDIT = "user_profile_edit"
+    const val SETTINGS_PAGE = "settings_page"
     const val API_PROFILE_LIST = "api_profile_list"
     const val API_PROFILE_EDIT = "api_profile_edit/{profileId}"
 
@@ -209,9 +211,19 @@ fun AppNavGraph() {
                     onEditProfileClick = {
                         navController.navigate(Routes.USER_PROFILE_EDIT)
                     },
+                    onSettingsClick = {
+                        navController.navigate(Routes.SETTINGS_PAGE)
+                    }
+                )
+            }
+
+            // 设置页
+            composable(Routes.SETTINGS_PAGE) {
+                SettingsScreen(
                     onApiSettingsClick = {
                         navController.navigate(Routes.API_PROFILE_LIST)
-                    }
+                    },
+                    onBackClick = { navController.popBackStack() }
                 )
             }
 
