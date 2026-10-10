@@ -189,7 +189,6 @@ fun ChatScreen(
     }
     // 震动一次（50ms）
     fun vibrateOnce() {
-        android.util.Log.d("VibrateDebug", "vibrateOnce() 被调用")
         val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
         if (vibrator.hasVibrator()) {
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
@@ -206,7 +205,6 @@ fun ChatScreen(
     }
     // 上滑进入取消区域时震动（一次取消只震一次：false→true时触发）
     LaunchedEffect(isCancelRecording) {
-        android.util.Log.d("VibrateDebug", "LaunchedEffect(isCancelRecording) 执行, isCancelRecording=$isCancelRecording")
         if (isCancelRecording) vibrateOnce()
     }
     var showPermissionSettingsHint by remember { mutableStateOf(false) }
