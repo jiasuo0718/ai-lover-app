@@ -461,7 +461,6 @@ fun ChatScreen(
                                                         }
                                                         val dy = startY - change.position.y
                                                         isCancelRecording = dy > cancelThreshold
-                                                        android.util.Log.d("CancelDebug", "语音 threshold=${cancelThreshold}px, dy=${dy.toInt()}, canceled=$isCancelRecording")
                                                         if (!change.pressed) {
                                                             if (isCancelRecording) {
                                                                 voiceToText.cancel()
@@ -577,7 +576,6 @@ fun ChatScreen(
                                                     if (longPressTriggered.get()) {
                                                         val dy = startY - change.position.y
                                                         isCancelRecording = dy > cancelThreshold
-                                                        android.util.Log.d("CancelDebug", "普通输入框 threshold=${cancelThreshold}px, dy=${dy.toInt()}, canceled=$isCancelRecording")
                                                     }
                                                     if (!change.pressed) {
                                                         job.cancel()
