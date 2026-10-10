@@ -37,13 +37,17 @@ class MainActivity : ComponentActivity() {
                 else -> systemDark
             }
 
-            // 状态栏：根据主题切换
+            // 状态栏+导航栏：根据主题切换
             if (darkTheme) {
                 window.statusBarColor = android.graphics.Color.BLACK
+                window.navigationBarColor = android.graphics.Color.BLACK
                 WindowInsetsControllerCompat(window, window.decorView).isAppearanceLightStatusBars = false
+                WindowInsetsControllerCompat(window, window.decorView).isAppearanceLightNavigationBars = false
             } else {
                 window.statusBarColor = android.graphics.Color.WHITE
+                window.navigationBarColor = android.graphics.Color.WHITE
                 WindowInsetsControllerCompat(window, window.decorView).isAppearanceLightStatusBars = true
+                WindowInsetsControllerCompat(window, window.decorView).isAppearanceLightNavigationBars = true
             }
 
             AILoverTheme(darkTheme = darkTheme) {
