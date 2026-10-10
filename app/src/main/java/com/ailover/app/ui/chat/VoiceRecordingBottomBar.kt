@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -87,32 +88,30 @@ private fun DeepSeekWaveform(
             0.2f + 0.8f * abs(kotlin.math.sin(i * 1.7f))
         }
     }
-    // 触发 Canvas 重绘的 tick
-    var tick by remember { mutableStateOf(0) }
     // 低通滤波后的平滑音量
     var smoothedVolume by remember { mutableStateOf(0f) }
     // 始终读取最新的 volumeLevel
     val currentVolume by rememberUpdatedState(volumeLevel)
 
-    // 波形驱动循环：每16ms更新，低通滤波0.15/0.85（新值占85%，涨落都快）
+    // 波形驱动循环：withFrameMillis对齐屏幕刷新率（120Hz跑120fps）
     LaunchedEffect(Unit) {
         while (true) {
-            kotlinx.coroutines.delay(16)
+            withFrameMillis { }
             // 线性放大×4：普通说话就有中高高度，不再像圆点
             val target = (currentVolume * 4f).coerceIn(0f, 1f)
             // 低通滤波：新值占85%，声音一出迅速变高，一停迅速变矮
             smoothedVolume = smoothedVolume * 0.15f + target * 0.85f
-            tick++
         }
     }
+
+    // Composable作用域读取state，变化时触发重组→Canvas重绘
+    val currentSmoothedVolume = smoothedVolume
 
     Canvas(
         modifier = Modifier
             .height(44.dp)
             .fillMaxWidth()
     ) {
-        tick.let { }
-
         val barWidth = 2.dp.toPx()
         val gap = 3.5.dp.toPx()
         val cornerRadius = 0.dp.toPx()
@@ -121,7 +120,7 @@ private fun DeepSeekWaveform(
 
         for (i in 0 until barCount) {
             // 细长方头竖条：最小5dp最大7dp，不发声有基础高度，发声上限压短
-            val h = (5f + 7f * baseFactors[i] * smoothedVolume).dp.toPx()
+            val h = (5f + 7f * baseFactors[i] * currentSmoothedVolume).dp.toPx()
             val x = startX + i * (barWidth + gap)
             val y = (size.height - h) / 2f
             drawRoundRect(

@@ -21,7 +21,7 @@ class PcmRecorder {
         const val SAMPLE_RATE = 16000
         const val CHANNEL_CONFIG = AudioFormat.CHANNEL_IN_MONO
         const val AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT
-        const val FRAME_SIZE = 1280 // 40ms 帧：16000 * 2 * 0.04 = 1280 字节
+        const val FRAME_SIZE = 640 // 20ms 帧：16000 * 2 * 0.02 = 640 字节（50fps音量回调）
     }
 
     /**
