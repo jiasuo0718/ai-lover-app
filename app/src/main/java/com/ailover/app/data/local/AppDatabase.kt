@@ -10,18 +10,21 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.ailover.app.data.local.converter.Converters
 import com.ailover.app.data.local.dao.CharacterDao
 import com.ailover.app.data.local.dao.ConversationDao
+import com.ailover.app.data.local.dao.MemoryDao
 import com.ailover.app.data.local.dao.MessageDao
 import com.ailover.app.data.local.entity.CharacterEntity
 import com.ailover.app.data.local.entity.ConversationEntity
+import com.ailover.app.data.local.entity.MemoryEntity
 import com.ailover.app.data.local.entity.MessageEntity
 
 @Database(
     entities = [
         CharacterEntity::class,
         ConversationEntity::class,
-        MessageEntity::class
+        MessageEntity::class,
+        MemoryEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -29,6 +32,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun characterDao(): CharacterDao
     abstract fun conversationDao(): ConversationDao
     abstract fun messageDao(): MessageDao
+    abstract fun memoryDao(): MemoryDao
 
     companion object {
         @Volatile
@@ -87,6 +91,27 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // 新建 memories 表（关键信息记忆库，用于长期记忆第3步）
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS memories (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        characterId INTEGER NOT NULL,
+                        type TEXT NOT NULL,
+                        content TEXT NOT NULL,
+                        importance INTEGER NOT NULL DEFAULT 3,
+                        sourceConversationId INTEGER,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL
+                    )
+                    """
+                )
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_memories_characterId ON memories(characterId)")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -94,7 +119,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "ailover_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                     .build()
                 INSTANCE = instance
                 instance

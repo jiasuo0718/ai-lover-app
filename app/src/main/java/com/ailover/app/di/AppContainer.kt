@@ -5,6 +5,7 @@ import com.ailover.app.data.local.AppDatabase
 import com.ailover.app.data.repository.CharacterRepository
 import com.ailover.app.data.repository.ChatRepository
 import com.ailover.app.data.repository.ConversationRepository
+import com.ailover.app.data.repository.MemoryRepository
 import com.ailover.app.data.repository.MessageRepository
 import com.ailover.app.data.settings.SettingsRepository
 import com.ailover.app.data.settings.UserProfileRepository
@@ -20,6 +21,7 @@ object AppContainer {
     private var characterRepo: CharacterRepository? = null
     private var conversationRepo: ConversationRepository? = null
     private var messageRepo: MessageRepository? = null
+    private var memoryRepo: MemoryRepository? = null
     private var chatRepo: ChatRepository? = null
     private var settingsRepo: SettingsRepository? = null
     private var userProfileRepo: UserProfileRepository? = null
@@ -36,6 +38,7 @@ object AppContainer {
                     characterRepo = CharacterRepository(db.characterDao())
                     conversationRepo = ConversationRepository(db.conversationDao())
                     messageRepo = MessageRepository(db.messageDao())
+                    memoryRepo = MemoryRepository(db.memoryDao())
 
                     // 网络层
                     val logging = HttpLoggingInterceptor().apply {
@@ -65,6 +68,9 @@ object AppContainer {
         ?: error("AppContainer not initialized")
 
     fun messageRepository(): MessageRepository = messageRepo
+        ?: error("AppContainer not initialized")
+
+    fun memoryRepository(): MemoryRepository = memoryRepo
         ?: error("AppContainer not initialized")
 
     fun chatRepository(): ChatRepository = chatRepo
