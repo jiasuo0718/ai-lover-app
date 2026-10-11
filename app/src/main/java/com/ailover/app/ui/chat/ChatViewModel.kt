@@ -392,7 +392,8 @@ class ChatViewModel(
 
     /**
      * 从用户消息中提取关键信息，存入记忆库。
-     * 只提取用户说的，不提取AI/角色说的。
+     * 全 AI 判断：把已有记忆 + 最近对话交给 AI，AI 输出操作指令（新增/更新/跳过）。
+     * 不再用规则去重，全部交给 AI 判断。
      * 宽松解析，格式不对就跳过，不崩。
      */
     private suspend fun extractAndSaveMemories(
@@ -404,28 +405,54 @@ class ChatViewModel(
         try {
             if (userOnlyMessages.isBlank()) return
 
-            val extractPrompt = """
-                从以下用户说的话中提取关于用户的【明确事实】，每条一行，格式：[类型] 内容
+            // 查已有记忆（限制50条，避免 token 太大）
+            val existingMemories = memoryRepository.getMemoriesByCharacterOnce(characterId, 50)
 
-                【类型严格定义】
-                - 名字：用户的名字/昵称（如"我叫小白""大家叫我小满"）
-                - 喜好：用户喜欢或讨厌的事物（如"我喜欢养猫""我不吃香菜"）
-                - 事件：用户经历的事（如"我上周去了大理""我养了一只仓鼠"）
-                - 关系：用户和你的关系状态（如"我们是朋友""我喜欢你""你是我女朋友"），注意：用户称呼你什么不算关系
+            // 构建已有记忆列表（带序号，方便 AI 引用更新）
+            val existingListText = if (existingMemories.isEmpty()) {
+                "（暂无已有记忆）"
+            } else {
+                existingMemories.mapIndexed { index, mem ->
+                    "${index + 1}. [${mem.type}] ${mem.content}"
+                }.joinToString("\n")
+            }
+
+            val extractPrompt = """
+                你是一个记忆管理员。以下是该角色已有的记忆，以及用户最近说的话。
+
+                【已有记忆】
+                $existingListText
+
+                【用户最近说的话】
+                $userOnlyMessages
+
+                【任务】
+                判断用户最近说的话里，哪些是关于用户的明确事实，需要存为记忆。
+
+                【该记的】关于用户的明确事实：
+                - 名字：用户的名字/昵称
+                - 喜好：用户喜欢或讨厌的事物
+                - 事件：用户的长期经历/事实（养猫、去过某地、职业等），不是当下动作
+                - 关系：用户和角色的关系状态（我们是朋友、我喜欢你等）
                 - 其他：以上都不是的、关于用户的明确事实
 
-                【该记的】关于用户的明确事实，必须是用户直接说出来的，不是你推断的。
-
                 【不该记的】
-                - 用户的提问（"你在干嘛""团子是谁""你喜欢我吗"）
-                - 对话过程（"用户问我…""用户说…"这种描述过程的）
-                - 你的推断/猜测（"结合语境用户可能…""用户似乎…"）
-                - 寒暄/感叹/无信息量（"你好""好吧""哈哈哈"）
-                - 关于你（AI/角色）的信息，只记用户的
+                - 当下动作（"我在吃饭""我刚写完作业"）
+                - 感慨/玩笑/情绪（"好累啊""哈哈"）
+                - 对话过程/提问（"你在干嘛""团子是谁"）
+                - 推断/猜测
+                - 关于角色的信息（只记用户的）
 
-                只提取用户明确说的事实，不要推测，不要提取你说的话。同一件事只写一条（写最全的）。没有值得记的事实就回复"无"。
-                用户说的话：
-                $userOnlyMessages
+                【和已有记忆的关系】
+                - 如果新信息和已有记忆是同一件事但更全 → 更新那条已有记忆
+                - 如果是新的事实 → 新增
+                - 如果已有记忆已经包含 → 跳过
+
+                【输出格式】每条一行，只能是以下三种：
+                [新增] [类型] 内容
+                [更新] 序号 → [类型] 新内容
+                [跳过]
+                没有需要处理的就回复"无"。
             """.trimIndent()
 
             val extractResult = StringBuilder()
@@ -443,113 +470,66 @@ class ChatViewModel(
             val raw = extractResult.toString().trim()
             if (raw.isEmpty() || raw == "无") return
 
-            // 宽松解析：按行分割，每行尝试匹配 [类型] 内容 或 类型：内容
             val validTypes = setOf("名字", "喜好", "事件", "关系", "其他")
             val lines = raw.lines().map { it.trim() }.filter { it.isNotEmpty() }
 
-            // 查已有记忆（可变列表，方便添加新存入的供后续比较）
-            val existingMemories = memoryRepository.getMemoriesByCharacterOnce(characterId, 200).toMutableList()
-
             for (line in lines) {
-                var type = ""
-                var content = ""
-
-                // 匹配 [类型] 内容 或 [类型]内容
-                val bracketMatch = Regex("^\\[(.+?)\\]\\s*(.+)$").find(line)
-                if (bracketMatch != null) {
-                    type = bracketMatch.groupValues[1].trim()
-                    content = bracketMatch.groupValues[2].trim()
-                } else {
-                    // 匹配 类型：内容 或 类型:内容
-                    val colonMatch = Regex("^(.+?)[：:]\\s*(.+)$").find(line)
-                    if (colonMatch != null) {
-                        type = colonMatch.groupValues[1].trim()
-                        content = colonMatch.groupValues[2].trim()
-                    }
-                }
-
-                // 类型校验 + 内容非空
-                if (type !in validTypes || content.isEmpty()) continue
-
-                // 去重：归一化后比较（完全相同 + 包含/被包含关系）
-                val normalized = normalizeForDedup(content)
-                var skip = false
-                var memoryToUpdate: MemoryEntity? = null
-
-                for (existing in existingMemories) {
-                    val existingNormalized = normalizeForDedup(existing.content)
-                    // 完全相同 → 跳过
-                    if (normalized == existingNormalized) {
-                        skip = true
-                        break
-                    }
-                    // 太短的内容不做包含检查（避免"金鱼"匹配所有含金鱼的）
-                    if (normalized.length >= 4 && existingNormalized.length >= 4) {
-                        // 新内容是已有内容的子集（已有更全）→ 跳过
-                        if (existingNormalized.contains(normalized)) {
-                            skip = true
-                            break
+                // 匹配 [新增] [类型] 内容
+                val addMatch = Regex("^\\[新增\\]\\s*\\[(.+?)\\]\\s*(.+)$").find(line)
+                if (addMatch != null) {
+                    val type = addMatch.groupValues[1].trim()
+                    val content = addMatch.groupValues[2].trim()
+                    if (type in validTypes && content.isNotEmpty()) {
+                        val importance = when (type) {
+                            "名字" -> 5
+                            "关系" -> 4
+                            "喜好" -> 4
+                            "事件" -> 3
+                            else -> 2
                         }
-                        // 新内容包含已有内容（新更全）→ 更新已有
-                        if (normalized.contains(existingNormalized)) {
-                            memoryToUpdate = existing
-                            break
+                        memoryRepository.insertMemory(
+                            MemoryEntity(
+                                characterId = characterId,
+                                type = type,
+                                content = content,
+                                importance = importance,
+                                sourceConversationId = sourceConversationId
+                            )
+                        )
+                        Log.d("SummaryDebug", "AI新增记忆: [$type] $content")
+                    }
+                    continue
+                }
+
+                // 匹配 [更新] 序号 → [类型] 新内容
+                val updateMatch = Regex("^\\[更新\\]\\s*(\\d+)\\s*[→\\-:]\\s*\\[(.+?)\\]\\s*(.+)$").find(line)
+                if (updateMatch != null) {
+                    val idx = updateMatch.groupValues[1].toIntOrNull() ?: 0
+                    val type = updateMatch.groupValues[2].trim()
+                    val content = updateMatch.groupValues[3].trim()
+                    if (idx in 1..existingMemories.size && type in validTypes && content.isNotEmpty()) {
+                        val target = existingMemories[idx - 1]
+                        val importance = when (type) {
+                            "名字" -> 5
+                            "关系" -> 4
+                            "喜好" -> 4
+                            "事件" -> 3
+                            else -> 2
                         }
+                        memoryRepository.updateMemory(
+                            target.copy(
+                                type = type,
+                                content = content,
+                                importance = importance,
+                                updatedAt = System.currentTimeMillis()
+                            )
+                        )
+                        Log.d("SummaryDebug", "AI更新记忆#$idx: [$type] $content")
                     }
+                    continue
                 }
 
-                if (skip) continue
-
-                // 重要性按类型默认
-                val importance = when (type) {
-                    "名字" -> 5
-                    "关系" -> 4
-                    "喜好" -> 4
-                    "事件" -> 3
-                    else -> 2
-                }
-
-                if (memoryToUpdate != null) {
-                    // 合并：更新已有记忆为更全的内容
-                    memoryRepository.updateMemory(
-                        memoryToUpdate.copy(
-                            content = content,
-                            type = type,
-                            importance = importance,
-                            updatedAt = System.currentTimeMillis()
-                        )
-                    )
-                    // 更新已有列表中的内容，供后续比较
-                    val idx = existingMemories.indexOfFirst { it.id == memoryToUpdate.id }
-                    if (idx >= 0) {
-                        existingMemories[idx] = existingMemories[idx].copy(
-                            content = content, type = type, importance = importance
-                        )
-                    }
-                    Log.d("SummaryDebug", "合并记忆: [$type] $content (替换旧记忆)")
-                } else {
-                    // 存新记忆
-                    val newId = memoryRepository.insertMemory(
-                        MemoryEntity(
-                            characterId = characterId,
-                            type = type,
-                            content = content,
-                            importance = importance,
-                            sourceConversationId = sourceConversationId
-                        )
-                    )
-                    // 加入已有列表，供后续条目比较
-                    existingMemories.add(
-                        MemoryEntity(
-                            id = newId,
-                            characterId = characterId,
-                            type = type,
-                            content = content,
-                            importance = importance
-                        )
-                    )
-                    Log.d("SummaryDebug", "存入记忆: [$type] $content")
-                }
+                // [跳过] 或其他格式 → 忽略
             }
         } catch (_: Exception) {
             // 提取失败不影响聊天
