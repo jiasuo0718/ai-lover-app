@@ -123,6 +123,7 @@ class ChatViewModel(
         val selectedRuleId = settingsRepository.getSelectedRuleOnce()
         val autoRotate = settingsRepository.getAutoRotateOnce()
         val currentRuleIndex = settingsRepository.getCurrentRuleIndexOnce()
+        val novelMode = settingsRepository.getNovelModeOnce()
 
         // 4. Key 空：标记用户消息失败，不创建 AI 气泡
         if (!settings.isConfigured()) {
@@ -223,7 +224,7 @@ class ChatViewModel(
                 RolePlayRules.getById(selectedRuleId)
             }
 
-            val systemPrompt = character?.let { buildSystemPrompt(it, ruleTemplate) }
+            val systemPrompt = character?.let { buildSystemPrompt(it, ruleTemplate, novelMode) }
             val requestMessages = buildList {
                 systemPrompt?.let { add(ChatMessage("system", it)) }
                 addAll(otherMessages)
@@ -293,19 +294,27 @@ class ChatViewModel(
     }
 
     /**
-     * 构建 system prompt：角色人设 + 说话风格 + 规则模板。
+     * 构建 system prompt：角色人设 + 说话风格 + 规则模板 + 小说模式。
      * 规则在后，不覆盖人设，只补充规则。
      */
-    private fun buildSystemPrompt(character: CharacterEntity, ruleTemplate: RuleTemplate): String {
+    private fun buildSystemPrompt(character: CharacterEntity, ruleTemplate: RuleTemplate, novelMode: Boolean): String {
         val personalityPart = character.personality?.takeIf { it.isNotBlank() }?.let { "你的人设：$it\n" } ?: ""
         val rulePart = if (ruleTemplate.content.isNotBlank()) "\n\n${ruleTemplate.content}" else ""
+        val novelPart = if (novelMode) """
+
+【小说模式】
+- 第一人称视角，用户是"我"
+- 回复用小说文体：场景/氛围 + 角色动作神态（用括号） + 对白
+- 有画面感，像在演故事/写小说，但别过度冗长
+- 用户主导行动（用户说"我做什么"，你接着写场景和角色反应）
+- 保持角色人设""" else ""
         return """你是${character.name}。${personalityPart}你正在和用户微信聊天，请：
 - 用日常口语，像真人发消息一样，别书面、别舞台腔
 - 回复可以很短，只说一两个词也行（"哈哈""哦""嗯"），不用每句都完整回应或总结
 - 语气词（呢/啦/呀）偶尔用就行，别每句都堆
 - 不用每句都表达关心或情绪，自然点
 - 不要说"作为AI""我是人工智能"之类
-- 称呼用户为"你"$rulePart"""
+- 称呼用户为"你"$rulePart$novelPart"""
     }
 
     /**

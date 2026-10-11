@@ -62,6 +62,7 @@ fun SettingsScreen(
     val themeMode by settingsRepository.themeMode.collectAsState(initial = "system")
     val selectedRule by settingsRepository.selectedRule.collectAsState(initial = "none")
     val autoRotateRule by settingsRepository.autoRotateRule.collectAsState(initial = false)
+    val novelMode by settingsRepository.novelMode.collectAsState(initial = false)
     val scope = rememberCoroutineScope()
     var showThemeDialog by remember { mutableStateOf(false) }
     var showRuleDialog by remember { mutableStateOf(false) }
@@ -156,6 +157,34 @@ fun SettingsScreen(
                         checked = autoRotateRule,
                         onCheckedChange = { enabled ->
                             scope.launch { settingsRepository.setAutoRotateRule(enabled) }
+                        }
+                    )
+                }
+                // 小说模式（开关）
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = IconParkIcons.Outline.SettingTwo,
+                        contentDescription = null,
+                        tint = TextPrimary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text(
+                        text = "小说模式",
+                        fontSize = 16.sp,
+                        color = TextPrimary,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Switch(
+                        checked = novelMode,
+                        onCheckedChange = { enabled ->
+                            scope.launch { settingsRepository.setNovelMode(enabled) }
                         }
                     )
                 }

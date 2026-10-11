@@ -34,6 +34,7 @@ class SettingsRepository(private val context: Context) {
     private val KEY_SELECTED_RULE = stringPreferencesKey("selected_rule")
     private val KEY_AUTO_ROTATE_RULE = booleanPreferencesKey("auto_rotate_rule")
     private val KEY_CURRENT_RULE_INDEX = intPreferencesKey("current_rule_index")
+    private val KEY_NOVEL_MODE = booleanPreferencesKey("novel_mode")
 
     // 旧 key（迁移用，迁移后保留不删）
     private val KEY_OLD_BASE_URL = stringPreferencesKey("api_base_url")
@@ -110,6 +111,18 @@ class SettingsRepository(private val context: Context) {
     suspend fun getSelectedRuleOnce(): String = selectedRule.first()
     suspend fun getAutoRotateOnce(): Boolean = autoRotateRule.first()
     suspend fun getCurrentRuleIndexOnce(): Int = currentRuleIndex.first()
+
+    // 小说模式，默认 false
+    val novelMode: Flow<Boolean> = context.dataStore.data
+        .map { prefs -> prefs[KEY_NOVEL_MODE] ?: false }
+
+    suspend fun setNovelMode(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_NOVEL_MODE] = enabled
+        }
+    }
+
+    suspend fun getNovelModeOnce(): Boolean = novelMode.first()
 
     suspend fun getProfilesOnce(): List<ApiProfile> = apiProfiles.first()
 
