@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.ailover.app.data.local.converter.MessageType
 import com.ailover.app.data.local.converter.SenderType
 import com.ailover.app.data.local.entity.CharacterEntity
+import com.ailover.app.data.local.entity.ConversationEntity
 import com.ailover.app.data.local.entity.MemoryEntity
 import java.text.SimpleDateFormat
 import java.util.Date
