@@ -381,6 +381,10 @@ class ChatViewModel(
         val emotionPart = """
 你现在的心情基调是【$mood】，刚才的事让你【$reaction】。
 用这种状态回复，保持人设，别过度演绎。"""
+        val conflictPart = """
+当"关系态度"和"当前情绪"冲突时，以【当前情绪】为准（情绪是当前状态，关系是底色）。
+例：关系亲密 + 情绪生气 → 用"亲密的生气"（赌气/傲娇/别扭），不是"撒娇"；也不是"冷淡无情"。
+不要"既撒娇又冷淡"。"""
         val rulePart = if (ruleTemplate.content.isNotBlank()) "\n\n${ruleTemplate.content}" else ""
         val novelPart = if (novelMode) """
 
@@ -392,6 +396,7 @@ class ChatViewModel(
 - 保持角色人设""" else ""
         return """你是${character.name}。${personalityPart}$relationshipPart
 $emotionPart
+$conflictPart
 你正在和用户微信聊天，请：
 - 默认用日常口语（文艺/古风/书面角色按人设）
 - 默认回复简短（话痨/爱解释角色按人设）
