@@ -23,6 +23,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.ui.res.stringResource
+import com.ailover.app.R
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -77,7 +79,13 @@ fun ConversationListScreen(
             Column {
                 CenterAlignedTopAppBar(
                     modifier = Modifier.height(48.dp),
-                    title = {},
+                    title = {
+                        Text(
+                            stringResource(R.string.app_name),
+                            color = TextPrimary,
+                            fontSize = 18.sp
+                        )
+                    },
                     actions = {
                         // 右上角「+」：新建角色
                         IconButton(onClick = onAddCharacterClick) {

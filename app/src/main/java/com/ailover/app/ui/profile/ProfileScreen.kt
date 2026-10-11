@@ -93,7 +93,7 @@ fun ProfileScreen(
             Column {
                 CenterAlignedTopAppBar(
                     modifier = Modifier.height(48.dp),
-                    title = { Text("我", color = TextPrimary, fontSize = 18.sp) },
+                    title = {},
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = NavBarBg
                     )
