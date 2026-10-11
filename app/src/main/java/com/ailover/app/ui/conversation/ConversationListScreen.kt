@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -76,13 +77,7 @@ fun ConversationListScreen(
             Column {
                 CenterAlignedTopAppBar(
                     modifier = Modifier.height(48.dp),
-                    title = {
-                        Text(
-                            "AI恋人",
-                            color = TextPrimary,
-                            fontSize = 18.sp
-                        )
-                    },
+                    title = {},
                     actions = {
                         // 右上角「+」：新建角色
                         IconButton(onClick = onAddCharacterClick) {
@@ -121,7 +116,7 @@ fun ConversationListScreen(
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
-                items(conversations, key = { it.conversation.id }) { item ->
+                itemsIndexed(conversations, key = { _, item -> item.conversation.id }) { index, item ->
                     ConversationItem(
                         item = item,
                         onClick = {
@@ -131,6 +126,14 @@ fun ConversationListScreen(
                             )
                         }
                     )
+                    if (index < conversations.size - 1) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(0.5.dp)
+                                .background(if (LocalDarkTheme.current) Color(0xFF2C2C2E) else Color(0xFFF0F0F0))
+                        )
+                    }
                 }
             }
         }
