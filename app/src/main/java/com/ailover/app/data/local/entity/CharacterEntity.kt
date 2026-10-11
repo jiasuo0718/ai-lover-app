@@ -11,6 +11,8 @@ data class CharacterEntity(
     val avatarUri: String? = null,
     val personality: String,
     val apiProfileId: String? = null,
+    val relationshipScore: Int = 0,
+    val lastScoreDate: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 )

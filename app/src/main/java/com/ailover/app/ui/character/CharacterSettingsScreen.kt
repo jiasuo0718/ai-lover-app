@@ -42,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.material3.isSystemInDarkTheme
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -114,6 +115,59 @@ fun CharacterSettingsScreen(
                     title = "编辑角色",
                     onClick = { onEditClick(characterId) }
                 )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 分组：关系度
+            val score = character?.relationshipScore ?: 0
+            val (stageName, stageMin, stageMax) = when {
+                score >= 200 -> Triple("挚友", 200, 300)
+                score >= 100 -> Triple("亲密", 100, 200)
+                score >= 50 -> Triple("朋友", 50, 100)
+                score >= 20 -> Triple("熟悉", 20, 50)
+                else -> Triple("陌生", 0, 20)
+            }
+            val progress = ((score - stageMin).toFloat() / (stageMax - stageMin).toFloat()).coerceIn(0f, 1f)
+            SettingsGroup {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 14.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("关系度", color = TextPrimary, fontSize = 15.sp)
+                        Text("$stageName · ${score}分", color = TextSecondary, fontSize = 13.sp)
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    // 进度条
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .background(
+                                if (isSystemInDarkTheme()) Color(0xFF2C2C2E) else Color(0xFFE5E5EA),
+                                MaterialTheme.shapes.small
+                            )
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(progress)
+                                .height(6.dp)
+                                .background(AccentBlue, MaterialTheme.shapes.small)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        "每天聊天最多 +20 分，继续聊会更亲近",
+                        color = TextSecondary,
+                        fontSize = 12.sp
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))

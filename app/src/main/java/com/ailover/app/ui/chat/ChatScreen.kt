@@ -320,6 +320,20 @@ fun ChatScreen(
                                     color = TextSecondary,
                                     fontSize = 12.sp
                                 )
+                            } else {
+                                val score = character?.relationshipScore ?: 0
+                                val stageName = when {
+                                    score >= 200 -> "挚友"
+                                    score >= 100 -> "亲密"
+                                    score >= 50 -> "朋友"
+                                    score >= 20 -> "熟悉"
+                                    else -> "陌生"
+                                }
+                                Text(
+                                    "关系：$stageName",
+                                    color = TextSecondary,
+                                    fontSize = 12.sp
+                                )
                             }
                         }
                     },

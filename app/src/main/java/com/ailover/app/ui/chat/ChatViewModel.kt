@@ -8,6 +8,9 @@ import com.ailover.app.data.local.converter.MessageType
 import com.ailover.app.data.local.converter.SenderType
 import com.ailover.app.data.local.entity.CharacterEntity
 import com.ailover.app.data.local.entity.MemoryEntity
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import com.ailover.app.data.local.entity.MessageEntity
 import com.ailover.app.data.remote.model.ChatMessage
 import com.ailover.app.data.remote.model.ChatRequest
@@ -264,6 +267,18 @@ class ChatViewModel(
                         (currentRuleIndex + attempt + 1) % RolePlayRules.ROTATABLE.size
                     )
                 }
+                // 关系值+1（每天上限20）
+                character?.let { c ->
+                    val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+                    val (lastDate, todayGain) = parseScoreDate(c.lastScoreDate)
+                    if (lastDate != today) {
+                        // 新的一天，重置计数并+1
+                        characterRepository.updateRelationshipScore(c.id, c.relationshipScore + 1, "$today:1")
+                    } else if (todayGain < 20) {
+                        // 今天还没到上限，+1
+                        characterRepository.updateRelationshipScore(c.id, c.relationshipScore + 1, "$today:${todayGain + 1}")
+                    }
+                }
                 break
             } catch (e: Exception) {
                 // 判断是否可以重试：第一次尝试 + 开启自动轮换 + 不是最后一套
@@ -294,11 +309,39 @@ class ChatViewModel(
     }
 
     /**
-     * 构建 system prompt：角色人设 + 说话风格 + 规则模板 + 小说模式。
+     * 解析 lastScoreDate：格式 "yyyy-MM-dd:count"，返回 (日期, 今天已涨分数)。
+     */
+    private fun parseScoreDate(lastScoreDate: String?): Pair<String, Int> {
+        if (lastScoreDate.isNullOrBlank()) return "" to 0
+        val parts = lastScoreDate.split(":")
+        return if (parts.size == 2) parts[0] to (parts[1].toIntOrNull() ?: 0) else lastScoreDate to 0
+    }
+
+    /**
+     * 关系阶段：5档，带5分缓冲（升档到阈值才升，降档留5分缓冲）。
+     */
+    data class RelationshipStage(val name: String, val description: String, val minScore: Int)
+
+    private fun getRelationshipStage(score: Int): RelationshipStage {
+        return when {
+            score >= 200 -> RelationshipStage("挚友", "你们已经是灵魂伴侣，无话不谈，深度信任", 200)
+            score >= 100 -> RelationshipStage("亲密", "你们很亲近，可以撒娇、依赖、分享情绪", 100)
+            score >= 50 -> RelationshipStage("朋友", "你们很熟了，会吐槽、关心日常", 50)
+            score >= 20 -> RelationshipStage("熟悉", "你们开始熟悉，会开玩笑，偶尔主动找话题", 20)
+            else -> RelationshipStage("陌生", "你们刚认识，客气礼貌，有距离感", 0)
+        }
+    }
+
+    /**
+     * 构建 system prompt：角色人设 + 关系阶段 + 说话风格 + 规则模板 + 小说模式。
      * 规则在后，不覆盖人设，只补充规则。
      */
     private fun buildSystemPrompt(character: CharacterEntity, ruleTemplate: RuleTemplate, novelMode: Boolean): String {
         val personalityPart = character.personality?.takeIf { it.isNotBlank() }?.let { "你的人设：$it\n" } ?: ""
+        val stage = getRelationshipStage(character.relationshipScore)
+        val relationshipPart = """
+你和用户的关系阶段：${stage.name}（${stage.description}）。
+请用【${stage.name}】的态度和语气回复，但保持角色人设，别过度演绎。"""
         val rulePart = if (ruleTemplate.content.isNotBlank()) "\n\n${ruleTemplate.content}" else ""
         val novelPart = if (novelMode) """
 
@@ -308,7 +351,8 @@ class ChatViewModel(
 - 有画面感，像在演故事/写小说，但别过度冗长
 - 用户主导行动（用户说"我做什么"，你接着写场景和角色反应）
 - 保持角色人设""" else ""
-        return """你是${character.name}。${personalityPart}你正在和用户微信聊天，请：
+        return """你是${character.name}。${personalityPart}$relationshipPart
+你正在和用户微信聊天，请：
 - 用日常口语，像真人发消息一样，别书面、别舞台腔
 - 回复可以很短，只说一两个词也行（"哈哈""哦""嗯"），不用每句都完整回应或总结
 - 语气词（呢/啦/呀）偶尔用就行，别每句都堆

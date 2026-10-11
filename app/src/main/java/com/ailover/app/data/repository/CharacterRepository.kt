@@ -53,4 +53,18 @@ class CharacterRepository(private val characterDao: CharacterDao) {
     }
 
     suspend fun getCharacterCount(): Int = characterDao.getCharacterCount()
+
+    /**
+     * 更新关系值和上次涨分日期。
+     * 用于关系度功能：每天上限+20，每条用户消息+1。
+     */
+    suspend fun updateRelationshipScore(characterId: Long, score: Int, lastScoreDate: String?) {
+        val character = getCharacterById(characterId) ?: return
+        val updated = character.copy(
+            relationshipScore = score,
+            lastScoreDate = lastScoreDate,
+            updatedAt = System.currentTimeMillis()
+        )
+        updateCharacter(updated)
+    }
 }

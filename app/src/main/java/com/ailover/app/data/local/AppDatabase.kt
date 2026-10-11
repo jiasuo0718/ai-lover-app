@@ -24,7 +24,7 @@ import com.ailover.app.data.local.entity.MessageEntity
         MessageEntity::class,
         MemoryEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -112,6 +112,14 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // 角色表加 relationshipScore（关系值）和 lastScoreDate（上次涨分日期，用于每天上限）
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE characters ADD COLUMN relationshipScore INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("ALTER TABLE characters ADD COLUMN lastScoreDate TEXT")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -119,7 +127,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "ailover_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
                     .build()
                 INSTANCE = instance
                 instance
