@@ -271,6 +271,32 @@ class ChatViewModel(
                 }
                 finalContent = fullContent.toString()
                 sendSuccess = true
+
+                // 连发多条：把 AI 输出按换行拆成独立消息（真·多条，不是一个气泡里换行）
+                val lines = finalContent.lines()
+                    .map { it.trim() }
+                    .filter { it.isNotEmpty() }
+                if (lines.size > 1) {
+                    // 第一条用现有的 aiMessage
+                    val firstLine = lines.first()
+                    aiMessage = aiMessage.copy(content = firstLine)
+                    messageRepository.updateMessage(aiMessage)
+                    // 后续行插入新消息，每条时间戳递增100ms
+                    val baseTime = aiMessage.timestamp
+                    lines.drop(1).forEachIndexed { index, line ->
+                        messageRepository.insertMessage(
+                            MessageEntity(
+                                conversationId = conversationId,
+                                senderType = SenderType.AI,
+                                messageType = MessageType.TEXT,
+                                content = line,
+                                timestamp = baseTime + (index + 1) * 100L,
+                                sendStatus = MessageEntity.SEND_STATUS_SUCCESS
+                            )
+                        )
+                    }
+                    finalContent = firstLine  // 会话最后消息用第一条
+                }
                 // 自动轮换：更新到下一套
                 if (autoRotate) {
                     settingsRepository.setCurrentRuleIndex(
@@ -372,7 +398,9 @@ $emotionPart
 - 语气词（呢/啦/呀）偶尔用就行，别每句都堆
 - 不用每句都表达关心或情绪，自然点
 - 不要说"作为AI""我是人工智能"之类
-- 称呼用户为"你"$rulePart$novelPart"""
+- 称呼用户为"你"
+- 像真人发微信，一次可以连发多条短消息（用换行分隔每条），想到啥发啥：补一句、追问、自言自语、突然想起
+- 但别为发而发：一条能说清就一条，话多/激动时才连发，每条短、口语$rulePart$novelPart"""
     }
 
     /**
