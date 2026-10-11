@@ -182,7 +182,12 @@ class ChatViewModel(
                 }
         } ?: emptyList()
 
-        // 6.6 会话摘要：该角色所有会话的摘要（最多5个）
+        // 6.6 记忆库：该角色的关键信息记忆（最多15条，按重要性+时间降序）
+        val memories = character?.let { c ->
+            memoryRepository.getMemoriesByCharacterOnce(c.id, 15)
+        } ?: emptyList()
+
+        // 6.7 会话摘要：该角色所有会话的摘要（最多5个）
         val conversationSummaries = character?.let { c ->
             conversationRepository.getConversationsWithSummaryByCharacter(c.id, 5)
                 .mapNotNull { it.summary }
@@ -190,6 +195,11 @@ class ChatViewModel(
 
         val requestMessages = buildList {
             systemPrompt?.let { add(ChatMessage("system", it)) }
+            if (memories.isNotEmpty()) {
+                val memoryText = memories.joinToString("\n") { "- [${it.type}] ${it.content}" }
+                Log.d("SummaryDebug", "拼入记忆: 共${memories.size}条\n$memoryText")
+                add(ChatMessage("system", "你记得以下关于用户的信息：\n$memoryText"))
+            }
             if (conversationSummaries.isNotEmpty()) {
                 val summaryText = conversationSummaries.joinToString("\n") { "- $it" }
                 Log.d("SummaryDebug", "拼入摘要: $summaryText")
