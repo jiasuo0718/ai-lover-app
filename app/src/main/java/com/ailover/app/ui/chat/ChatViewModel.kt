@@ -392,8 +392,7 @@ class ChatViewModel(
 
     /**
      * 从用户消息中提取关键信息，存入记忆库。
-     * 全 AI 判断：把已有记忆 + 最近对话交给 AI，AI 输出操作指令（新增/更新/跳过）。
-     * 不再用规则去重，全部交给 AI 判断。
+     * 两步走：第一步列候选，第二步严格审核（判断该不该记、类型、和已有关系）。
      * 宽松解析，格式不对就跳过，不崩。
      */
     private suspend fun extractAndSaveMemories(
@@ -405,10 +404,47 @@ class ChatViewModel(
         try {
             if (userOnlyMessages.isBlank()) return
 
-            // 查已有记忆（限制50条，避免 token 太大）
-            val existingMemories = memoryRepository.getMemoriesByCharacterOnce(characterId, 50)
+            // ===== 第一步：列候选 =====
+            val candidatePrompt = """
+                从以下用户说的话中，列出所有可能值得记住的候选信息，每条一行，格式：[类型] 内容
+                类型只能是：名字、喜好、事件、关系、其他
+                不要判断该不该记，先全部列出来（包括可能的）。没有候选就回复"无"。
+                用户说的话：
+                $userOnlyMessages
+            """.trimIndent()
 
-            // 构建已有记忆列表（带序号，方便 AI 引用更新）
+            val candidateResult = StringBuilder()
+            chatRepository.streamChat(
+                baseUrl = settings.baseUrl,
+                apiKey = settings.apiKey,
+                profileName = settings.name,
+                request = ChatRequest(
+                    model = settings.modelName,
+                    messages = listOf(ChatMessage("system", candidatePrompt)),
+                    stream = true
+                )
+            ).collect { chunk -> candidateResult.append(chunk) }
+
+            val candidateRaw = candidateResult.toString().trim()
+            if (candidateRaw.isEmpty() || candidateRaw == "无") return
+
+            // 解析候选
+            val validTypes = setOf("名字", "喜好", "事件", "关系", "其他")
+            val candidates = candidateRaw.lines()
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .mapNotNull { line ->
+                    val m = Regex("^\\[(.+?)\\]\\s*(.+)$").find(line)
+                    if (m != null) {
+                        val t = m.groupValues[1].trim()
+                        val c = m.groupValues[2].trim()
+                        if (t in validTypes && c.isNotEmpty()) t to c else null
+                    } else null
+                }
+            if (candidates.isEmpty()) return
+
+            // ===== 第二步：严格审核 =====
+            val existingMemories = memoryRepository.getMemoriesByCharacterOnce(characterId, 50)
             val existingListText = if (existingMemories.isEmpty()) {
                 "（暂无已有记忆）"
             } else {
@@ -416,92 +452,73 @@ class ChatViewModel(
                     "${index + 1}. [${mem.type}] ${mem.content}"
                 }.joinToString("\n")
             }
+            val candidateListText = candidates.mapIndexed { i, (t, c) ->
+                "${i + 1}. [$t] $c"
+            }.joinToString("\n")
 
-            val extractPrompt = """
-                你是一个记忆管理员。以下是该角色已有的记忆，以及用户最近说的话。
+            val reviewPrompt = """
+                你是一个严格的记忆审核员。以下是候选记忆和已有记忆。
 
                 【已有记忆】
                 $existingListText
 
-                【用户最近说的话】
-                $userOnlyMessages
+                【候选记忆】
+                $candidateListText
 
-                【任务】
-                判断用户最近说的话里，哪些是关于用户的明确事实，需要存为记忆。
+                请严格审核每条候选：
+                【不该记的】未来计划、当下动作、感慨、玩笑、关于角色的、提问、推断、无信息量
+                【该记的】关于用户的明确事实（名字、喜好、长期经历、关系状态）
 
-                【该记的】关于用户的明确事实：
-                - 名字：用户的名字/昵称
-                - 喜好：用户喜欢或讨厌的事物
-                - 事件：用户的长期经历/事实（养猫、去过某地、职业等），不是当下动作
-                - 关系：用户和角色的关系状态（我们是朋友、我喜欢你等）
-                - 其他：以上都不是的、关于用户的明确事实
+                和已有记忆比对：
+                - 重复/包含 → 合并（保留最全的，更新已有）
+                - 新事实 → 新增
+                - 不该记 → 跳过
 
-                【不该记的】
-                - 当下动作（"我在吃饭""我刚写完作业"）
-                - 感慨/玩笑/情绪（"好累啊""哈哈"）
-                - 对话过程/提问（"你在干嘛""团子是谁"）
-                - 推断/猜测
-                - 关于角色的信息（只记用户的）
-
-                【和已有记忆的关系】
-                - 如果新信息和已有记忆是同一件事但更全 → 更新那条已有记忆
-                - 如果是新的事实 → 新增
-                - 如果已有记忆已经包含 → 跳过
-
-                【输出格式】每条一行，只能是以下三种：
+                输出格式（每条一行）：
                 [新增] [类型] 内容
-                [更新] 序号 → [类型] 新内容
+                [更新] 已有序号 → [类型] 新内容
                 [跳过]
                 没有需要处理的就回复"无"。
             """.trimIndent()
 
-            val extractResult = StringBuilder()
+            val reviewResult = StringBuilder()
             chatRepository.streamChat(
                 baseUrl = settings.baseUrl,
                 apiKey = settings.apiKey,
                 profileName = settings.name,
                 request = ChatRequest(
                     model = settings.modelName,
-                    messages = listOf(ChatMessage("system", extractPrompt)),
+                    messages = listOf(ChatMessage("system", reviewPrompt)),
                     stream = true
                 )
-            ).collect { chunk -> extractResult.append(chunk) }
+            ).collect { chunk -> reviewResult.append(chunk) }
 
-            val raw = extractResult.toString().trim()
-            if (raw.isEmpty() || raw == "无") return
+            val reviewRaw = reviewResult.toString().trim()
+            if (reviewRaw.isEmpty() || reviewRaw == "无") return
 
-            val validTypes = setOf("名字", "喜好", "事件", "关系", "其他")
-            val lines = raw.lines().map { it.trim() }.filter { it.isNotEmpty() }
-
+            // 解析审核结果，执行操作
+            val lines = reviewRaw.lines().map { it.trim() }.filter { it.isNotEmpty() }
             for (line in lines) {
-                // 匹配 [新增] [类型] 内容
+                // [新增] [类型] 内容
                 val addMatch = Regex("^\\[新增\\]\\s*\\[(.+?)\\]\\s*(.+)$").find(line)
                 if (addMatch != null) {
                     val type = addMatch.groupValues[1].trim()
                     val content = addMatch.groupValues[2].trim()
                     if (type in validTypes && content.isNotEmpty()) {
                         val importance = when (type) {
-                            "名字" -> 5
-                            "关系" -> 4
-                            "喜好" -> 4
-                            "事件" -> 3
-                            else -> 2
+                            "名字" -> 5; "关系" -> 4; "喜好" -> 4; "事件" -> 3; else -> 2
                         }
                         memoryRepository.insertMemory(
                             MemoryEntity(
-                                characterId = characterId,
-                                type = type,
-                                content = content,
-                                importance = importance,
-                                sourceConversationId = sourceConversationId
+                                characterId = characterId, type = type, content = content,
+                                importance = importance, sourceConversationId = sourceConversationId
                             )
                         )
-                        Log.d("SummaryDebug", "AI新增记忆: [$type] $content")
+                        Log.d("SummaryDebug", "两步走-新增: [$type] $content")
                     }
                     continue
                 }
-
-                // 匹配 [更新] 序号 → [类型] 新内容
+                // [更新] 已有序号 → [类型] 新内容
                 val updateMatch = Regex("^\\[更新\\]\\s*(\\d+)\\s*[→\\-:]\\s*\\[(.+?)\\]\\s*(.+)$").find(line)
                 if (updateMatch != null) {
                     val idx = updateMatch.groupValues[1].toIntOrNull() ?: 0
@@ -510,26 +527,19 @@ class ChatViewModel(
                     if (idx in 1..existingMemories.size && type in validTypes && content.isNotEmpty()) {
                         val target = existingMemories[idx - 1]
                         val importance = when (type) {
-                            "名字" -> 5
-                            "关系" -> 4
-                            "喜好" -> 4
-                            "事件" -> 3
-                            else -> 2
+                            "名字" -> 5; "关系" -> 4; "喜好" -> 4; "事件" -> 3; else -> 2
                         }
                         memoryRepository.updateMemory(
                             target.copy(
-                                type = type,
-                                content = content,
-                                importance = importance,
+                                type = type, content = content, importance = importance,
                                 updatedAt = System.currentTimeMillis()
                             )
                         )
-                        Log.d("SummaryDebug", "AI更新记忆#$idx: [$type] $content")
+                        Log.d("SummaryDebug", "两步走-更新#$idx: [$type] $content")
                     }
                     continue
                 }
-
-                // [跳过] 或其他格式 → 忽略
+                // [跳过] 或其他 → 忽略
             }
         } catch (_: Exception) {
             // 提取失败不影响聊天

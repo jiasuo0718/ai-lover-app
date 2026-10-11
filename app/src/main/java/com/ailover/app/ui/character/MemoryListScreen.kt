@@ -43,6 +43,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ailover.app.data.local.entity.MemoryEntity
+import com.ailover.app.data.remote.model.ChatMessage
+import com.ailover.app.data.remote.model.ChatRequest
+import com.ailover.app.data.repository.ChatRepository
 import com.ailover.app.di.AppContainer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -59,6 +62,9 @@ fun MemoryListScreen(
     val memories by memoryRepository.getMemoriesByCharacter(characterId)
         .collectAsState(initial = emptyList())
     var memoryToDelete by remember { mutableStateOf<MemoryEntity?>(null) }
+    var showDedupConfirm by remember { mutableStateOf(false) }
+    var isDeduping by remember { mutableStateOf(false) }
+    var dedupResult by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
     Scaffold(
@@ -70,6 +76,15 @@ fun MemoryListScreen(
                     navigationIcon = {
                         IconButton(onClick = onBackClick) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回", tint = TextPrimary)
+                        }
+                    },
+                    actions = {
+                        if (memories.isNotEmpty() && !isDeduping) {
+                            TextButton(onClick = { showDedupConfirm = true }) {
+                                Text("去重", color = AccentBlue, fontSize = 14.sp)
+                            }
+                        } else if (isDeduping) {
+                            Text("处理中…", color = TextSecondary, fontSize = 14.sp)
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -165,6 +180,148 @@ fun MemoryListScreen(
             },
             containerColor = NavBarBg
         )
+    }
+
+    // 去重确认对话框
+    if (showDedupConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDedupConfirm = false },
+            title = { Text("记忆去重") },
+            text = { Text("将用 AI 判断「$characterName」的所有记忆中哪些是同一件事，合并保留最全的、删除重复的。\n\n此操作不可撤销，确定继续吗？") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDedupConfirm = false
+                    isDeduping = true
+                    scope.launch(Dispatchers.IO) {
+                        val result = runDedup(characterId)
+                        isDeduping = false
+                        dedupResult = result
+                    }
+                }) {
+                    Text("开始去重", color = AccentBlue)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDedupConfirm = false }) {
+                    Text("取消")
+                }
+            },
+            containerColor = NavBarBg
+        )
+    }
+
+    // 去重结果对话框
+    if (dedupResult != null) {
+        AlertDialog(
+            onDismissRequest = { dedupResult = null },
+            title = { Text("去重完成") },
+            text = { Text(dedupResult ?: "") },
+            confirmButton = {
+                TextButton(onClick = { dedupResult = null }) {
+                    Text("确定")
+                }
+            },
+            containerColor = NavBarBg
+        )
+    }
+}
+
+/**
+ * 存量去重：查所有记忆 → AI 判断同一件事 → 合并/删除。
+ * 返回结果描述。
+ */
+private suspend fun runDedup(characterId: Long): String {
+    return try {
+        val memoryRepository = AppContainer.memoryRepository()
+        val chatRepository = AppContainer.chatRepository()
+        val settingsRepository = AppContainer.settingsRepository()
+        val settings = settingsRepository.getActiveProfileOnce()
+        if (!settings.isConfigured()) return "未配置 API，无法去重"
+
+        val allMemories = memoryRepository.getMemoriesByCharacterOnce(characterId, 200)
+        if (allMemories.size < 2) return "记忆太少（${allMemories.size}条），无需去重"
+
+        val memoryListText = allMemories.mapIndexed { i, m ->
+            "${i + 1}. [${m.type}] ${m.content}"
+        }.joinToString("\n")
+
+        val prompt = """
+            以下是该角色的所有记忆，请判断哪些是同一件事（重复/包含关系）。
+            同一件事的合并成一条（保留最全的内容），重复的删除。
+
+            【所有记忆】
+            $memoryListText
+
+            输出格式（每条一行）：
+            [合并] 序号1,序号2 → [类型] 合并后内容
+            [删除] 序号
+            没有重复就回复"无"。
+        """.trimIndent()
+
+        val result = StringBuilder()
+        chatRepository.streamChat(
+            baseUrl = settings.baseUrl,
+            apiKey = settings.apiKey,
+            profileName = settings.name,
+            request = ChatRequest(
+                model = settings.modelName,
+                messages = listOf(ChatMessage("system", prompt)),
+                stream = true
+            )
+        ).collect { chunk -> result.append(chunk) }
+
+        val raw = result.toString().trim()
+        if (raw.isEmpty() || raw == "无") return "未发现重复记忆"
+
+        val validTypes = setOf("名字", "喜好", "事件", "关系", "其他")
+        var mergedCount = 0
+        var deletedCount = 0
+
+        for (line in raw.lines().map { it.trim() }.filter { it.isNotEmpty() }) {
+            // [合并] 序号1,序号2 → [类型] 合并后内容
+            val mergeMatch = Regex("^\\[合并\\]\\s*([\\d,，\\s]+)\\s*[→\\-:]\\s*\\[(.+?)\\]\\s*(.+)$").find(line)
+            if (mergeMatch != null) {
+                val indices = mergeMatch.groupValues[1]
+                    .split(Regex("[,，\\s]"))
+                    .mapNotNull { it.toIntOrNull() }
+                    .filter { it in 1..allMemories.size }
+                val type = mergeMatch.groupValues[2].trim()
+                val content = mergeMatch.groupValues[3].trim()
+                if (indices.size >= 2 && type in validTypes && content.isNotEmpty()) {
+                    val first = allMemories[indices[0] - 1]
+                    val importance = when (type) {
+                        "名字" -> 5; "关系" -> 4; "喜好" -> 4; "事件" -> 3; else -> 2
+                    }
+                    memoryRepository.updateMemory(
+                        first.copy(type = type, content = content, importance = importance, updatedAt = System.currentTimeMillis())
+                    )
+                    for (idx in indices.drop(1)) {
+                        memoryRepository.deleteMemory(allMemories[idx - 1])
+                        deletedCount++
+                    }
+                    mergedCount++
+                }
+                continue
+            }
+            // [删除] 序号
+            val deleteMatch = Regex("^\\[删除\\]\\s*(\\d+)$").find(line)
+            if (deleteMatch != null) {
+                val idx = deleteMatch.groupValues[1].toIntOrNull() ?: 0
+                if (idx in 1..allMemories.size) {
+                    memoryRepository.deleteMemory(allMemories[idx - 1])
+                    deletedCount++
+                }
+                continue
+            }
+        }
+
+        if (mergedCount == 0 && deletedCount == 0) {
+            "未发现重复记忆"
+        } else {
+            "去重完成：合并 $mergedCount 组，删除 $deletedCount 条重复"
+        }
+    } catch (e: Exception) {
+        "去重失败：${e.message ?: "未知错误"}"
     }
 }
 
