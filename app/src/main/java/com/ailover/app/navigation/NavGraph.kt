@@ -49,6 +49,7 @@ import com.ailover.app.ui.character.CharacterDetailScreen
 import com.ailover.app.ui.character.CharacterEditScreen
 import com.ailover.app.ui.character.CharacterListScreen
 import com.ailover.app.ui.character.CharacterSettingsScreen
+import com.ailover.app.ui.character.MemoryListScreen
 import com.ailover.app.ui.chat.ChatScreen
 import com.ailover.app.ui.conversation.ConversationListScreen
 import com.ailover.app.ui.profile.ProfileScreen
@@ -64,6 +65,7 @@ object Routes {
     const val CHARACTER_EDIT = "character_edit/{characterId}"
     const val CHARACTER_DETAIL = "character_detail/{characterId}"
     const val CHARACTER_SETTINGS = "character_settings/{characterId}"
+    const val MEMORY_LIST = "memory_list/{characterId}/{characterName}"
     const val USER_PROFILE_EDIT = "user_profile_edit"
     const val SETTINGS_PAGE = "settings_page"
     const val API_PROFILE_LIST = "api_profile_list"
@@ -83,6 +85,9 @@ object Routes {
 
     fun createCharacterSettingsRoute(characterId: Long): String =
         "character_settings/$characterId"
+
+    fun createMemoryListRoute(characterId: Long, characterName: String): String =
+        "memory_list/$characterId/$characterName"
 }
 
 private data class BottomNavItem(
@@ -237,7 +242,27 @@ fun AppNavGraph() {
                 },
                 onDeleted = {
                     navController.popBackStack()
+                },
+                onMemoryClick = { cid, cname ->
+                    navController.navigate(Routes.createMemoryListRoute(cid, cname))
                 }
+            )
+        }
+
+        // 记忆管理页
+        composable(
+            route = Routes.MEMORY_LIST,
+            arguments = listOf(
+                navArgument("characterId") { type = NavType.LongType },
+                navArgument("characterName") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val characterId = backStackEntry.arguments?.getLong("characterId") ?: 0L
+            val characterName = backStackEntry.arguments?.getString("characterName") ?: ""
+            MemoryListScreen(
+                characterId = characterId,
+                characterName = characterName,
+                onBackClick = { navController.popBackStack() }
             )
         }
 

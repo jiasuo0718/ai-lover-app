@@ -56,7 +56,8 @@ fun CharacterSettingsScreen(
     characterId: Long,
     onBackClick: () -> Unit,
     onEditClick: (Long) -> Unit,
-    onDeleted: () -> Unit
+    onDeleted: () -> Unit,
+    onMemoryClick: (Long, String) -> Unit
 ) {
     val viewModel: CharacterDetailViewModel = viewModel(
         factory = CharacterDetailViewModelFactory(
@@ -127,6 +128,12 @@ fun CharacterSettingsScreen(
                         profiles.firstOrNull { it.id == character?.apiProfileId }?.name ?: "跟随全局默认",
                     disabled = false,
                     onClick = { showApiSheet = true }
+                )
+                SettingsDivider()
+                SettingsItem(
+                    title = "记忆管理",
+                    subtitle = "查看和删除 TA 记住的信息",
+                    onClick = { onMemoryClick(characterId, character?.name ?: "") }
                 )
                 SettingsDivider()
                 SettingsSwitchItem(
