@@ -111,7 +111,15 @@ class ChatViewModel(
         val character = conversation?.let {
             characterRepository.getCharacterById(it.characterId)
         }
-        val systemPrompt = character?.personality?.takeIf { it.isNotBlank() }
+        val systemPrompt = character?.let { c ->
+            val personalityPart = c.personality?.takeIf { it.isNotBlank() }?.let { "你的人设：$it\n" } ?: ""
+            """你是${c.name}。${personalityPart}你正在和用户一对一聊天，请：
+- 用口语化、自然的语气，像真人发消息一样
+- 回复简短，不要长篇大论
+- 可以用语气词（嗯、呀、呢、啦）
+- 不要说"作为AI""我是人工智能"之类
+- 称呼用户为"你""""
+        }
         val settings = resolveApiProfile(character)
 
         // 4. Key 空：标记用户消息失败，不创建 AI 气泡
@@ -134,13 +142,14 @@ class ChatViewModel(
         )
         var aiMessage = messageRepository.getMessageById(aiMessageId) ?: return
 
-        // 6. 构建历史消息（排除 AI 占位、SYSTEM、失败消息）
+        // 6. 构建历史消息（排除 AI 占位、SYSTEM、失败消息，只带最近20条）
         val history = messageRepository.getMessagesByConversationOnce(conversationId)
             .filter {
                 it.id != aiMessageId &&
                 it.senderType != SenderType.SYSTEM &&
                 it.sendStatus != MessageEntity.SEND_STATUS_FAILED
             }
+            .takeLast(20)
             .map { msg ->
                 ChatMessage(
                     role = when (msg.senderType) {
