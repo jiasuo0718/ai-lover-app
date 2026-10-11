@@ -439,9 +439,8 @@ class ChatViewModel(
             val validTypes = setOf("名字", "喜好", "事件", "关系", "其他")
             val lines = raw.lines().map { it.trim() }.filter { it.isNotEmpty() }
 
-            // 查已有记忆，归一化后去重
-            val existingMemories = memoryRepository.getMemoriesByCharacterOnce(characterId, 200)
-            val normalizedExisting = existingMemories.map { normalizeForDedup(it.content) }.toMutableSet()
+            // 查已有记忆（可变列表，方便添加新存入的供后续比较）
+            val existingMemories = memoryRepository.getMemoriesByCharacterOnce(characterId, 200).toMutableList()
 
             for (line in lines) {
                 var type = ""
@@ -464,10 +463,34 @@ class ChatViewModel(
                 // 类型校验 + 内容非空
                 if (type !in validTypes || content.isEmpty()) continue
 
-                // 去重：归一化后比较（去掉前缀、空格、标点）
+                // 去重：归一化后比较（完全相同 + 包含/被包含关系）
                 val normalized = normalizeForDedup(content)
-                if (normalized in normalizedExisting) continue
-                normalizedExisting.add(normalized)
+                var skip = false
+                var memoryToUpdate: MemoryEntity? = null
+
+                for (existing in existingMemories) {
+                    val existingNormalized = normalizeForDedup(existing.content)
+                    // 完全相同 → 跳过
+                    if (normalized == existingNormalized) {
+                        skip = true
+                        break
+                    }
+                    // 太短的内容不做包含检查（避免"金鱼"匹配所有含金鱼的）
+                    if (normalized.length >= 4 && existingNormalized.length >= 4) {
+                        // 新内容是已有内容的子集（已有更全）→ 跳过
+                        if (existingNormalized.contains(normalized)) {
+                            skip = true
+                            break
+                        }
+                        // 新内容包含已有内容（新更全）→ 更新已有
+                        if (normalized.contains(existingNormalized)) {
+                            memoryToUpdate = existing
+                            break
+                        }
+                    }
+                }
+
+                if (skip) continue
 
                 // 重要性按类型默认
                 val importance = when (type) {
@@ -478,16 +501,47 @@ class ChatViewModel(
                     else -> 2
                 }
 
-                memoryRepository.insertMemory(
-                    MemoryEntity(
-                        characterId = characterId,
-                        type = type,
-                        content = content,
-                        importance = importance,
-                        sourceConversationId = sourceConversationId
+                if (memoryToUpdate != null) {
+                    // 合并：更新已有记忆为更全的内容
+                    memoryRepository.updateMemory(
+                        memoryToUpdate.copy(
+                            content = content,
+                            type = type,
+                            importance = importance,
+                            updatedAt = System.currentTimeMillis()
+                        )
                     )
-                )
-                Log.d("SummaryDebug", "存入记忆: [$type] $content")
+                    // 更新已有列表中的内容，供后续比较
+                    val idx = existingMemories.indexOfFirst { it.id == memoryToUpdate.id }
+                    if (idx >= 0) {
+                        existingMemories[idx] = existingMemories[idx].copy(
+                            content = content, type = type, importance = importance
+                        )
+                    }
+                    Log.d("SummaryDebug", "合并记忆: [$type] $content (替换旧记忆)")
+                } else {
+                    // 存新记忆
+                    val newId = memoryRepository.insertMemory(
+                        MemoryEntity(
+                            characterId = characterId,
+                            type = type,
+                            content = content,
+                            importance = importance,
+                            sourceConversationId = sourceConversationId
+                        )
+                    )
+                    // 加入已有列表，供后续条目比较
+                    existingMemories.add(
+                        MemoryEntity(
+                            id = newId,
+                            characterId = characterId,
+                            type = type,
+                            content = content,
+                            importance = importance
+                        )
+                    )
+                    Log.d("SummaryDebug", "存入记忆: [$type] $content")
+                }
             }
         } catch (_: Exception) {
             // 提取失败不影响聊天
