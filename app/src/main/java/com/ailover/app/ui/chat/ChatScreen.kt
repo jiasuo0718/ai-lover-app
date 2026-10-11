@@ -331,8 +331,9 @@ fun ChatScreen(
                                     else -> "陌生"
                                 }
                                 val mood = conversation?.mood ?: "平淡"
+                                val reaction = conversation?.reaction ?: "平静"
                                 Text(
-                                    "关系：$stageName · 心情：$mood",
+                                    "关系：$stageName · 心情：$mood · 刚才：$reaction",
                                     color = TextSecondary,
                                     fontSize = 12.sp
                                 )

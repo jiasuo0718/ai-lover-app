@@ -142,6 +142,11 @@ class ChatViewModel(
             return
         }
 
+        // 4.5 判断情绪（用户消息进来后、构建 prompt 前，让新情绪立即生效）
+        updateEmotionIfNeeded()
+        // 重新获取 conversation（情绪可能已更新）
+        val conversationForPrompt = conversationRepository.getConversationById(conversationId) ?: conversation
+
         // 5. 创建 AI 回复占位消息
         val aiMessageId = messageRepository.insertMessage(
             MessageEntity(
@@ -232,7 +237,7 @@ class ChatViewModel(
                 RolePlayRules.getById(selectedRuleId)
             }
 
-            val systemPrompt = character?.let { buildSystemPrompt(it, ruleTemplate, novelMode, conversation?.mood ?: "平淡", conversation?.reaction ?: "平静") }
+            val systemPrompt = character?.let { buildSystemPrompt(it, ruleTemplate, novelMode, conversationForPrompt?.mood ?: "平淡", conversationForPrompt?.reaction ?: "平静") }
             val requestMessages = buildList {
                 systemPrompt?.let { add(ChatMessage("system", it)) }
                 addAll(otherMessages)
@@ -310,7 +315,6 @@ class ChatViewModel(
         if (sendSuccess && finalContent.isNotBlank()) {
             updateConversationLastMessage(finalContent)
             generateSummaryIfNeeded()
-            updateEmotionIfNeeded()
         }
     }
 
@@ -445,101 +449,135 @@ $emotionPart
     }
 
     /**
-     * 异步判断角色当前情绪（底色 mood + 即时反应 reaction）。
-     * 每次 AI 回复成功后调用，不阻塞聊天。
+     * 判断角色当前情绪（底色 mood + 即时反应 reaction）。
+     * 在用户消息进来后、构建 prompt 前调用（同步等待，让新情绪立即生效）。
      * - 底色（mood）：慢变，有惯性（50%概率保持旧值）
-     * 即时反应（reaction）：快变，直接更新
+     * - 即时反应（reaction）：快变，直接更新
+     * - 带角色人设，不同人设对同一件事反应不同
+     * - 失败不影响聊天（用旧情绪）
      */
-    private fun updateEmotionIfNeeded() {
-        viewModelScope.launch {
-            try {
-                val conversation = conversationRepository.getConversationById(conversationId)
-                    ?: return@launch
-                val character = characterRepository.getCharacterById(conversation.characterId)
-                    ?: return@launch
-                val settings = resolveApiProfile(character)
-                if (!settings.isConfigured()) return@launch
+    private suspend fun updateEmotionIfNeeded() {
+        try {
+            val conversation = conversationRepository.getConversationById(conversationId)
+                ?: return
+            val character = characterRepository.getCharacterById(conversation.characterId)
+                ?: return
+            val settings = resolveApiProfile(character)
+            if (!settings.isConfigured()) return
 
-                // 取最近6条对话
-                val allMessages = messageRepository.getMessagesByConversationOnce(conversationId)
-                    .filter {
-                        it.senderType != SenderType.SYSTEM &&
-                        it.sendStatus == MessageEntity.SEND_STATUS_SUCCESS &&
-                        it.content.isNotBlank()
-                    }
-                    .takeLast(6)
-                if (allMessages.isEmpty()) return@launch
-
-                val recentDialog = allMessages.joinToString("\n") { msg ->
-                    val role = if (msg.senderType == SenderType.USER) "用户" else "你"
-                    "$role: ${msg.content}"
+            // 取最近6条对话
+            val allMessages = messageRepository.getMessagesByConversationOnce(conversationId)
+                .filter {
+                    it.senderType != SenderType.SYSTEM &&
+                    it.sendStatus == MessageEntity.SEND_STATUS_SUCCESS &&
+                    it.content.isNotBlank()
                 }
+                .takeLast(6)
+            if (allMessages.isEmpty()) return
 
-                val oldMood = conversation.mood
-                val emotionPrompt = """
-                    根据以下最近对话，判断角色（${character.name}）当前的情绪状态。
-
-                    【角色当前心情底色】：$oldMood
-                    【最近对话】：
-                    $recentDialog
-
-                    【底色】（四选一，变化慢，没有明显情绪变化就保持原值）：
-                    放松 / 平淡 / 低落 / 亢奋
-
-                    【即时反应】（五选一，针对最近一句/几句的直接反应）：
-                    平静 / 被逗乐 / 被戳到 / 被暖到 / 被惹毛
-
-                    只输出两行，格式：
-                    底色：X
-                    即时反应：Y
-                    不要其他内容。
-                """.trimIndent()
-
-                val result = StringBuilder()
-                chatRepository.streamChat(
-                    baseUrl = settings.baseUrl,
-                    apiKey = settings.apiKey,
-                    profileName = settings.name,
-                    request = ChatRequest(
-                        model = settings.modelName,
-                        messages = listOf(ChatMessage("system", emotionPrompt)),
-                        stream = true
-                    )
-                ).collect { chunk -> result.append(chunk) }
-
-                // 解析输出
-                val raw = result.toString().trim()
-                var newMood = oldMood
-                var newReaction = conversation.reaction
-
-                for (line in raw.lines()) {
-                    val trimmed = line.trim()
-                    when {
-                        trimmed.startsWith("底色") || trimmed.startsWith("心情底色") -> {
-                            val value = trimmed.substringAfter("：").substringAfter(":").trim()
-                            if (value in setOf("放松", "平淡", "低落", "亢奋")) newMood = value
-                        }
-                        trimmed.startsWith("即时反应") || trimmed.startsWith("反应") -> {
-                            val value = trimmed.substringAfter("：").substringAfter(":").trim()
-                            if (value in setOf("平静", "被逗乐", "被戳到", "被暖到", "被惹毛")) newReaction = value
-                        }
-                    }
-                }
-
-                // 底色惯性：如果新底色 != 旧底色，50%概率保持旧底色（慢变）
-                if (newMood != oldMood && kotlin.random.Random.nextBoolean()) {
-                    newMood = oldMood
-                }
-
-                // 只有变化了才更新
-                if (newMood != conversation.mood || newReaction != conversation.reaction) {
-                    conversationRepository.updateMoodAndReaction(conversationId, newMood, newReaction)
-                    _conversation.value = conversationRepository.getConversationById(conversationId)
-                    Log.d("EmotionDebug", "情绪更新: 底色=${conversation.mood}->$newMood, 反应=${conversation.reaction}->$newReaction")
-                }
-            } catch (_: Exception) {
-                // 情绪判断失败不影响聊天
+            val recentDialog = allMessages.joinToString("\n") { msg ->
+                val role = if (msg.senderType == SenderType.USER) "用户" else "你"
+                "$role: ${msg.content}"
             }
+
+            val oldMood = conversation.mood
+            val oldReaction = conversation.reaction
+            val personalityText = character.personality?.takeIf { it.isNotBlank() } ?: "（无）"
+
+            val emotionPrompt = """
+                根据以下最近对话，判断角色（${character.name}）当前的情绪状态。
+
+                【角色人设】：$personalityText
+                请根据这个角色的性格，判断 TA 会怎么反应。
+                （温柔→低落/委屈；暴躁→被惹毛；傲娇→嘴硬/被惹毛；高冷→冷淡/平静）
+
+                【角色当前心情底色】：$oldMood
+                【最近对话】：
+                $recentDialog
+
+                【底色】（四选一，变化慢，没有明显情绪变化就保持原值）：
+                放松 / 平淡 / 低落 / 亢奋
+
+                【即时反应】（五选一，针对最近一句/几句的直接反应）：
+                平静 / 被逗乐 / 被戳到 / 被暖到 / 被惹毛
+
+                只输出两行，格式：
+                底色：X
+                即时反应：Y
+                不要其他内容。
+            """.trimIndent()
+
+            val result = StringBuilder()
+            chatRepository.streamChat(
+                baseUrl = settings.baseUrl,
+                apiKey = settings.apiKey,
+                profileName = settings.name,
+                request = ChatRequest(
+                    model = settings.modelName,
+                    messages = listOf(ChatMessage("system", emotionPrompt)),
+                    stream = true
+                )
+            ).collect { chunk -> result.append(chunk) }
+
+            // 解析输出（放宽：包含关键词即匹配）
+            val raw = result.toString().trim()
+            var newMood = oldMood
+            var newReaction = oldReaction
+
+            val moodKeywords = mapOf(
+                "放松" to "放松",
+                "平淡" to "平淡",
+                "低落" to "低落",
+                "亢奋" to "亢奋"
+            )
+            val reactionKeywords = mapOf(
+                "平静" to "平静",
+                "被逗乐" to "被逗乐",
+                "被戳到" to "被戳到",
+                "被暖到" to "被暖到",
+                "被惹毛" to "被惹毛"
+            )
+
+            for (line in raw.lines()) {
+                val trimmed = line.trim()
+                // 底色行：包含"底色"且含某个 mood 关键词
+                if (trimmed.contains("底色") || trimmed.contains("心情")) {
+                    for ((keyword, value) in moodKeywords) {
+                        if (trimmed.contains(keyword)) {
+                            newMood = value
+                            break
+                        }
+                    }
+                }
+                // 即时反应行：包含"反应"或"即时"且含某个 reaction 关键词
+                if (trimmed.contains("反应") || trimmed.contains("即时")) {
+                    for ((keyword, value) in reactionKeywords) {
+                        if (trimmed.contains(keyword)) {
+                            newReaction = value
+                            break
+                        }
+                    }
+                }
+            }
+
+            // 底色惯性：如果新底色 != 旧底色，50%概率保持旧底色（慢变）
+            if (newMood != oldMood && kotlin.random.Random.nextBoolean()) {
+                newMood = oldMood
+            }
+
+            // 日志：每次判断都打印（AI原始输出 + 解析结果）
+            Log.d("EmotionDebug", "AI原始输出: $raw")
+            Log.d("EmotionDebug", "解析结果: 底色=$oldMood->$newMood, 反应=$oldReaction->$newReaction")
+
+            // 只有变化了才更新
+            if (newMood != oldMood || newReaction != oldReaction) {
+                conversationRepository.updateMoodAndReaction(conversationId, newMood, newReaction)
+                _conversation.value = conversationRepository.getConversationById(conversationId)
+                Log.d("EmotionDebug", "情绪已更新: 底色=$newMood, 反应=$newReaction")
+            }
+        } catch (e: Exception) {
+            Log.d("EmotionDebug", "情绪判断失败: ${e.message}")
+            // 失败不影响聊天（用旧情绪）
         }
     }
 
