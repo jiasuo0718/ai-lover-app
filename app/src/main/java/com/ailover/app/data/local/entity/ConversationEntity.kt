@@ -24,6 +24,8 @@ data class ConversationEntity(
     val title: String,
     val lastMessage: String? = null,
     val summary: String? = null,
+    val mood: String = "平淡",
+    val reaction: String = "平静",
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 )

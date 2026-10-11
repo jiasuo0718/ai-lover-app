@@ -56,4 +56,18 @@ class ConversationRepository(private val conversationDao: ConversationDao) {
 
     suspend fun getConversationsWithSummaryByCharacter(characterId: Long, limit: Int): List<ConversationEntity> =
         conversationDao.getConversationsWithSummaryByCharacter(characterId, limit)
+
+    /**
+     * 更新会话的心情底色和即时反应。
+     * 用于情绪功能：底色慢变，即时反应快变。
+     */
+    suspend fun updateMoodAndReaction(conversationId: Long, mood: String, reaction: String) {
+        val conversation = getConversationById(conversationId) ?: return
+        val updated = conversation.copy(
+            mood = mood,
+            reaction = reaction,
+            updatedAt = System.currentTimeMillis()
+        )
+        updateConversation(updated)
+    }
 }

@@ -139,6 +139,7 @@ fun ChatScreen(
     )
     val messages by viewModel.messages.collectAsState()
     val character by viewModel.character.collectAsState()
+    val conversation by viewModel.conversation.collectAsState()
     val userProfile by remember { AppContainer.userProfileRepository().userProfile }
         .collectAsState(initial = com.ailover.app.data.settings.UserProfileRepository.UserProfile())
     val inputText by viewModel.inputText.collectAsState()
@@ -329,8 +330,9 @@ fun ChatScreen(
                                     score >= 20 -> "熟悉"
                                     else -> "陌生"
                                 }
+                                val mood = conversation?.mood ?: "平淡"
                                 Text(
-                                    "关系：$stageName",
+                                    "关系：$stageName · 心情：$mood",
                                     color = TextSecondary,
                                     fontSize = 12.sp
                                 )

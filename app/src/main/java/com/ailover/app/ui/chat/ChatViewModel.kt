@@ -51,10 +51,14 @@ class ChatViewModel(
     private val _character = MutableStateFlow<CharacterEntity?>(null)
     val character: StateFlow<CharacterEntity?> = _character.asStateFlow()
 
+    private val _conversation = MutableStateFlow<ConversationEntity?>(null)
+    val conversation: StateFlow<ConversationEntity?> = _conversation.asStateFlow()
+
     init {
         viewModelScope.launch {
             val conversation = conversationRepository.getConversationById(conversationId)
             conversation?.let {
+                _conversation.value = it
                 _character.value = characterRepository.getCharacterById(it.characterId)
             }
         }
@@ -227,7 +231,7 @@ class ChatViewModel(
                 RolePlayRules.getById(selectedRuleId)
             }
 
-            val systemPrompt = character?.let { buildSystemPrompt(it, ruleTemplate, novelMode) }
+            val systemPrompt = character?.let { buildSystemPrompt(it, ruleTemplate, novelMode, conversation?.mood ?: "平淡", conversation?.reaction ?: "平静") }
             val requestMessages = buildList {
                 systemPrompt?.let { add(ChatMessage("system", it)) }
                 addAll(otherMessages)
@@ -305,6 +309,7 @@ class ChatViewModel(
         if (sendSuccess && finalContent.isNotBlank()) {
             updateConversationLastMessage(finalContent)
             generateSummaryIfNeeded()
+            updateEmotionIfNeeded()
         }
     }
 
@@ -333,15 +338,18 @@ class ChatViewModel(
     }
 
     /**
-     * 构建 system prompt：角色人设 + 关系阶段 + 说话风格 + 规则模板 + 小说模式。
+     * 构建 system prompt：角色人设 + 关系阶段 + 情绪 + 说话风格 + 规则模板 + 小说模式。
      * 规则在后，不覆盖人设，只补充规则。
      */
-    private fun buildSystemPrompt(character: CharacterEntity, ruleTemplate: RuleTemplate, novelMode: Boolean): String {
+    private fun buildSystemPrompt(character: CharacterEntity, ruleTemplate: RuleTemplate, novelMode: Boolean, mood: String, reaction: String): String {
         val personalityPart = character.personality?.takeIf { it.isNotBlank() }?.let { "你的人设：$it\n" } ?: ""
         val stage = getRelationshipStage(character.relationshipScore)
         val relationshipPart = """
 你和用户的关系阶段：${stage.name}（${stage.description}）。
 请用【${stage.name}】的态度和语气回复，但保持角色人设，别过度演绎。"""
+        val emotionPart = """
+你现在的心情基调是【$mood】，刚才的事让你【$reaction】。
+用这种状态回复，保持人设，别过度演绎。"""
         val rulePart = if (ruleTemplate.content.isNotBlank()) "\n\n${ruleTemplate.content}" else ""
         val novelPart = if (novelMode) """
 
@@ -352,6 +360,7 @@ class ChatViewModel(
 - 用户主导行动（用户说"我做什么"，你接着写场景和角色反应）
 - 保持角色人设""" else ""
         return """你是${character.name}。${personalityPart}$relationshipPart
+$emotionPart
 你正在和用户微信聊天，请：
 - 用日常口语，像真人发消息一样，别书面、别舞台腔
 - 回复可以很短，只说一两个词也行（"哈哈""哦""嗯"），不用每句都完整回应或总结
@@ -430,6 +439,105 @@ class ChatViewModel(
                 extractAndSaveMemories(character.id, conversation.id, userOnlyMessages, settings)
             } catch (_: Exception) {
                 // 摘要生成失败不影响聊天
+            }
+        }
+    }
+
+    /**
+     * 异步判断角色当前情绪（底色 mood + 即时反应 reaction）。
+     * 每次 AI 回复成功后调用，不阻塞聊天。
+     * - 底色（mood）：慢变，有惯性（50%概率保持旧值）
+     * 即时反应（reaction）：快变，直接更新
+     */
+    private fun updateEmotionIfNeeded() {
+        viewModelScope.launch {
+            try {
+                val conversation = conversationRepository.getConversationById(conversationId)
+                    ?: return@launch
+                val character = characterRepository.getCharacterById(conversation.characterId)
+                    ?: return@launch
+                val settings = resolveApiProfile(character)
+                if (!settings.isConfigured()) return@launch
+
+                // 取最近6条对话
+                val allMessages = messageRepository.getMessagesByConversationOnce(conversationId)
+                    .filter {
+                        it.senderType != SenderType.SYSTEM &&
+                        it.sendStatus == MessageEntity.SEND_STATUS_SUCCESS &&
+                        it.content.isNotBlank()
+                    }
+                    .takeLast(6)
+                if (allMessages.isEmpty()) return@launch
+
+                val recentDialog = allMessages.joinToString("\n") { msg ->
+                    val role = if (msg.senderType == SenderType.USER) "用户" else "你"
+                    "$role: ${msg.content}"
+                }
+
+                val oldMood = conversation.mood
+                val emotionPrompt = """
+                    根据以下最近对话，判断角色（${character.name}）当前的情绪状态。
+
+                    【角色当前心情底色】：$oldMood
+                    【最近对话】：
+                    $recentDialog
+
+                    【底色】（四选一，变化慢，没有明显情绪变化就保持原值）：
+                    放松 / 平淡 / 低落 / 亢奋
+
+                    【即时反应】（五选一，针对最近一句/几句的直接反应）：
+                    平静 / 被逗乐 / 被戳到 / 被暖到 / 被惹毛
+
+                    只输出两行，格式：
+                    底色：X
+                    即时反应：Y
+                    不要其他内容。
+                """.trimIndent()
+
+                val result = StringBuilder()
+                chatRepository.streamChat(
+                    baseUrl = settings.baseUrl,
+                    apiKey = settings.apiKey,
+                    profileName = settings.name,
+                    request = ChatRequest(
+                        model = settings.modelName,
+                        messages = listOf(ChatMessage("system", emotionPrompt)),
+                        stream = true
+                    )
+                ).collect { chunk -> result.append(chunk) }
+
+                // 解析输出
+                val raw = result.toString().trim()
+                var newMood = oldMood
+                var newReaction = conversation.reaction
+
+                for (line in raw.lines()) {
+                    val trimmed = line.trim()
+                    when {
+                        trimmed.startsWith("底色") || trimmed.startsWith("心情底色") -> {
+                            val value = trimmed.substringAfter("：").substringAfter(":").trim()
+                            if (value in setOf("放松", "平淡", "低落", "亢奋")) newMood = value
+                        }
+                        trimmed.startsWith("即时反应") || trimmed.startsWith("反应") -> {
+                            val value = trimmed.substringAfter("：").substringAfter(":").trim()
+                            if (value in setOf("平静", "被逗乐", "被戳到", "被暖到", "被惹毛")) newReaction = value
+                        }
+                    }
+                }
+
+                // 底色惯性：如果新底色 != 旧底色，50%概率保持旧底色（慢变）
+                if (newMood != oldMood && kotlin.random.Random.nextBoolean()) {
+                    newMood = oldMood
+                }
+
+                // 只有变化了才更新
+                if (newMood != conversation.mood || newReaction != conversation.reaction) {
+                    conversationRepository.updateMoodAndReaction(conversationId, newMood, newReaction)
+                    _conversation.value = conversationRepository.getConversationById(conversationId)
+                    Log.d("EmotionDebug", "情绪更新: 底色=${conversation.mood}->$newMood, 反应=${conversation.reaction}->$newReaction")
+                }
+            } catch (_: Exception) {
+                // 情绪判断失败不影响聊天
             }
         }
     }
