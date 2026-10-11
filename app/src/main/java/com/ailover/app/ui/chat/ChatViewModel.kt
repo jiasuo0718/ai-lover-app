@@ -1,5 +1,6 @@
 package com.ailover.app.ui.chat
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -188,6 +189,7 @@ class ChatViewModel(
             systemPrompt?.let { add(ChatMessage("system", it)) }
             if (conversationSummaries.isNotEmpty()) {
                 val summaryText = conversationSummaries.joinToString("\n") { "- $it" }
+                Log.d("SummaryDebug", "拼入摘要: $summaryText")
                 add(ChatMessage("system", "你记得以下关于用户的信息（来自之前的会话）：\n$summaryText"))
             }
             if (crossSessionHistory.isNotEmpty()) {
@@ -264,8 +266,10 @@ class ChatViewModel(
                         it.sendStatus == MessageEntity.SEND_STATUS_SUCCESS &&
                         it.content.isNotBlank()
                     }
+                val shouldGenerate = allMessages.size >= 10 && allMessages.size % 10 == 0
+                Log.d("SummaryDebug", "当前消息数=${allMessages.size}, 是否触发=$shouldGenerate")
                 // 每10条生成一次
-                if (allMessages.size < 10 || allMessages.size % 10 != 0) return@launch
+                if (!shouldGenerate) return@launch
 
                 // 取最近20条消息
                 val recentMessages = allMessages.takeLast(20).joinToString("\n") { msg ->
@@ -294,6 +298,7 @@ class ChatViewModel(
 
                 val summaryText = summary.toString().trim()
                 if (summaryText.isNotEmpty() && summaryText != "无") {
+                    Log.d("SummaryDebug", "生成摘要: 会话ID=$conversationId, 内容=$summaryText")
                     conversationRepository.updateConversation(
                         conversation.copy(summary = summaryText.take(300))
                     )
