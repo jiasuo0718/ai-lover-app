@@ -19,6 +19,9 @@ interface ConversationDao {
     @Query("SELECT * FROM conversations WHERE characterId = :characterId ORDER BY updatedAt DESC")
     fun getConversationsByCharacter(characterId: Long): Flow<List<ConversationEntity>>
 
+    @Query("SELECT * FROM conversations WHERE characterId = :characterId AND summary IS NOT NULL AND summary != '' ORDER BY updatedAt DESC LIMIT :limit")
+    suspend fun getConversationsWithSummaryByCharacter(characterId: Long, limit: Int): List<ConversationEntity>
+
     @Query("SELECT * FROM conversations WHERE id = :id")
     suspend fun getConversationById(id: Long): ConversationEntity?
 

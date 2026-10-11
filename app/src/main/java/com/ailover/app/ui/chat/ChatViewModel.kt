@@ -178,8 +178,18 @@ class ChatViewModel(
                 }
         } ?: emptyList()
 
+        // 6.6 会话摘要：该角色所有会话的摘要（最多5个）
+        val conversationSummaries = character?.let { c ->
+            conversationRepository.getConversationsWithSummaryByCharacter(c.id, 5)
+                .mapNotNull { it.summary }
+        } ?: emptyList()
+
         val requestMessages = buildList {
             systemPrompt?.let { add(ChatMessage("system", it)) }
+            if (conversationSummaries.isNotEmpty()) {
+                val summaryText = conversationSummaries.joinToString("\n") { "- $it" }
+                add(ChatMessage("system", "你记得以下关于用户的信息（来自之前的会话）：\n$summaryText"))
+            }
             if (crossSessionHistory.isNotEmpty()) {
                 add(ChatMessage("system", "以下是你和用户之前的对话记录（来自之前的会话），供参考："))
                 addAll(crossSessionHistory)
@@ -227,6 +237,69 @@ class ChatViewModel(
             _isStreaming.value = false
             if (fullContent.isNotBlank()) {
                 updateConversationLastMessage(fullContent.toString())
+                generateSummaryIfNeeded()
+            }
+        }
+    }
+
+    /**
+     * 异步生成会话摘要，不阻塞聊天。
+     * 每10条消息生成一次（10, 20, 30...），覆盖更新。
+     * 失败不影响聊天。
+     */
+    private fun generateSummaryIfNeeded() {
+        viewModelScope.launch {
+            try {
+                val conversation = conversationRepository.getConversationById(conversationId)
+                    ?: return@launch
+                val character = characterRepository.getCharacterById(conversation.characterId)
+                    ?: return@launch
+                val settings = resolveApiProfile(character)
+                if (!settings.isConfigured()) return@launch
+
+                // 统计有效消息数
+                val allMessages = messageRepository.getMessagesByConversationOnce(conversationId)
+                    .filter {
+                        it.senderType != SenderType.SYSTEM &&
+                        it.sendStatus == MessageEntity.SEND_STATUS_SUCCESS &&
+                        it.content.isNotBlank()
+                    }
+                // 每10条生成一次
+                if (allMessages.size < 10 || allMessages.size % 10 != 0) return@launch
+
+                // 取最近20条消息
+                val recentMessages = allMessages.takeLast(20).joinToString("\n") { msg ->
+                    val role = if (msg.senderType == SenderType.USER) "用户" else "你"
+                    "$role: ${msg.content}"
+                }
+
+                val summaryPrompt = """
+                    请从以下对话中提炼关键信息（用户的名字、喜好、重要事件、关系等），用简短的几句话总结。
+                    如果没有值得记住的信息，只回复"无"。
+                    对话：
+                    $recentMessages
+                """.trimIndent()
+
+                val summary = StringBuilder()
+                chatRepository.streamChat(
+                    baseUrl = settings.baseUrl,
+                    apiKey = settings.apiKey,
+                    profileName = settings.name,
+                    request = ChatRequest(
+                        model = settings.modelName,
+                        messages = listOf(ChatMessage("system", summaryPrompt)),
+                        stream = true
+                    )
+                ).collect { chunk -> summary.append(chunk) }
+
+                val summaryText = summary.toString().trim()
+                if (summaryText.isNotEmpty() && summaryText != "无") {
+                    conversationRepository.updateConversation(
+                        conversation.copy(summary = summaryText.take(300))
+                    )
+                }
+            } catch (_: Exception) {
+                // 摘要生成失败不影响聊天
             }
         }
     }

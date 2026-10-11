@@ -23,6 +23,7 @@ data class ConversationEntity(
     val characterId: Long,
     val title: String,
     val lastMessage: String? = null,
+    val summary: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 )

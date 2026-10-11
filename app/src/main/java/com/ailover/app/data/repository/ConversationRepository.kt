@@ -53,4 +53,7 @@ class ConversationRepository(private val conversationDao: ConversationDao) {
 
     fun getConversationsWithCharacters(): Flow<List<ConversationWithCharacter>> =
         conversationDao.getConversationsWithCharacters()
+
+    suspend fun getConversationsWithSummaryByCharacter(characterId: Long, limit: Int): List<ConversationEntity> =
+        conversationDao.getConversationsWithSummaryByCharacter(characterId, limit)
 }
