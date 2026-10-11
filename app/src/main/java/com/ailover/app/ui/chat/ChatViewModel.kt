@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.ailover.app.data.local.converter.MessageType
 import com.ailover.app.data.local.converter.SenderType
 import com.ailover.app.data.local.entity.CharacterEntity
+import com.ailover.app.data.local.entity.MemoryEntity
 import com.ailover.app.data.local.entity.MessageEntity
 import com.ailover.app.data.remote.model.ChatMessage
 import com.ailover.app.data.remote.model.ChatRequest
@@ -14,6 +15,7 @@ import com.ailover.app.data.repository.CharacterRepository
 import com.ailover.app.data.repository.ChatApiException
 import com.ailover.app.data.repository.ChatRepository
 import com.ailover.app.data.repository.ConversationRepository
+import com.ailover.app.data.repository.MemoryRepository
 import com.ailover.app.data.repository.MessageRepository
 import com.ailover.app.data.settings.SettingsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,7 +31,8 @@ class ChatViewModel(
     private val conversationRepository: ConversationRepository,
     private val characterRepository: CharacterRepository,
     private val chatRepository: ChatRepository,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    private val memoryRepository: MemoryRepository
 ) : ViewModel() {
 
     val messages: StateFlow<List<MessageEntity>> =
@@ -303,9 +306,99 @@ class ChatViewModel(
                         conversation.copy(summary = summaryText.take(300))
                     )
                 }
+
+                // ===== 第3步：提取关键信息存记忆库 =====
+                extractAndSaveMemories(character.id, conversation.id, recentMessages, settings)
             } catch (_: Exception) {
                 // 摘要生成失败不影响聊天
             }
+        }
+    }
+
+    /**
+     * 从对话中提取关键信息，存入记忆库。
+     * 宽松解析，格式不对就跳过，不崩。
+     */
+    private suspend fun extractAndSaveMemories(
+        characterId: Long,
+        sourceConversationId: Long,
+        recentMessages: String,
+        settings: com.ailover.app.data.settings.ApiProfile
+    ) {
+        try {
+            val extractPrompt = """
+                从以下对话中提取关于用户的关键信息，每条一行，格式：[类型] 内容
+                类型只能是：名字、喜好、事件、关系、其他
+                只提取明确提到的事实，不要推测。没有就回复"无"。
+                对话：
+                $recentMessages
+            """.trimIndent()
+
+            val extractResult = StringBuilder()
+            chatRepository.streamChat(
+                baseUrl = settings.baseUrl,
+                apiKey = settings.apiKey,
+                profileName = settings.name,
+                request = ChatRequest(
+                    model = settings.modelName,
+                    messages = listOf(ChatMessage("system", extractPrompt)),
+                    stream = true
+                )
+            ).collect { chunk -> extractResult.append(chunk) }
+
+            val raw = extractResult.toString().trim()
+            if (raw.isEmpty() || raw == "无") return
+
+            // 宽松解析：按行分割，每行尝试匹配 [类型] 内容 或 类型：内容
+            val validTypes = setOf("名字", "喜好", "事件", "关系", "其他")
+            val lines = raw.lines().map { it.trim() }.filter { it.isNotEmpty() }
+
+            for (line in lines) {
+                var type = ""
+                var content = ""
+
+                // 匹配 [类型] 内容 或 [类型]内容
+                val bracketMatch = Regex("^\\[(.+?)\\]\\s*(.+)$").find(line)
+                if (bracketMatch != null) {
+                    type = bracketMatch.groupValues[1].trim()
+                    content = bracketMatch.groupValues[2].trim()
+                } else {
+                    // 匹配 类型：内容 或 类型:内容
+                    val colonMatch = Regex("^(.+?)[：:]\\s*(.+)$").find(line)
+                    if (colonMatch != null) {
+                        type = colonMatch.groupValues[1].trim()
+                        content = colonMatch.groupValues[2].trim()
+                    }
+                }
+
+                // 类型校验 + 内容非空
+                if (type !in validTypes || content.isEmpty()) continue
+
+                // 去重
+                if (memoryRepository.existsByContent(characterId, content)) continue
+
+                // 重要性按类型默认
+                val importance = when (type) {
+                    "名字" -> 5
+                    "关系" -> 4
+                    "喜好" -> 4
+                    "事件" -> 3
+                    else -> 2
+                }
+
+                memoryRepository.insertMemory(
+                    MemoryEntity(
+                        characterId = characterId,
+                        type = type,
+                        content = content,
+                        importance = importance,
+                        sourceConversationId = sourceConversationId
+                    )
+                )
+                Log.d("SummaryDebug", "存入记忆: [$type] $content")
+            }
+        } catch (_: Exception) {
+            // 提取失败不影响聊天
         }
     }
 
@@ -381,7 +474,8 @@ class ChatViewModelFactory(
     private val conversationRepository: ConversationRepository,
     private val characterRepository: CharacterRepository,
     private val chatRepository: ChatRepository,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    private val memoryRepository: MemoryRepository
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -391,7 +485,8 @@ class ChatViewModelFactory(
             conversationRepository,
             characterRepository,
             chatRepository,
-            settingsRepository
+            settingsRepository,
+            memoryRepository
         ) as T
     }
 }
