@@ -1239,7 +1239,7 @@ private fun Avatar(firstChar: String, avatarUri: String? = null) {
         modifier = Modifier
             .size(40.dp)
             .clip(RoundedCornerShape(8.dp))
-            .background(MaterialTheme.colorScheme.primary),
+            .background(BubbleSelf),
         contentAlignment = Alignment.Center
     ) {
         if (hasCustomAvatar) {
