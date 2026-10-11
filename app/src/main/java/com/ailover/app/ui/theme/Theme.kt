@@ -28,7 +28,7 @@ val LightGray: Color @Composable get() = if (LocalDarkTheme.current) Color(0xFF3
 val WarningOrange: Color @Composable get() = Color(0xFFFF9800)
 
 // 气泡颜色：深色下保持和浅色一致（头像/气泡不随主题变深）
-val BubbleSelf: Color @Composable get() = Color(0xFFEDF1F7)
+val BubbleSelf: Color @Composable get() = Color(0xFFF0F0F0)
 val BubbleOther: Color @Composable get() = Color(0xFFF7F7F8)
 
 private val LightColorScheme = lightColorScheme(

@@ -1042,9 +1042,9 @@ private fun MessageBubble(
         else -> BubbleOther
     }
     val textColor = when {
-        isSelf -> TextPrimary
+        isSelf -> if (LocalDarkTheme.current) Color(0xFF1A1A1A) else TextPrimary
         isSystem -> TextSecondary
-        else -> TextPrimary
+        else -> if (LocalDarkTheme.current) Color(0xFF1A1A1A) else TextPrimary
     }
 
     Row(
