@@ -34,4 +34,19 @@ interface MessageDao {
 
     @Query("SELECT * FROM messages WHERE conversationId = :conversationId ORDER BY timestamp DESC LIMIT 1")
     suspend fun getLatestMessage(conversationId: Long): MessageEntity?
+
+    @Query("""
+        SELECT * FROM messages 
+        WHERE conversationId IN (SELECT id FROM conversations WHERE characterId = :characterId)
+        AND conversationId != :excludeConversationId
+        AND senderType != 'SYSTEM'
+        AND sendStatus = 0
+        ORDER BY timestamp DESC 
+        LIMIT :limit
+    """)
+    suspend fun getRecentMessagesByCharacter(
+        characterId: Long,
+        excludeConversationId: Long,
+        limit: Int
+    ): List<MessageEntity>
 }

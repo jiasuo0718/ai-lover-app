@@ -24,4 +24,11 @@ class MessageRepository(private val messageDao: MessageDao) {
 
     suspend fun getLatestMessage(conversationId: Long): MessageEntity? =
         messageDao.getLatestMessage(conversationId)
+
+    suspend fun getRecentMessagesByCharacter(
+        characterId: Long,
+        excludeConversationId: Long,
+        limit: Int
+    ): List<MessageEntity> =
+        messageDao.getRecentMessagesByCharacter(characterId, excludeConversationId, limit)
 }

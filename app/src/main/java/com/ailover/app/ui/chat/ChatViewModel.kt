@@ -162,8 +162,28 @@ class ChatViewModel(
                 )
             }
 
+        // 6.5 跨会话记忆：该角色其他会话的最近10条消息（按时间正序）
+        val crossSessionHistory = character?.let { c ->
+            messageRepository.getRecentMessagesByCharacter(c.id, conversationId, 10)
+                .reversed()
+                .map { msg ->
+                    ChatMessage(
+                        role = when (msg.senderType) {
+                            SenderType.USER -> "user"
+                            SenderType.AI -> "assistant"
+                            SenderType.SYSTEM -> "system"
+                        },
+                        content = msg.content
+                    )
+                }
+        } ?: emptyList()
+
         val requestMessages = buildList {
             systemPrompt?.let { add(ChatMessage("system", it)) }
+            if (crossSessionHistory.isNotEmpty()) {
+                add(ChatMessage("system", "以下是你和用户之前的对话记录（来自之前的会话），供参考："))
+                addAll(crossSessionHistory)
+            }
             addAll(history)
         }
 
