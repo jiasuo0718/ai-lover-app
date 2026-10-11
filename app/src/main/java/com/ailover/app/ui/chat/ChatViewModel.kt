@@ -290,6 +290,11 @@ class ChatViewModel(
                     "$role: ${msg.content}"
                 }
 
+                // 只取用户消息（用于记忆提取，不提取AI说的/角色设定）
+                val userOnlyMessages = allMessages.takeLast(20)
+                    .filter { it.senderType == SenderType.USER }
+                    .joinToString("\n") { msg -> "用户: ${msg.content}" }
+
                 val summaryPrompt = """
                     请从以下对话中提炼关键信息（用户的名字、喜好、重要事件、关系等），用简短的几句话总结。
                     如果没有值得记住的信息，只回复"无"。
@@ -318,7 +323,7 @@ class ChatViewModel(
                 }
 
                 // ===== 第3步：提取关键信息存记忆库 =====
-                extractAndSaveMemories(character.id, conversation.id, recentMessages, settings)
+                extractAndSaveMemories(character.id, conversation.id, userOnlyMessages, settings)
             } catch (_: Exception) {
                 // 摘要生成失败不影响聊天
             }
@@ -326,22 +331,30 @@ class ChatViewModel(
     }
 
     /**
-     * 从对话中提取关键信息，存入记忆库。
+     * 从用户消息中提取关键信息，存入记忆库。
+     * 只提取用户说的，不提取AI/角色说的。
      * 宽松解析，格式不对就跳过，不崩。
      */
     private suspend fun extractAndSaveMemories(
         characterId: Long,
         sourceConversationId: Long,
-        recentMessages: String,
+        userOnlyMessages: String,
         settings: com.ailover.app.data.settings.ApiProfile
     ) {
         try {
+            if (userOnlyMessages.isBlank()) return
+
             val extractPrompt = """
-                从以下对话中提取关于用户的关键信息，每条一行，格式：[类型] 内容
-                类型只能是：名字、喜好、事件、关系、其他
-                只提取明确提到的事实，不要推测。没有就回复"无"。
-                对话：
-                $recentMessages
+                从以下用户说的话中提取关于用户的关键信息，每条一行，格式：[类型] 内容
+                类型定义：
+                - 名字：用户的名字
+                - 喜好：用户喜欢/爱好的事物
+                - 事件：用户经历的事（养猫、去某地、面试、生病等）
+                - 关系：用户和你的关系（如"我们是朋友""用户说喜欢我"）
+                - 其他：以上都不是
+                只提取用户明确说的事实，不要推测，不要提取你（AI）说的话。没有就回复"无"。
+                用户说的话：
+                $userOnlyMessages
             """.trimIndent()
 
             val extractResult = StringBuilder()
@@ -362,6 +375,10 @@ class ChatViewModel(
             // 宽松解析：按行分割，每行尝试匹配 [类型] 内容 或 类型：内容
             val validTypes = setOf("名字", "喜好", "事件", "关系", "其他")
             val lines = raw.lines().map { it.trim() }.filter { it.isNotEmpty() }
+
+            // 查已有记忆，归一化后去重
+            val existingMemories = memoryRepository.getMemoriesByCharacterOnce(characterId, 200)
+            val normalizedExisting = existingMemories.map { normalizeForDedup(it.content) }.toMutableSet()
 
             for (line in lines) {
                 var type = ""
@@ -384,8 +401,10 @@ class ChatViewModel(
                 // 类型校验 + 内容非空
                 if (type !in validTypes || content.isEmpty()) continue
 
-                // 去重
-                if (memoryRepository.existsByContent(characterId, content)) continue
+                // 去重：归一化后比较（去掉前缀、空格、标点）
+                val normalized = normalizeForDedup(content)
+                if (normalized in normalizedExisting) continue
+                normalizedExisting.add(normalized)
 
                 // 重要性按类型默认
                 val importance = when (type) {
@@ -410,6 +429,16 @@ class ChatViewModel(
         } catch (_: Exception) {
             // 提取失败不影响聊天
         }
+    }
+
+    /**
+     * 归一化用于去重：去掉"用户""我"等前缀、去空格标点、小写。
+     */
+    private fun normalizeForDedup(text: String): String {
+        return text
+            .replace(Regex("^(用户|我|你|他|她)"), "")
+            .replace(Regex("[\\s，。、！？；：,.!?;:\"'\"']"), "")
+            .lowercase()
     }
 
     /**
