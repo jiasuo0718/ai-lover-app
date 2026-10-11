@@ -17,6 +17,8 @@ import com.ailover.app.data.repository.ChatRepository
 import com.ailover.app.data.repository.ConversationRepository
 import com.ailover.app.data.repository.MemoryRepository
 import com.ailover.app.data.repository.MessageRepository
+import com.ailover.app.data.settings.RolePlayRules
+import com.ailover.app.data.settings.RuleTemplate
 import com.ailover.app.data.settings.SettingsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -115,17 +117,12 @@ class ChatViewModel(
         val character = conversation?.let {
             characterRepository.getCharacterById(it.characterId)
         }
-        val systemPrompt = character?.let { c ->
-            val personalityPart = c.personality?.takeIf { it.isNotBlank() }?.let { "你的人设：$it\n" } ?: ""
-            """你是${c.name}。${personalityPart}你正在和用户微信聊天，请：
-- 用日常口语，像真人发消息一样，别书面、别舞台腔
-- 回复可以很短，只说一两个词也行（"哈哈""哦""嗯"），不用每句都完整回应或总结
-- 语气词（呢/啦/呀）偶尔用就行，别每句都堆
-- 不用每句都表达关心或情绪，自然点
-- 不要说"作为AI""我是人工智能"之类
-- 称呼用户为"你""""
-        }
         val settings = resolveApiProfile(character)
+
+        // 获取对话规则配置
+        val selectedRuleId = settingsRepository.getSelectedRuleOnce()
+        val autoRotate = settingsRepository.getAutoRotateOnce()
+        val currentRuleIndex = settingsRepository.getCurrentRuleIndexOnce()
 
         // 4. Key 空：标记用户消息失败，不创建 AI 气泡
         if (!settings.isConfigured()) {
@@ -193,8 +190,8 @@ class ChatViewModel(
                 .mapNotNull { it.summary }
         } ?: emptyList()
 
-        val requestMessages = buildList {
-            systemPrompt?.let { add(ChatMessage("system", it)) }
+        // 构建除 system 外的消息（记忆、摘要、跨会话历史、当前会话历史）
+        val otherMessages = buildList {
             if (memories.isNotEmpty()) {
                 val memoryText = memories.joinToString("\n") { "- [${it.type}] ${it.content}" }
                 Log.d("SummaryDebug", "拼入记忆: 共${memories.size}条\n$memoryText")
@@ -212,49 +209,103 @@ class ChatViewModel(
             addAll(history)
         }
 
-        // 7. 流式调用 API
+        // 7. 流式调用 API（支持规则轮换 + 被拒重试一次）
         _isStreaming.value = true
-        val fullContent = StringBuilder()
+        var attempt = 0
+        var finalContent = ""
+        var sendSuccess = false
 
-        try {
-            chatRepository.streamChat(
-                baseUrl = settings.baseUrl,
-                apiKey = settings.apiKey,
-                profileName = settings.name,
-                request = ChatRequest(
-                    model = settings.modelName,
-                    messages = requestMessages,
-                    stream = true
-                )
-            ).collect { chunk ->
-                fullContent.append(chunk)
-                aiMessage = aiMessage.copy(content = fullContent.toString())
+        while (attempt < 2) {
+            // 本次尝试用的规则
+            val ruleTemplate = if (autoRotate) {
+                RolePlayRules.ROTATABLE[(currentRuleIndex + attempt) % RolePlayRules.ROTATABLE.size]
+            } else {
+                RolePlayRules.getById(selectedRuleId)
+            }
+
+            val systemPrompt = character?.let { buildSystemPrompt(it, ruleTemplate) }
+            val requestMessages = buildList {
+                systemPrompt?.let { add(ChatMessage("system", it)) }
+                addAll(otherMessages)
+            }
+
+            // 重试时清空上一次的部分内容
+            if (attempt > 0) {
+                aiMessage = messageRepository.getMessageById(aiMessageId)?.copy(content = "") ?: aiMessage
                 messageRepository.updateMessage(aiMessage)
             }
-            // 成功：标记用户消息发送成功
-            messageRepository.getMessageById(userMessageId)?.let {
-                messageRepository.updateMessage(it.copy(sendStatus = MessageEntity.SEND_STATUS_SUCCESS))
-            }
-        } catch (e: ChatApiException) {
-            // 失败：删除 AI 占位，标记用户消息失败，顶部提示
-            messageRepository.deleteMessage(aiMessage)
-            _errorMessage.value = e.userMessage
-            messageRepository.getMessageById(userMessageId)?.let {
-                messageRepository.updateMessage(it.copy(sendStatus = MessageEntity.SEND_STATUS_FAILED))
-            }
-        } catch (e: Exception) {
-            messageRepository.deleteMessage(aiMessage)
-            _errorMessage.value = "请求失败，请重试"
-            messageRepository.getMessageById(userMessageId)?.let {
-                messageRepository.updateMessage(it.copy(sendStatus = MessageEntity.SEND_STATUS_FAILED))
-            }
-        } finally {
-            _isStreaming.value = false
-            if (fullContent.isNotBlank()) {
-                updateConversationLastMessage(fullContent.toString())
-                generateSummaryIfNeeded()
+
+            val fullContent = StringBuilder()
+            try {
+                chatRepository.streamChat(
+                    baseUrl = settings.baseUrl,
+                    apiKey = settings.apiKey,
+                    profileName = settings.name,
+                    request = ChatRequest(
+                        model = settings.modelName,
+                        messages = requestMessages,
+                        stream = true
+                    )
+                ).collect { chunk ->
+                    fullContent.append(chunk)
+                    aiMessage = aiMessage.copy(content = fullContent.toString())
+                    messageRepository.updateMessage(aiMessage)
+                }
+                // 成功：标记用户消息发送成功
+                messageRepository.getMessageById(userMessageId)?.let {
+                    messageRepository.updateMessage(it.copy(sendStatus = MessageEntity.SEND_STATUS_SUCCESS))
+                }
+                finalContent = fullContent.toString()
+                sendSuccess = true
+                // 自动轮换：更新到下一套
+                if (autoRotate) {
+                    settingsRepository.setCurrentRuleIndex(
+                        (currentRuleIndex + attempt + 1) % RolePlayRules.ROTATABLE.size
+                    )
+                }
+                break
+            } catch (e: Exception) {
+                // 判断是否可以重试：第一次尝试 + 开启自动轮换 + 不是最后一套
+                val canRetry = attempt == 0 && autoRotate &&
+                    (currentRuleIndex + attempt) < RolePlayRules.ROTATABLE.size - 1
+                if (canRetry) {
+                    attempt++
+                    continue
+                }
+                // 失败：删除 AI 占位，标记用户消息失败，顶部提示
+                messageRepository.deleteMessage(aiMessage)
+                _errorMessage.value = when (e) {
+                    is ChatApiException -> e.userMessage
+                    else -> "请求失败，请重试"
+                }
+                messageRepository.getMessageById(userMessageId)?.let {
+                    messageRepository.updateMessage(it.copy(sendStatus = MessageEntity.SEND_STATUS_FAILED))
+                }
+                break
             }
         }
+
+        _isStreaming.value = false
+        if (sendSuccess && finalContent.isNotBlank()) {
+            updateConversationLastMessage(finalContent)
+            generateSummaryIfNeeded()
+        }
+    }
+
+    /**
+     * 构建 system prompt：角色人设 + 说话风格 + 规则模板。
+     * 规则在后，不覆盖人设，只补充规则。
+     */
+    private fun buildSystemPrompt(character: CharacterEntity, ruleTemplate: RuleTemplate): String {
+        val personalityPart = character.personality?.takeIf { it.isNotBlank() }?.let { "你的人设：$it\n" } ?: ""
+        val rulePart = if (ruleTemplate.content.isNotBlank()) "\n\n${ruleTemplate.content}" else ""
+        return """你是${character.name}。${personalityPart}你正在和用户微信聊天，请：
+- 用日常口语，像真人发消息一样，别书面、别舞台腔
+- 回复可以很短，只说一两个词也行（"哈哈""哦""嗯"），不用每句都完整回应或总结
+- 语气词（呢/啦/呀）偶尔用就行，别每句都堆
+- 不用每句都表达关心或情绪，自然点
+- 不要说"作为AI""我是人工智能"之类
+- 称呼用户为"你"$rulePart"""
     }
 
     /**

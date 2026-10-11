@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.google.gson.Gson
@@ -29,6 +31,9 @@ class SettingsRepository(private val context: Context) {
     private val KEY_API_PROFILES = stringPreferencesKey("api_profiles")
     private val KEY_ACTIVE_PROFILE_ID = stringPreferencesKey("active_api_profile_id")
     private val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
+    private val KEY_SELECTED_RULE = stringPreferencesKey("selected_rule")
+    private val KEY_AUTO_ROTATE_RULE = booleanPreferencesKey("auto_rotate_rule")
+    private val KEY_CURRENT_RULE_INDEX = intPreferencesKey("current_rule_index")
 
     // 旧 key（迁移用，迁移后保留不删）
     private val KEY_OLD_BASE_URL = stringPreferencesKey("api_base_url")
@@ -71,6 +76,40 @@ class SettingsRepository(private val context: Context) {
             prefs[KEY_THEME_MODE] = mode
         }
     }
+
+    // 对话规则：none / A / B / C / D，默认 none
+    val selectedRule: Flow<String> = context.dataStore.data
+        .map { prefs -> prefs[KEY_SELECTED_RULE] ?: "none" }
+
+    suspend fun setSelectedRule(ruleId: String) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_SELECTED_RULE] = ruleId
+        }
+    }
+
+    // 自动轮换开关，默认 false
+    val autoRotateRule: Flow<Boolean> = context.dataStore.data
+        .map { prefs -> prefs[KEY_AUTO_ROTATE_RULE] ?: false }
+
+    suspend fun setAutoRotateRule(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_AUTO_ROTATE_RULE] = enabled
+        }
+    }
+
+    // 当前轮换到第几套（自动轮换用），默认 0
+    val currentRuleIndex: Flow<Int> = context.dataStore.data
+        .map { prefs -> prefs[KEY_CURRENT_RULE_INDEX] ?: 0 }
+
+    suspend fun setCurrentRuleIndex(index: Int) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_CURRENT_RULE_INDEX] = index
+        }
+    }
+
+    suspend fun getSelectedRuleOnce(): String = selectedRule.first()
+    suspend fun getAutoRotateOnce(): Boolean = autoRotateRule.first()
+    suspend fun getCurrentRuleIndexOnce(): Int = currentRuleIndex.first()
 
     suspend fun getProfilesOnce(): List<ApiProfile> = apiProfiles.first()
 

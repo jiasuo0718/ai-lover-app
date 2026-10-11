@@ -26,6 +26,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -59,14 +60,19 @@ fun SettingsScreen(
 ) {
     val settingsRepository = remember { AppContainer.settingsRepository() }
     val themeMode by settingsRepository.themeMode.collectAsState(initial = "system")
+    val selectedRule by settingsRepository.selectedRule.collectAsState(initial = "none")
+    val autoRotateRule by settingsRepository.autoRotateRule.collectAsState(initial = false)
     val scope = rememberCoroutineScope()
     var showThemeDialog by remember { mutableStateOf(false) }
+    var showRuleDialog by remember { mutableStateOf(false) }
 
     val themeLabel = when (themeMode) {
         "dark" -> "深色"
         "light" -> "浅色"
         else -> "跟随系统"
     }
+
+    val ruleLabel = com.ailover.app.data.settings.RolePlayRules.getById(selectedRule).name
 
     Scaffold(
         topBar = {
@@ -117,6 +123,42 @@ fun SettingsScreen(
                     trailing = themeLabel,
                     onClick = { showThemeDialog = true }
                 )
+                // 对话风格
+                SettingsListItem(
+                    icon = IconParkIcons.Outline.SettingTwo,
+                    iconTint = TextPrimary,
+                    title = "对话风格",
+                    trailing = ruleLabel,
+                    onClick = { showRuleDialog = true }
+                )
+                // 自动轮换（开关）
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = IconParkIcons.Outline.SettingTwo,
+                        contentDescription = null,
+                        tint = TextPrimary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text(
+                        text = "自动轮换风格",
+                        fontSize = 16.sp,
+                        color = TextPrimary,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Switch(
+                        checked = autoRotateRule,
+                        onCheckedChange = { enabled ->
+                            scope.launch { settingsRepository.setAutoRotateRule(enabled) }
+                        }
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -177,6 +219,59 @@ fun SettingsScreen(
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(text = label, fontSize = 16.sp, color = TextPrimary)
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
+    }
+
+    // 对话风格选择弹窗
+    if (showRuleDialog) {
+        Dialog(onDismissRequest = { showRuleDialog = false }) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(CardWhite)
+                    .padding(vertical = 8.dp)
+            ) {
+                Text(
+                    text = "对话风格",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)
+                )
+                com.ailover.app.data.settings.RolePlayRules.ALL.forEach { rule ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                scope.launch { settingsRepository.setSelectedRule(rule.id) }
+                                showRuleDialog = false
+                            }
+                            .padding(horizontal = 20.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = selectedRule == rule.id,
+                            onClick = {
+                                scope.launch { settingsRepository.setSelectedRule(rule.id) }
+                                showRuleDialog = false
+                            }
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(text = rule.name, fontSize = 16.sp, color = TextPrimary)
+                            if (rule.content.isNotBlank()) {
+                                Text(
+                                    text = rule.content.lines().firstOrNull() ?: "",
+                                    fontSize = 12.sp,
+                                    color = TextSecondary
+                                )
+                            }
+                        }
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
