@@ -33,6 +33,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -81,6 +83,8 @@ fun ImageGenScreen(
     val scope = rememberCoroutineScope()
     val comfyRepository = remember { AppContainer.comfyRepository() }
 
+    var chinesePrompt by remember { mutableStateOf("") }
+    var useAiExpand by remember { mutableStateOf(true) }
     var positivePrompt by remember { mutableStateOf("") }
     var negativePrompt by remember { mutableStateOf(ComfyRepository.DEFAULT_NEGATIVE) }
     var selectedSize by remember { mutableStateOf("512×512") }
@@ -132,13 +136,44 @@ fun ImageGenScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // 正向提示词
-            Text("正向提示词", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            // 中文提示词 + AI扩写开关
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("中文描述", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("AI扩写", color = TextSecondary, fontSize = 13.sp)
+                    Switch(
+                        checked = useAiExpand,
+                        onCheckedChange = { useAiExpand = it },
+                        colors = SwitchDefaults.colors(checkedThumbColor = AccentBlue)
+                    )
+                }
+            }
+            OutlinedTextField(
+                value = chinesePrompt,
+                onValueChange = { chinesePrompt = it },
+                placeholder = { Text("一个穿白裙子的女孩，在海边", color = TextSecondary) },
+                modifier = Modifier.fillMaxWidth().height(70.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = TextPrimary,
+                    unfocusedTextColor = TextPrimary,
+                    focusedBorderColor = AccentBlue,
+                    unfocusedBorderColor = Divider,
+                    cursorColor = AccentBlue
+                )
+            )
+
+            // 正向提示词（英文，高级用户直接写）
+            Text("正向提示词（英文）", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
             OutlinedTextField(
                 value = positivePrompt,
                 onValueChange = { positivePrompt = it },
                 placeholder = { Text("a cute cat, detailed fur, 8k, masterpiece", color = TextSecondary) },
                 modifier = Modifier.fillMaxWidth().height(100.dp),
+                enabled = !useAiExpand,
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedTextColor = TextPrimary,
                     unfocusedTextColor = TextPrimary,
@@ -237,7 +272,8 @@ fun ImageGenScreen(
                         return@Button
                     }
                     // 正常生成
-                    if (positivePrompt.isBlank() || isGenerating) return@Button
+                    val canGenerate = if (useAiExpand) chinesePrompt.isNotBlank() else positivePrompt.isNotBlank()
+                    if (!canGenerate || isGenerating) return@Button
                     isGenerating = true
                     errorMessage = null
                     generatedImagePath = null
@@ -245,8 +281,14 @@ fun ImageGenScreen(
                     scope.launch {
                         try {
                             val (w, h) = parseSize(selectedSize)
+                            // AI扩写：中文→英文SD标签
+                            val finalPrompt = if (useAiExpand && chinesePrompt.isNotBlank()) {
+                                comfyRepository.expandPrompt(chinesePrompt)
+                            } else {
+                                positivePrompt
+                            }
                             val generated = comfyRepository.generateImage(
-                                positivePrompt = positivePrompt,
+                                positivePrompt = finalPrompt,
                                 negativePrompt = negativePrompt.ifBlank { ComfyRepository.DEFAULT_NEGATIVE },
                                 width = w,
                                 height = h,
@@ -263,7 +305,8 @@ fun ImageGenScreen(
                 },
                 modifier = Modifier.fillMaxWidth().height(48.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
-                enabled = !isGenerating && !isDownloading && (positivePrompt.isNotBlank() || pendingDownload != null)
+                enabled = !isGenerating && !isDownloading &&
+                        ((if (useAiExpand) chinesePrompt.isNotBlank() else positivePrompt.isNotBlank()) || pendingDownload != null)
             ) {
                 Text(
                     when {

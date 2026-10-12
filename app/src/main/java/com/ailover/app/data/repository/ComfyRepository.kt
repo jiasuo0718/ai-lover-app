@@ -54,6 +54,9 @@ class ComfyRepository(
         private const val TAG = "ComfyRepo"
         // 真实 ComfyUI 云端地址（SeetaCloud），baseUrl 必须以 / 结尾
         private const val BASE_URL = "https://u1108487-8a9f-f1a85596.westb.seetacloud.com:8443/"
+        // 军师（Ollama，OpenAI 兼容）地址，用于中文→英文SD标签扩写
+        private const val ADVISOR_URL = "https://uu1108487-8a9f-f1a85596.westb.seetacloud.com:8443/v1/chat/completions"
+        private const val ADVISOR_MODEL = "qwen-uncensored"
         // 轮询间隔（毫秒）
         private const val POLL_INTERVAL_MS = 1000L
         // 最大轮询次数（约 3 分钟超时）
@@ -213,6 +216,50 @@ class ComfyRepository(
             .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
             .readTimeout(120, java.util.concurrent.TimeUnit.SECONDS)
             .build()
+    }
+
+    // ==================== 军师扩写 ====================
+
+    /**
+     * 调军师（Ollama，OpenAI 兼容）把中文需求扩写成英文 SD 标签。
+     * @param chinesePrompt 用户的中文描述
+     * @return 英文 Danbooru 标签（逗号分隔）
+     */
+    suspend fun expandPrompt(chinesePrompt: String): String = withContext(Dispatchers.IO) {
+        val systemMsg = "你是专业的 Stable Diffusion 提示词工程师。把用户的中文需求扩写成英文 Danbooru 标签，逗号分隔，包含质量词、光影、细节、构图。只输出标签，不要解释、不要引号、不要换行。"
+        val requestBodyJson = """
+            {
+              "model": "$ADVISOR_MODEL",
+              "messages": [
+                {"role": "system", "content": ${gson.toJson(systemMsg)}},
+                {"role": "user", "content": ${gson.toJson(chinesePrompt)}}
+              ],
+              "stream": false
+            }
+        """.trimIndent()
+
+        Log.d("ComfyDebug", "军师扩写请求: $chinesePrompt")
+        val request = okhttp3.Request.Builder()
+            .url(ADVISOR_URL)
+            .post(requestBodyJson.toRequestBody("application/json".toMediaTypeOrNull()))
+            .build()
+        val response = downloadClient.newCall(request).execute()
+        val body = response.body?.string() ?: throw Exception("军师返回空响应")
+        if (!response.isSuccessful) {
+            throw Exception("军师扩写失败 HTTP ${response.code}: $body")
+        }
+        Log.d("ComfyDebug", "军师扩写响应: $body")
+
+        // 解析 OpenAI 兼容响应: choices[0].message.content
+        val json = gson.fromJson(body, JsonObject::class.java)
+        val content = json.getAsJsonArray("choices")
+            ?.get(0)?.asJsonObject
+            ?.getAsJsonObject("message")
+            ?.get("content")?.asString
+            ?.trim()
+            ?: throw Exception("军师响应解析失败: $body")
+        Log.d("ComfyDebug", "军师扩写结果: $content")
+        content
     }
 
     // ==================== 文生图 ====================
