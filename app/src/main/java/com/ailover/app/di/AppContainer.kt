@@ -54,10 +54,11 @@ object AppContainer {
                         .build()
                     gson = GsonBuilder().create()
                     chatRepo = ChatRepository(okHttpClient!!, gson!!)
-                    comfyRepo = ComfyRepository(appContext, okHttpClient!!, gson!!)
 
-                    // 设置
+                    // 设置（先初始化，ComfyRepository 需要读地址）
                     settingsRepo = SettingsRepository(appContext)
+                    comfyRepo = ComfyRepository(appContext, okHttpClient!!, gson!!, settingsRepo!!)
+
                     userProfileRepo = UserProfileRepository(appContext)
                 }
             }

@@ -21,9 +21,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -63,9 +67,15 @@ fun SettingsScreen(
     val selectedRule by settingsRepository.selectedRule.collectAsState(initial = "none")
     val autoRotateRule by settingsRepository.autoRotateRule.collectAsState(initial = false)
     val novelMode by settingsRepository.novelMode.collectAsState(initial = false)
+    val comfyUiUrl by settingsRepository.comfyUiUrl.collectAsState(initial = SettingsRepository.DEFAULT_COMFYUI_URL)
+    val advisorUrl by settingsRepository.advisorUrl.collectAsState(initial = SettingsRepository.DEFAULT_ADVISOR_URL)
     val scope = rememberCoroutineScope()
     var showThemeDialog by remember { mutableStateOf(false) }
     var showRuleDialog by remember { mutableStateOf(false) }
+    var showComfyUrlDialog by remember { mutableStateOf(false) }
+    var showAdvisorUrlDialog by remember { mutableStateOf(false) }
+    var editingComfyUrl by remember { mutableStateOf("") }
+    var editingAdvisorUrl by remember { mutableStateOf("") }
 
     val themeLabel = when (themeMode) {
         "dark" -> "深色"
@@ -192,7 +202,39 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // ===== 分组二：关于 =====
+            // ===== 分组二：云端地址 =====
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(CardWhite)
+            ) {
+                // ComfyUI 地址
+                SettingsListItem(
+                    icon = IconParkIcons.Outline.SettingTwo,
+                    iconTint = TextPrimary,
+                    title = "ComfyUI 地址",
+                    trailing = comfyUiUrl.removePrefix("https://").take(24) + "…",
+                    onClick = {
+                        editingComfyUrl = comfyUiUrl
+                        showComfyUrlDialog = true
+                    }
+                )
+                // 军师地址
+                SettingsListItem(
+                    icon = IconParkIcons.Outline.SettingTwo,
+                    iconTint = TextPrimary,
+                    title = "军师地址",
+                    trailing = advisorUrl.removePrefix("https://").take(24) + "…",
+                    onClick = {
+                        editingAdvisorUrl = advisorUrl
+                        showAdvisorUrlDialog = true
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // ===== 分组三：关于 =====
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -304,6 +346,106 @@ fun SettingsScreen(
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
+    }
+
+    // ComfyUI 地址编辑弹窗
+    if (showComfyUrlDialog) {
+        Dialog(onDismissRequest = { showComfyUrlDialog = false }) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(CardWhite)
+                    .padding(20.dp)
+            ) {
+                Text("ComfyUI 地址", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = editingComfyUrl,
+                    onValueChange = { editingComfyUrl = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = false,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = AccentBlue,
+                        unfocusedBorderColor = Divider
+                    )
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Button(
+                        onClick = { showComfyUrlDialog = false },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
+                    ) {
+                        Text("取消", color = TextSecondary)
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            scope.launch { settingsRepository.setComfyUiUrl(editingComfyUrl.trim()) }
+                            showComfyUrlDialog = false
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
+                    ) {
+                        Text("保存", color = Color.White)
+                    }
+                }
+            }
+        }
+    }
+
+    // 军师地址编辑弹窗
+    if (showAdvisorUrlDialog) {
+        Dialog(onDismissRequest = { showAdvisorUrlDialog = false }) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(CardWhite)
+                    .padding(20.dp)
+            ) {
+                Text("军师地址", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = editingAdvisorUrl,
+                    onValueChange = { editingAdvisorUrl = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = false,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = AccentBlue,
+                        unfocusedBorderColor = Divider
+                    )
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Button(
+                        onClick = { showAdvisorUrlDialog = false },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
+                    ) {
+                        Text("取消", color = TextSecondary)
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            scope.launch { settingsRepository.setAdvisorUrl(editingAdvisorUrl.trim()) }
+                            showAdvisorUrlDialog = false
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
+                    ) {
+                        Text("保存", color = Color.White)
+                    }
+                }
             }
         }
     }

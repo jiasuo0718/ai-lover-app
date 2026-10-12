@@ -10,6 +10,7 @@ import android.provider.MediaStore
 import android.util.Log
 import com.ailover.app.data.remote.ComfyApi
 import com.ailover.app.data.remote.model.ComfyRequest
+import com.ailover.app.data.settings.SettingsRepository
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import kotlinx.coroutines.Dispatchers
@@ -48,14 +49,11 @@ data class ComfyGeneratedImage(
 class ComfyRepository(
     private val context: Context,
     private val okHttpClient: OkHttpClient,
-    private val gson: Gson
+    private val gson: Gson,
+    private val settingsRepository: SettingsRepository
 ) {
     companion object {
         private const val TAG = "ComfyRepo"
-        // 真实 ComfyUI 云端地址（SeetaCloud），baseUrl 必须以 / 结尾
-        private const val BASE_URL = "https://u1108487-8a9f-f1a85596.westb.seetacloud.com:8443/"
-        // 军师（Ollama，OpenAI 兼容）地址，用于中文→英文SD标签扩写
-        private const val ADVISOR_URL = "https://uu1108487-8a9f-f1a85596.westb.seetacloud.com:8443/v1/chat/completions"
         private const val ADVISOR_MODEL = "qwen-uncensored"
         // 轮询间隔（毫秒）
         private const val POLL_INTERVAL_MS = 1000L
@@ -201,13 +199,25 @@ class ComfyRepository(
         """
     }
 
-    private val api: ComfyApi by lazy {
-        Retrofit.Builder()
-            .baseUrl(BASE_URL)
-            .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create(gson))
-            .build()
-            .create(ComfyApi::class.java)
+    // 动态地址：从 SettingsRepository 读（用户可在设置页改）
+    private suspend fun comfyUiUrl(): String = settingsRepository.getComfyUiUrlOnce()
+    private suspend fun advisorUrl(): String = settingsRepository.getAdvisorUrlOnce()
+
+    // Retrofit 按地址缓存：地址变了就重建
+    private var cachedApiUrl: String? = null
+    private var cachedApi: ComfyApi? = null
+    private suspend fun api(): ComfyApi {
+        val url = comfyUiUrl()
+        if (cachedApiUrl != url || cachedApi == null) {
+            cachedApi = Retrofit.Builder()
+                .baseUrl(url)
+                .client(okHttpClient)
+                .addConverterFactory(GsonConverterFactory.create(gson))
+                .build()
+                .create(ComfyApi::class.java)
+            cachedApiUrl = url
+        }
+        return cachedApi!!
     }
 
     // 下载图片专用 client：readTimeout 120秒（全局只有60秒，大图/慢网会超时）
@@ -240,7 +250,7 @@ class ComfyRepository(
 
         Log.d("ComfyDebug", "军师扩写请求: $chinesePrompt")
         val request = okhttp3.Request.Builder()
-            .url(ADVISOR_URL)
+            .url(advisorUrl())
             .post(requestBodyJson.toRequestBody("application/json".toMediaTypeOrNull()))
             .build()
         val response = downloadClient.newCall(request).execute()
@@ -288,7 +298,7 @@ class ComfyRepository(
 
         Log.d("ComfyDebug", "军师扩写(正负向)请求: $chinesePrompt")
         val request = okhttp3.Request.Builder()
-            .url(ADVISOR_URL)
+            .url(advisorUrl())
             .post(requestBodyJson.toRequestBody("application/json".toMediaTypeOrNull()))
             .build()
         val response = downloadClient.newCall(request).execute()
@@ -360,7 +370,7 @@ class ComfyRepository(
         val imagePart = MultipartBody.Part.createFormData("image", imageFile.name, requestFile)
         val typePart = "input".toRequestBody("text/plain".toMediaTypeOrNull())
 
-        val response = api.uploadImage(imagePart, typePart)
+        val response = api().uploadImage(imagePart, typePart)
         val name = response.name
             ?: throw Exception("上传图片返回无 name: ${gson.toJson(response)}")
         Log.d(TAG, "图片已上传: name=$name, subfolder=${response.subfolder}")
@@ -410,18 +420,19 @@ class ComfyRepository(
     private suspend fun submitAndWait(workflow: JsonObject): ComfyGeneratedImage {
         val clientId = UUID.randomUUID().toString()
         val request = ComfyRequest(prompt = workflow, client_id = clientId)
+        val baseUrl = comfyUiUrl()
 
         // 发送任务（失败时打印完整请求体+响应体，方便排查）
         val response = try {
-            api.submitPrompt(request)
+            api().submitPrompt(request)
         } catch (e: retrofit2.HttpException) {
             val errorBody = try { e.response()?.errorBody()?.string() } catch (_: Exception) { "(无法读取响应体)" }
-            Log.e("ComfyDebug", "POST 失败 URL=${BASE_URL}prompt  响应码=${e.code()}")
+            Log.e("ComfyDebug", "POST 失败 URL=${baseUrl}prompt  响应码=${e.code()}")
             Log.e("ComfyDebug", "请求体: ${gson.toJson(request)}")
             Log.e("ComfyDebug", "响应体: $errorBody")
             throw e
         } catch (e: Exception) {
-            Log.e("ComfyDebug", "POST 失败 URL=${BASE_URL}prompt  异常类型=${e.javaClass.simpleName}")
+            Log.e("ComfyDebug", "POST 失败 URL=${baseUrl}prompt  异常类型=${e.javaClass.simpleName}")
             Log.e("ComfyDebug", "请求体: ${gson.toJson(request)}")
             Log.e("ComfyDebug", "异常: ${e.message}")
             throw e
@@ -435,7 +446,7 @@ class ComfyRepository(
         for (attempt in 0 until MAX_POLL_COUNT) {
             delay(POLL_INTERVAL_MS)
             try {
-                val history = api.getHistory(promptId)
+                val history = api().getHistory(promptId)
                 val entry = history[promptId]
                 Log.d("ComfyDebug", "轮询 ${attempt + 1}/$MAX_POLL_COUNT: history keys=${history.keys}, entry存在=${entry != null}, status=${entry?.status?.status_str}/${entry?.status?.completed}, outputs存在=${entry?.outputs != null}")
 
@@ -480,7 +491,7 @@ class ComfyRepository(
      * @return 本地图片文件路径
      */
     suspend fun downloadAndSave(generated: ComfyGeneratedImage): String = withContext(Dispatchers.IO) {
-        val downloadUrl = "${BASE_URL}view?filename=${generated.filename}&subfolder=${generated.subfolder}&type=output"
+        val downloadUrl = "${comfyUiUrl()}view?filename=${generated.filename}&subfolder=${generated.subfolder}&type=output"
         Log.d("ComfyDebug", "准备下载: URL=$downloadUrl")
         val localPath = try {
             downloadImage(downloadUrl, generated.filename)
