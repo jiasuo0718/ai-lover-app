@@ -304,30 +304,42 @@ class ComfyRepository(
 
         // 轮询进度
         var imageInfo: Pair<String, String>? = null
-        repeat(MAX_POLL_COUNT) {
+        repeat(MAX_POLL_COUNT) { attempt ->
             delay(POLL_INTERVAL_MS)
-            val history = api.getHistory(promptId)
-            val entry = history[promptId]
-            if (entry?.outputs != null) {
-                for ((_, output) in entry.outputs) {
-                    val img = output.images?.firstOrNull()
-                    if (img != null && img.filename != null) {
-                        imageInfo = img.filename to (img.subfolder ?: "")
-                        break
+            try {
+                val history = api.getHistory(promptId)
+                val entry = history[promptId]
+                Log.d("ComfyDebug", "轮询 ${attempt + 1}/$MAX_POLL_COUNT: history keys=${history.keys}, entry存在=${entry != null}, status=${entry?.status?.status_str}/${entry?.status?.completed}, outputs存在=${entry?.outputs != null}")
+
+                if (entry?.outputs != null) {
+                    Log.d("ComfyDebug", "拿到 outputs: ${gson.toJson(entry.outputs)}")
+                    for ((nodeId, output) in entry.outputs) {
+                        val img = output.images?.firstOrNull()
+                        Log.d("ComfyDebug", "节点 $nodeId: images=${output.images?.size}, 第一张 filename=${img?.filename}, subfolder=${img?.subfolder}")
+                        if (img != null && img.filename != null) {
+                            imageInfo = img.filename to (img.subfolder ?: "")
+                            break
+                        }
                     }
+                    if (imageInfo != null) return@repeat
                 }
-                if (imageInfo != null) return@repeat
+            } catch (e: Exception) {
+                Log.e("ComfyDebug", "轮询 ${attempt + 1} 异常: ${e.javaClass.simpleName}: ${e.message}")
             }
-            Log.d(TAG, "等待生成... (${it + 1}/$MAX_POLL_COUNT)")
         }
 
         val (filename, subfolder) = imageInfo
-            ?: throw Exception("生成超时（${MAX_POLL_COUNT * POLL_INTERVAL_MS / 1000}秒）")
+            ?: run {
+                Log.e("ComfyDebug", "轮询超时: $MAX_POLL_COUNT 次均未拿到 outputs, prompt_id=$promptId")
+                throw Exception("生成超时（${MAX_POLL_COUNT * POLL_INTERVAL_MS / 1000}秒）")
+            }
 
+        Log.d("ComfyDebug", "准备下载: filename=$filename, subfolder=$subfolder")
         // 下载图片
         val downloadUrl = "${BASE_URL}view?filename=$filename&subfolder=$subfolder&type=output"
+        Log.d("ComfyDebug", "下载 URL: $downloadUrl")
         val localPath = downloadImage(downloadUrl, filename)
-        Log.d(TAG, "图片已保存: $localPath")
+        Log.d("ComfyDebug", "下载完成: $localPath")
 
         // 自动保存到系统相册（用户能在相册里看到）
         try {
