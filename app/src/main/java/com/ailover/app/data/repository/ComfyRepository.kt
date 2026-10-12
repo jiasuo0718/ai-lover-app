@@ -262,6 +262,73 @@ class ComfyRepository(
         content
     }
 
+    /**
+     * 调军师一次输出正向+负向提示词。
+     * system 要求输出两行：正向提示词：xxx / 负向提示词：xxx
+     * 宽松解析：按行找"正向"/"负向"关键词，找不到则正向用全文、负向用默认。
+     * @return Pair(正向英文标签, 负向英文标签)
+     */
+    suspend fun expandPromptWithNegative(chinesePrompt: String): Pair<String, String> = withContext(Dispatchers.IO) {
+        val systemMsg = """
+            你是专业的 Stable Diffusion 提示词工程师。根据用户的中文需求，输出两行：
+            正向提示词：<英文 Danbooru 标签，逗号分隔，包含质量词、光影、细节、构图>
+            负向提示词：<根据正向内容，列出该避免的标签，如 low quality, bad anatomy, blurry, worst quality 等>
+            只输出这两行，不要解释、不要引号。
+        """.trimIndent()
+        val requestBodyJson = """
+            {
+              "model": "$ADVISOR_MODEL",
+              "messages": [
+                {"role": "system", "content": ${gson.toJson(systemMsg)}},
+                {"role": "user", "content": ${gson.toJson(chinesePrompt)}}
+              ],
+              "stream": false
+            }
+        """.trimIndent()
+
+        Log.d("ComfyDebug", "军师扩写(正负向)请求: $chinesePrompt")
+        val request = okhttp3.Request.Builder()
+            .url(ADVISOR_URL)
+            .post(requestBodyJson.toRequestBody("application/json".toMediaTypeOrNull()))
+            .build()
+        val response = downloadClient.newCall(request).execute()
+        val body = response.body?.string() ?: throw Exception("军师返回空响应")
+        if (!response.isSuccessful) {
+            throw Exception("军师扩写失败 HTTP ${response.code}: $body")
+        }
+        Log.d("ComfyDebug", "军师扩写(正负向)响应: $body")
+
+        val json = gson.fromJson(body, JsonObject::class.java)
+        val content = json.getAsJsonArray("choices")
+            ?.get(0)?.asJsonObject
+            ?.getAsJsonObject("message")
+            ?.get("content")?.asString
+            ?.trim()
+            ?: throw Exception("军师响应解析失败: $body")
+
+        // 宽松解析：按行找正向/负向
+        var positive = ""
+        var negative = ""
+        for (line in content.lines()) {
+            val trimmed = line.trim()
+            when {
+                trimmed.contains("正向") || trimmed.contains("positive", ignoreCase = true) -> {
+                    positive = trimmed.substringAfter("：").substringAfter(":").trim()
+                }
+                trimmed.contains("负向") || trimmed.contains("negative", ignoreCase = true) -> {
+                    negative = trimmed.substringAfter("：").substringAfter(":").trim()
+                }
+            }
+        }
+        // 解析失败兜底：正向用全文，负向用默认
+        if (positive.isBlank()) positive = content
+        if (negative.isBlank()) negative = DEFAULT_NEGATIVE
+
+        Log.d("ComfyDebug", "军师扩写结果 正向=$positive")
+        Log.d("ComfyDebug", "军师扩写结果 负向=$negative")
+        positive to negative
+    }
+
     // ==================== 文生图 ====================
 
     /**

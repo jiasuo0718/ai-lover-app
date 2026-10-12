@@ -183,8 +183,13 @@ fun ImageGenScreen(
                 )
             )
 
-            // 负面提示词
-            Text("负面提示词", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            // 负面提示词（AI扩写开启时自动生成，可手动修改）
+            Text(
+                "负面提示词" + if (useAiExpand) "（AI自动生成，可改）" else "",
+                color = TextPrimary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium
+            )
             OutlinedTextField(
                 value = negativePrompt,
                 onValueChange = { negativePrompt = it },
@@ -281,15 +286,17 @@ fun ImageGenScreen(
                     scope.launch {
                         try {
                             val (w, h) = parseSize(selectedSize)
-                            // AI扩写：中文→英文SD标签
-                            val finalPrompt = if (useAiExpand && chinesePrompt.isNotBlank()) {
-                                comfyRepository.expandPrompt(chinesePrompt)
+                            // AI扩写：中文→正向+负向英文标签
+                            val (finalPositive, finalNegative) = if (useAiExpand && chinesePrompt.isNotBlank()) {
+                                val (pos, neg) = comfyRepository.expandPromptWithNegative(chinesePrompt)
+                                negativePrompt = neg  // 把军师生成的负向填到输入框，用户可看到/修改
+                                pos to neg
                             } else {
-                                positivePrompt
+                                positivePrompt to negativePrompt.ifBlank { ComfyRepository.DEFAULT_NEGATIVE }
                             }
                             val generated = comfyRepository.generateImage(
-                                positivePrompt = finalPrompt,
-                                negativePrompt = negativePrompt.ifBlank { ComfyRepository.DEFAULT_NEGATIVE },
+                                positivePrompt = finalPositive,
+                                negativePrompt = finalNegative,
                                 width = w,
                                 height = h,
                                 steps = steps.toIntOrNull() ?: 20,
