@@ -316,9 +316,9 @@ class ComfyRepository(
             ?: throw Exception("ComfyUI 返回无 prompt_id: ${gson.toJson(response)}")
         Log.d(TAG, "任务已提交: prompt_id=$promptId")
 
-        // 轮询进度
+        // 轮询进度（用 for+break，不用 repeat+return@repeat——后者是 continue 不会退出循环）
         var imageInfo: Pair<String, String>? = null
-        repeat(MAX_POLL_COUNT) { attempt ->
+        for (attempt in 0 until MAX_POLL_COUNT) {
             delay(POLL_INTERVAL_MS)
             try {
                 val history = api.getHistory(promptId)
@@ -335,7 +335,7 @@ class ComfyRepository(
                             break
                         }
                     }
-                    if (imageInfo != null) return@repeat
+                    if (imageInfo != null) break  // 真正退出外层 for 循环
                     // outputs 存在但没有图片 → 可能节点报错，不继续等
                     Log.e("ComfyDebug", "outputs存在但无图片，可能生成出错: ${gson.toJson(entry.outputs)}")
                     throw Exception("生成完成但无图片输出（节点可能报错）")
