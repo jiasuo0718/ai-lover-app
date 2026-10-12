@@ -38,8 +38,8 @@ class ComfyRepository(
 ) {
     companion object {
         private const val TAG = "ComfyRepo"
-        // 占位 baseUrl（Android 模拟器访问宿主机），后续替换
-        private const val BASE_URL = "http://10.0.2.2:8188/"
+        // 真实 ComfyUI 云端地址（SeetaCloud），baseUrl 必须以 / 结尾
+        private const val BASE_URL = "https://u1108487-8a9f-f1a85596.westb.seetacloud.com:8443/"
         // 轮询间隔（毫秒）
         private const val POLL_INTERVAL_MS = 2000L
         // 最大轮询次数（约 5 分钟超时）
@@ -49,97 +49,136 @@ class ComfyRepository(
         const val DEFAULT_NEGATIVE = "low quality, blurry, bad anatomy, worst quality, deformed, ugly"
 
         /**
-         * 文生图占位工作流 JSON（标准 SD1.5 txt2img）。
-         * 节点：3=EmptyLatentImage, 4=正向, 5=负面, 6=KSampler, 7=VAEDecode, 8=SaveImage, 1=模型, 2=VAE
+         * 文生图真实工作流（realisticVisionV6，已云端验证）。
+         * 节点：3=KSampler, 4=Checkpoint(model/clip/vae), 5=EmptyLatentImage,
+         *      6=正向CLIPTextEncode, 7=负向CLIPTextEncode, 8=VAEDecode, 9=SaveImage
          */
         private const val PLACEHOLDER_WORKFLOW = """
         {
           "3": {
-            "class_type": "EmptyLatentImage",
-            "inputs": { "width": 512, "height": 512, "batch_size": 1 }
-          },
-          "4": {
-            "class_type": "CLIPTextEncode",
-            "inputs": { "text": "PLACEHOLDER_POSITIVE", "clip": ["1", 1] }
-          },
-          "5": {
-            "class_type": "CLIPTextEncode",
-            "inputs": { "text": "PLACEHOLDER_NEGATIVE", "clip": ["1", 1] }
-          },
-          "6": {
             "class_type": "KSampler",
             "inputs": {
-              "seed": -1, "steps": 20, "cfg": 7.0,
-              "sampler_name": "euler", "scheduler": "normal", "denoise": 1.0,
-              "model": ["1", 0], "positive": ["4", 0], "negative": ["5", 0],
-              "latent_image": ["3", 0]
+              "seed": 12345,
+              "steps": 20,
+              "cfg": 7,
+              "sampler_name": "euler",
+              "scheduler": "normal",
+              "denoise": 1,
+              "model": ["4", 0],
+              "positive": ["6", 0],
+              "negative": ["7", 0],
+              "latent_image": ["5", 0]
+            }
+          },
+          "4": {
+            "class_type": "CheckpointLoaderSimple",
+            "inputs": {
+              "ckpt_name": "realisticVisionV6.safetensors"
+            }
+          },
+          "5": {
+            "class_type": "EmptyLatentImage",
+            "inputs": {
+              "width": 512,
+              "height": 512,
+              "batch_size": 1
+            }
+          },
+          "6": {
+            "class_type": "CLIPTextEncode",
+            "inputs": {
+              "text": "PLACEHOLDER_POSITIVE",
+              "clip": ["4", 1]
             }
           },
           "7": {
-            "class_type": "VAEDecode",
-            "inputs": { "samples": ["6", 0], "vae": ["2", 0] }
+            "class_type": "CLIPTextEncode",
+            "inputs": {
+              "text": "PLACEHOLDER_NEGATIVE",
+              "clip": ["4", 1]
+            }
           },
           "8": {
+            "class_type": "VAEDecode",
+            "inputs": {
+              "samples": ["3", 0],
+              "vae": ["4", 2]
+            }
+          },
+          "9": {
             "class_type": "SaveImage",
-            "inputs": { "filename_prefix": "ComfyUI", "images": ["7", 0] }
-          },
-          "1": {
-            "class_type": "CheckpointLoaderSimple",
-            "inputs": { "ckpt_name": "v1-5-pruned-emaonly.safetensors" }
-          },
-          "2": {
-            "class_type": "VAELoader",
-            "inputs": { "vae_name": "vae-ft-mse-840000-ema-pruned.safetensors" }
+            "inputs": {
+              "filename_prefix": "ComfyUI",
+              "images": ["8", 0]
+            }
           }
         }
         """
 
         /**
-         * 图生图占位工作流 JSON（标准 SD1.5 img2img）。
-         * 节点：10=LoadImage, 11=VAEEncode, 4=正向, 5=负面, 6=KSampler(denoise可调), 7=VAEDecode, 8=SaveImage, 1=模型, 2=VAE
+         * 图生图工作流（基于真实文生图节点结构适配，节点10=LoadImage, 11=VAEEncode）。
+         * 节点：3=KSampler(denoise可调), 4=Checkpoint, 6=正向, 7=负向,
+         *      8=VAEDecode, 9=SaveImage, 10=LoadImage, 11=VAEEncode
+         * 注：此模板按文生图已验证结构推导，图生图首跑需真机确认。
          */
         private const val PLACEHOLDER_WORKFLOW_IMG2IMG = """
         {
+          "3": {
+            "class_type": "KSampler",
+            "inputs": {
+              "seed": 12345,
+              "steps": 20,
+              "cfg": 7,
+              "sampler_name": "euler",
+              "scheduler": "normal",
+              "denoise": 0.6,
+              "model": ["4", 0],
+              "positive": ["6", 0],
+              "negative": ["7", 0],
+              "latent_image": ["11", 0]
+            }
+          },
+          "4": {
+            "class_type": "CheckpointLoaderSimple",
+            "inputs": {
+              "ckpt_name": "realisticVisionV6.safetensors"
+            }
+          },
+          "6": {
+            "class_type": "CLIPTextEncode",
+            "inputs": {
+              "text": "PLACEHOLDER_POSITIVE",
+              "clip": ["4", 1]
+            }
+          },
+          "7": {
+            "class_type": "CLIPTextEncode",
+            "inputs": {
+              "text": "PLACEHOLDER_NEGATIVE",
+              "clip": ["4", 1]
+            }
+          },
+          "8": {
+            "class_type": "VAEDecode",
+            "inputs": {
+              "samples": ["3", 0],
+              "vae": ["4", 2]
+            }
+          },
+          "9": {
+            "class_type": "SaveImage",
+            "inputs": {
+              "filename_prefix": "ComfyUI_img2img",
+              "images": ["8", 0]
+            }
+          },
           "10": {
             "class_type": "LoadImage",
             "inputs": { "image": "PLACEHOLDER_INPUT_IMAGE" }
           },
           "11": {
             "class_type": "VAEEncode",
-            "inputs": { "pixels": ["10", 0], "vae": ["2", 0] }
-          },
-          "4": {
-            "class_type": "CLIPTextEncode",
-            "inputs": { "text": "PLACEHOLDER_POSITIVE", "clip": ["1", 1] }
-          },
-          "5": {
-            "class_type": "CLIPTextEncode",
-            "inputs": { "text": "PLACEHOLDER_NEGATIVE", "clip": ["1", 1] }
-          },
-          "6": {
-            "class_type": "KSampler",
-            "inputs": {
-              "seed": -1, "steps": 20, "cfg": 7.0,
-              "sampler_name": "euler", "scheduler": "normal", "denoise": 0.6,
-              "model": ["1", 0], "positive": ["4", 0], "negative": ["5", 0],
-              "latent_image": ["11", 0]
-            }
-          },
-          "7": {
-            "class_type": "VAEDecode",
-            "inputs": { "samples": ["6", 0], "vae": ["2", 0] }
-          },
-          "8": {
-            "class_type": "SaveImage",
-            "inputs": { "filename_prefix": "ComfyUI_img2img", "images": ["7", 0] }
-          },
-          "1": {
-            "class_type": "CheckpointLoaderSimple",
-            "inputs": { "ckpt_name": "v1-5-pruned-emaonly.safetensors" }
-          },
-          "2": {
-            "class_type": "VAELoader",
-            "inputs": { "vae_name": "vae-ft-mse-840000-ema-pruned.safetensors" }
+            "inputs": { "pixels": ["10", 0], "vae": ["4", 2] }
           }
         }
         """
@@ -302,19 +341,24 @@ class ComfyRepository(
     ): Map<String, Any> {
         val json = gson.fromJson(PLACEHOLDER_WORKFLOW, JsonObject::class.java)
 
-        json.getAsJsonObject("4").getAsJsonObject("inputs").addProperty("text", positive)
-        json.getAsJsonObject("5").getAsJsonObject("inputs").addProperty("text", negative)
-        json.getAsJsonObject("3").getAsJsonObject("inputs").addProperty("width", width)
-        json.getAsJsonObject("3").getAsJsonObject("inputs").addProperty("height", height)
-        json.getAsJsonObject("6").getAsJsonObject("inputs").addProperty("steps", steps)
-        json.getAsJsonObject("6").getAsJsonObject("inputs").addProperty("seed", seed)
+        // 正向提示词（节点6）
+        json.getAsJsonObject("6").getAsJsonObject("inputs").addProperty("text", positive)
+        // 负面提示词（节点7）
+        json.getAsJsonObject("7").getAsJsonObject("inputs").addProperty("text", negative)
+        // 尺寸（节点5）
+        json.getAsJsonObject("5").getAsJsonObject("inputs").addProperty("width", width)
+        json.getAsJsonObject("5").getAsJsonObject("inputs").addProperty("height", height)
+        // 步数/种子（节点3 KSampler）
+        json.getAsJsonObject("3").getAsJsonObject("inputs").addProperty("steps", steps)
+        json.getAsJsonObject("3").getAsJsonObject("inputs").addProperty("seed", seed)
 
         return gson.fromJson(json, Map::class.java) as Map<String, Any>
     }
 
     /**
      * 构建图生图工作流。
-     * 节点10=LoadImage（用上传文件名），节点6=KSampler（denoise可调）。
+     * 节点10=LoadImage（用上传文件名），节点3=KSampler（denoise可调）。
+     * 输出尺寸由参考图决定（VAEEncode），width/height 不替换。
      */
     @Suppress("UNCHECKED_CAST")
     private fun buildImg2ImgWorkflow(
@@ -331,13 +375,13 @@ class ComfyRepository(
 
         // LoadImage 节点：替换为上传后的文件名
         json.getAsJsonObject("10").getAsJsonObject("inputs").addProperty("image", inputImageName)
-        // 提示词
-        json.getAsJsonObject("4").getAsJsonObject("inputs").addProperty("text", positive)
-        json.getAsJsonObject("5").getAsJsonObject("inputs").addProperty("text", negative)
-        // KSampler：步数、种子、重绘强度
-        json.getAsJsonObject("6").getAsJsonObject("inputs").addProperty("steps", steps)
-        json.getAsJsonObject("6").getAsJsonObject("inputs").addProperty("seed", seed)
-        json.getAsJsonObject("6").getAsJsonObject("inputs").addProperty("denoise", denoise)
+        // 提示词（节点6正向、节点7负向）
+        json.getAsJsonObject("6").getAsJsonObject("inputs").addProperty("text", positive)
+        json.getAsJsonObject("7").getAsJsonObject("inputs").addProperty("text", negative)
+        // KSampler（节点3）：步数、种子、重绘强度
+        json.getAsJsonObject("3").getAsJsonObject("inputs").addProperty("steps", steps)
+        json.getAsJsonObject("3").getAsJsonObject("inputs").addProperty("seed", seed)
+        json.getAsJsonObject("3").getAsJsonObject("inputs").addProperty("denoise", denoise)
 
         return gson.fromJson(json, Map::class.java) as Map<String, Any>
     }
