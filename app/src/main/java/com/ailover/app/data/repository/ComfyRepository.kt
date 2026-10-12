@@ -55,9 +55,9 @@ class ComfyRepository(
         // 真实 ComfyUI 云端地址（SeetaCloud），baseUrl 必须以 / 结尾
         private const val BASE_URL = "https://u1108487-8a9f-f1a85596.westb.seetacloud.com:8443/"
         // 轮询间隔（毫秒）
-        private const val POLL_INTERVAL_MS = 2000L
-        // 最大轮询次数（约 5 分钟超时）
-        private const val MAX_POLL_COUNT = 150
+        private const val POLL_INTERVAL_MS = 1000L
+        // 最大轮询次数（约 3 分钟超时）
+        private const val MAX_POLL_COUNT = 180
 
         /** 默认负面提示词 */
         const val DEFAULT_NEGATIVE = "low quality, blurry, bad anatomy, worst quality, deformed, ugly"
@@ -336,6 +336,14 @@ class ComfyRepository(
                         }
                     }
                     if (imageInfo != null) return@repeat
+                    // outputs 存在但没有图片 → 可能节点报错，不继续等
+                    Log.e("ComfyDebug", "outputs存在但无图片，可能生成出错: ${gson.toJson(entry.outputs)}")
+                    throw Exception("生成完成但无图片输出（节点可能报错）")
+                }
+                // status.completed=true 但 outputs 为空 → 生成完成但没出图，不继续等
+                if (entry?.status?.completed == true && entry.outputs == null) {
+                    Log.e("ComfyDebug", "status.completed=true 但 outputs 为空，生成可能出错")
+                    throw Exception("生成完成但无输出（请检查云端 ComfyUI 日志）")
                 }
             } catch (e: Exception) {
                 Log.e("ComfyDebug", "轮询 ${attempt + 1} 异常: ${e.javaClass.simpleName}: ${e.message}")
