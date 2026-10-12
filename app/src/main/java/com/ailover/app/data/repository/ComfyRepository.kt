@@ -271,17 +271,21 @@ class ComfyRepository(
 
     /**
      * 发送任务 → 轮询进度 → 下载图片（文生图/图生图共用）。
+     * workflow 直接用 JsonObject，避免 Gson 把整数转成 Double（1024→1024.0）导致 ComfyUI 400。
      */
-    private suspend fun submitAndWait(workflow: Map<String, Any>): String {
+    private suspend fun submitAndWait(workflow: JsonObject): String {
         val clientId = UUID.randomUUID().toString()
-        Log.d(TAG, "工作流 JSON: $workflow")
-
-        // 发送任务
         val request = ComfyRequest(prompt = workflow, client_id = clientId)
-        val requestBody = gson.toJson(request)
-        Log.d("ComfyDebug", "===== POST URL: ${BASE_URL}prompt =====")
-        Log.d("ComfyDebug", "===== 请求体: $requestBody")
-        val response = api.submitPrompt(request)
+
+        // 发送任务（失败时打印完整请求体，方便排查）
+        val response = try {
+            api.submitPrompt(request)
+        } catch (e: Exception) {
+            Log.e("ComfyDebug", "POST 失败 URL=${BASE_URL}prompt")
+            Log.e("ComfyDebug", "请求体: ${gson.toJson(request)}")
+            Log.e("ComfyDebug", "异常: ${e.message}")
+            throw e
+        }
         val promptId = response.prompt_id
             ?: throw Exception("ComfyUI 返回无 prompt_id: ${gson.toJson(response)}")
         Log.d(TAG, "任务已提交: prompt_id=$promptId")
@@ -332,9 +336,8 @@ class ComfyRepository(
     // ==================== 工作流构建 ====================
 
     /**
-     * 构建文生图工作流。
+     * 构建文生图工作流（直接返回 JsonObject，保留整数类型）。
      */
-    @Suppress("UNCHECKED_CAST")
     private fun buildTxt2ImgWorkflow(
         positive: String,
         negative: String,
@@ -342,7 +345,7 @@ class ComfyRepository(
         height: Int,
         steps: Int,
         seed: Long
-    ): Map<String, Any> {
+    ): JsonObject {
         val json = gson.fromJson(PLACEHOLDER_WORKFLOW, JsonObject::class.java)
 
         // 正向提示词（节点6）
@@ -356,15 +359,14 @@ class ComfyRepository(
         json.getAsJsonObject("3").getAsJsonObject("inputs").addProperty("steps", steps)
         json.getAsJsonObject("3").getAsJsonObject("inputs").addProperty("seed", seed)
 
-        return gson.fromJson(json, Map::class.java) as Map<String, Any>
+        return json
     }
 
     /**
-     * 构建图生图工作流。
+     * 构建图生图工作流（直接返回 JsonObject，保留整数类型）。
      * 节点10=LoadImage（用上传文件名），节点3=KSampler（denoise可调）。
      * 输出尺寸由参考图决定（VAEEncode），width/height 不替换。
      */
-    @Suppress("UNCHECKED_CAST")
     private fun buildImg2ImgWorkflow(
         inputImageName: String,
         positive: String,
@@ -374,7 +376,7 @@ class ComfyRepository(
         height: Int,
         steps: Int,
         seed: Long
-    ): Map<String, Any> {
+    ): JsonObject {
         val json = gson.fromJson(PLACEHOLDER_WORKFLOW_IMG2IMG, JsonObject::class.java)
 
         // LoadImage 节点：替换为上传后的文件名
@@ -387,6 +389,6 @@ class ComfyRepository(
         json.getAsJsonObject("3").getAsJsonObject("inputs").addProperty("seed", seed)
         json.getAsJsonObject("3").getAsJsonObject("inputs").addProperty("denoise", denoise)
 
-        return gson.fromJson(json, Map::class.java) as Map<String, Any>
+        return json
     }
 }
