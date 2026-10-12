@@ -11,7 +11,8 @@ enum class SenderType {
 enum class MessageType {
     TEXT,
     VOICE,
-    EMOTE
+    EMOTE,
+    IMAGE
 }
 
 class Converters {

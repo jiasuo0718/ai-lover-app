@@ -18,6 +18,7 @@ import com.ailover.app.data.remote.model.ChatRequest
 import com.ailover.app.data.repository.CharacterRepository
 import com.ailover.app.data.repository.ChatApiException
 import com.ailover.app.data.repository.ChatRepository
+import com.ailover.app.data.repository.ComfyRepository
 import com.ailover.app.data.repository.ConversationRepository
 import com.ailover.app.data.repository.MemoryRepository
 import com.ailover.app.data.repository.MessageRepository
@@ -38,7 +39,8 @@ class ChatViewModel(
     private val characterRepository: CharacterRepository,
     private val chatRepository: ChatRepository,
     private val settingsRepository: SettingsRepository,
-    private val memoryRepository: MemoryRepository
+    private val memoryRepository: MemoryRepository,
+    private val comfyRepository: ComfyRepository
 ) : ViewModel() {
 
     val messages: StateFlow<List<MessageEntity>> =
@@ -97,8 +99,131 @@ class ChatViewModel(
         }
     }
 
+    /**
+     * 检测是否是生图指令，提取提示词。
+     * 关键词：画/发张照片/生成图片/画一张/给我画/画个/画一幅
+     * 返回提取后的提示词（去掉"画"等前缀），不是生图指令返回 null。
+     */
+    private fun extractImagePrompt(text: String): String? {
+        val trimmed = text.trim()
+        // 匹配生图关键词
+        val patterns = listOf(
+            "画一张", "画一幅", "画个", "画了", "画的",
+            "给我画", "帮我画", "发张照片", "发张图", "生成图片", "生成一张"
+        )
+        for (p in patterns) {
+            if (trimmed.contains(p)) {
+                // 去掉关键词，保留主体
+                val prompt = trimmed.replace(p, "").trim()
+                    .replace("^一张|^一幅|^个|^的".toRegex(), "")
+                    .trim()
+                if (prompt.isNotEmpty()) return prompt
+            }
+        }
+        // 以"画"开头（如"画一只猫"）
+        if (trimmed.startsWith("画") && trimmed.length > 1) {
+            val prompt = trimmed.removePrefix("画").trim()
+                .replace("^一张|^一幅|^个|^的".toRegex(), "")
+                .trim()
+            if (prompt.isNotEmpty()) return prompt
+        }
+        return null
+    }
+
+    /**
+     * 快捷生图流程：
+     * 1. 插入用户消息
+     * 2. 插入"正在画..."占位
+     * 3. AI 扩写提示词（英文专业提示词）
+     * 4. 调 ComfyUI 生成图片
+     * 5. 更新占位为图片消息
+     */
+    private suspend fun handleQuickImageGen(userText: String, prompt: String) {
+        // 1. 插入用户消息
+        messageRepository.insertMessage(
+            MessageEntity(
+                conversationId = conversationId,
+                senderType = SenderType.USER,
+                messageType = MessageType.TEXT,
+                content = userText,
+                sendStatus = MessageEntity.SEND_STATUS_SUCCESS
+            )
+        )
+        updateConversationLastMessage(userText)
+
+        // 2. 插入"正在画..."占位 AI 消息
+        val placeholderId = messageRepository.insertMessage(
+            MessageEntity(
+                conversationId = conversationId,
+                senderType = SenderType.AI,
+                messageType = MessageType.TEXT,
+                content = "正在画…"
+            )
+        )
+
+        try {
+            // 3. AI 扩写提示词（用现有 ChatRepository 流式收集完整结果）
+            val conversation = conversationRepository.getConversationById(conversationId)
+            val character = conversation?.let { characterRepository.getCharacterById(it.characterId) }
+            val settings = resolveApiProfile(character)
+            val expandedPrompt = if (settings.isConfigured()) {
+                val expandPrompt = """
+                    把用户的话扩写成 AI 绘画的专业英文提示词，包含风格、质量、细节词。
+                    用户的话：$prompt
+                    只输出提示词，别加解释，别加引号。
+                """.trimIndent()
+                val result = StringBuilder()
+                chatRepository.streamChat(
+                    baseUrl = settings.baseUrl,
+                    apiKey = settings.apiKey,
+                    profileName = settings.name,
+                    request = ChatRequest(
+                        model = settings.modelName,
+                        messages = listOf(ChatMessage("user", expandPrompt)),
+                        stream = true
+                    )
+                ).collect { chunk -> result.append(chunk) }
+                result.toString().trim().ifBlank { prompt }
+            } else {
+                prompt // 没配置 API，用原始提示词
+            }
+            Log.d("ImageGen", "扩写提示词: $expandedPrompt")
+
+            // 4. 调 ComfyUI 生成图片
+            val imagePath = comfyRepository.generateImage(
+                positivePrompt = expandedPrompt,
+                negativePrompt = ComfyRepository.DEFAULT_NEGATIVE
+            )
+
+            // 5. 更新占位为图片消息
+            val placeholder = messageRepository.getMessageById(placeholderId) ?: return
+            messageRepository.updateMessage(
+                placeholder.copy(
+                    messageType = MessageType.IMAGE,
+                    content = imagePath
+                )
+            )
+            updateConversationLastMessage("[图片]")
+        } catch (e: Exception) {
+            Log.d("ImageGen", "生图失败: ${e.message}")
+            // 失败：更新占位为失败提示
+            val placeholder = messageRepository.getMessageById(placeholderId) ?: return
+            messageRepository.updateMessage(
+                placeholder.copy(content = "生成失败：${e.message ?: "未知错误"}")
+            )
+            _errorMessage.value = "图片生成失败：${e.message}"
+        }
+    }
+
     private suspend fun sendText(text: String, existingMessageId: Long? = null) {
         _errorMessage.value = null
+
+        // 0. 快捷生图：检测"画/发张照片/生成图片"等指令
+        val imagePrompt = extractImagePrompt(text)
+        if (imagePrompt != null && existingMessageId == null) {
+            handleQuickImageGen(text, imagePrompt)
+            return
+        }
 
         // 1. 用户消息：新插入 or 重发复用
         val userMessageId = if (existingMessageId != null) {
@@ -876,7 +1001,8 @@ class ChatViewModelFactory(
     private val characterRepository: CharacterRepository,
     private val chatRepository: ChatRepository,
     private val settingsRepository: SettingsRepository,
-    private val memoryRepository: MemoryRepository
+    private val memoryRepository: MemoryRepository,
+    private val comfyRepository: ComfyRepository
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -887,7 +1013,8 @@ class ChatViewModelFactory(
             characterRepository,
             chatRepository,
             settingsRepository,
-            memoryRepository
+            memoryRepository,
+            comfyRepository
         ) as T
     }
 }

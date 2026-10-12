@@ -134,7 +134,8 @@ fun ChatScreen(
             characterRepository = AppContainer.characterRepository(),
             chatRepository = AppContainer.chatRepository(),
             settingsRepository = AppContainer.settingsRepository(),
-            memoryRepository = AppContainer.memoryRepository()
+            memoryRepository = AppContainer.memoryRepository(),
+            comfyRepository = AppContainer.comfyRepository()
         )
     )
     val messages by viewModel.messages.collectAsState()
@@ -1050,6 +1051,7 @@ private fun MessageBubble(
     val isSelf = message.senderType == SenderType.USER
     val isSystem = message.senderType == SenderType.SYSTEM
     val isVoice = message.messageType == MessageType.VOICE
+    val isImage = message.messageType == MessageType.IMAGE
     val firstChar = if (isSelf) userNickname.firstOrNull()?.toString() ?: "我" else characterName.firstOrNull()?.toString() ?: "?"
     // 气泡最大宽度：屏幕的 70%，防止长消息把头像挤出屏幕
     val screenWidth = LocalConfiguration.current.screenWidthDp.dp
@@ -1104,11 +1106,30 @@ private fun MessageBubble(
                         )
                     )
                     .padding(
-                        horizontal = 14.dp,
-                        vertical = if (isSystem) 6.dp else 10.dp
+                        horizontal = if (isImage) 0.dp else 14.dp,
+                        vertical = if (isImage) 0.dp else (if (isSystem) 6.dp else 10.dp)
                     )
             ) {
-                if (isVoice) {
+                if (isImage) {
+                    // 图片气泡：显示本地图片
+                    val imgFile = File(message.content)
+                    if (imgFile.exists()) {
+                        AsyncImage(
+                            model = imgFile,
+                            contentDescription = "图片",
+                            modifier = Modifier
+                                .widthIn(max = 200.dp)
+                                .heightIn(max = 260.dp),
+                            contentScale = ContentScale.Fit
+                        )
+                    } else {
+                        Text(
+                            text = "[图片加载失败]",
+                            fontSize = 13.sp,
+                            color = TextSecondary
+                        )
+                    }
+                } else if (isVoice) {
                     // 语音气泡：波形 + 时长
                     Row(
                         verticalAlignment = Alignment.CenterVertically,

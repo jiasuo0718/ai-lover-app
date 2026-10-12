@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
 import io.github.qdsfdhvh.iconpark.IconParkIcons
@@ -81,7 +82,8 @@ class ProfileViewModelFactory(
 @Composable
 fun ProfileScreen(
     onEditProfileClick: () -> Unit,
-    onSettingsClick: () -> Unit
+    onSettingsClick: () -> Unit,
+    onImageGenClick: () -> Unit
 ) {
     val viewModel: ProfileViewModel = viewModel(
         factory = ProfileViewModelFactory(AppContainer.userProfileRepository())
@@ -197,6 +199,13 @@ fun ProfileScreen(
                     iconTint = TextPrimary,
                     title = "设置",
                     onClick = onSettingsClick
+                )
+                // 高级生图
+                ProfileListItem(
+                    icon = Icons.Filled.Image,
+                    iconTint = TextPrimary,
+                    title = "高级生图",
+                    onClick = onImageGenClick
                 )
             }
 
