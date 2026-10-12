@@ -277,20 +277,33 @@ class ChatViewModel(
                     .map { it.trim() }
                     .filter { it.isNotEmpty() }
                 if (lines.size > 1) {
-                    // 第一条用现有的 aiMessage
+                    // 第一条用现有的 aiMessage，立即显示
                     val firstLine = lines.first()
                     aiMessage = aiMessage.copy(content = firstLine)
                     messageRepository.updateMessage(aiMessage)
-                    // 后续行插入新消息，每条时间戳递增100ms
+                    // 后续行逐条延迟插入，间隔随机（像真人一条一条发）
                     val baseTime = aiMessage.timestamp
+                    var accumulatedDelay = 0L
                     lines.drop(1).forEachIndexed { index, line ->
+                        // 计算间隔：短句快、长句慢，偶尔连续快速出
+                        val len = line.length
+                        val burst = kotlin.random.Random.nextFloat() < 0.2f  // 20%概率连续快速
+                        val delayMs = if (burst) {
+                            (200..500).random()  // 连续快速：0.2~0.5秒
+                        } else when {
+                            len <= 5 -> (300..800).random()    // 短句：0.3~0.8秒
+                            len <= 20 -> (800..2000).random()  // 中句：0.8~2秒
+                            else -> (1500..4000).random()      // 长句：1.5~4秒
+                        }
+                        accumulatedDelay += delayMs
+                        kotlinx.coroutines.delay(delayMs)
                         messageRepository.insertMessage(
                             MessageEntity(
                                 conversationId = conversationId,
                                 senderType = SenderType.AI,
                                 messageType = MessageType.TEXT,
                                 content = line,
-                                timestamp = baseTime + (index + 1) * 100L,
+                                timestamp = baseTime + accumulatedDelay,
                                 sendStatus = MessageEntity.SEND_STATUS_SUCCESS
                             )
                         )
