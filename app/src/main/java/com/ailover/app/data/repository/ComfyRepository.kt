@@ -1,6 +1,12 @@
 package com.ailover.app.data.repository
 
+import android.content.ContentValues
 import android.content.Context
+import android.graphics.BitmapFactory
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import android.util.Log
 import com.ailover.app.data.remote.ComfyApi
 import com.ailover.app.data.remote.model.ComfyRequest
@@ -322,6 +328,14 @@ class ComfyRepository(
         val downloadUrl = "${BASE_URL}view?filename=$filename&subfolder=$subfolder&type=output"
         val localPath = downloadImage(downloadUrl, filename)
         Log.d(TAG, "图片已保存: $localPath")
+
+        // 自动保存到系统相册（用户能在相册里看到）
+        try {
+            saveToGallery(localPath)
+            Log.d(TAG, "已保存到相册")
+        } catch (e: Exception) {
+            Log.w(TAG, "保存到相册失败: ${e.message}")
+        }
         return localPath
     }
 
@@ -337,6 +351,48 @@ class ComfyRepository(
             file.outputStream().use { output -> input.copyTo(output) }
         }
         return file.absolutePath
+    }
+
+    /**
+     * 把图片插入系统相册（MediaStore），用户能在相册 App 里看到。
+     */
+    private fun saveToGallery(imagePath: String) {
+        val file = File(imagePath)
+        if (!file.exists()) return
+        val bitmap = BitmapFactory.decodeFile(imagePath) ?: return
+        val fileName = "Evolvia_${System.currentTimeMillis()}.png"
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val values = ContentValues().apply {
+                put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
+                put(MediaStore.Images.Media.MIME_TYPE, "image/png")
+                put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/Evolvia")
+            }
+            val uri: Uri? = context.contentResolver.insert(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values
+            )
+            uri?.let {
+                context.contentResolver.openOutputStream(it)?.use { out ->
+                    bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
+                }
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            val imagesDir = Environment.getExternalStoragePublicDirectory(
+                Environment.DIRECTORY_PICTURES + "/Evolvia"
+            )
+            if (!imagesDir.exists()) imagesDir.mkdirs()
+            val dest = File(imagesDir, fileName)
+            file.inputStream().use { input ->
+                dest.outputStream().use { output -> input.copyTo(output) }
+            }
+            context.sendBroadcast(
+                android.content.Intent(
+                    android.content.Intent.ACTION_MEDIA_SCANNER_SCAN_FILE,
+                    Uri.fromFile(dest)
+                )
+            )
+        }
     }
 
     // ==================== 工作流构建 ====================

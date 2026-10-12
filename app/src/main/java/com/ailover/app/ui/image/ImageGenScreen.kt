@@ -37,6 +37,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -61,6 +62,7 @@ import com.ailover.app.ui.theme.LocalDarkTheme
 import com.ailover.app.ui.theme.NavBarBg
 import com.ailover.app.ui.theme.TextPrimary
 import com.ailover.app.ui.theme.TextSecondary
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileInputStream
@@ -84,8 +86,20 @@ fun ImageGenScreen(
     var steps by remember { mutableStateOf("20") }
     var seed by remember { mutableStateOf("-1") }
     var isGenerating by remember { mutableStateOf(false) }
+    var elapsedSeconds by remember { mutableStateOf(0) }
     var generatedImagePath by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // 生成计时器：isGenerating=true 时每秒+1
+    LaunchedEffect(isGenerating) {
+        if (isGenerating) {
+            elapsedSeconds = 0
+            while (isGenerating) {
+                delay(1000)
+                elapsedSeconds++
+            }
+        }
+    }
 
     val sizes = listOf("512×512", "768×768", "1024×1024", "512×768", "768×512")
 
@@ -229,7 +243,11 @@ fun ImageGenScreen(
                 colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
                 enabled = !isGenerating && positivePrompt.isNotBlank()
             ) {
-                Text(if (isGenerating) "生成中…" else "生成", color = Color.White, fontSize = 16.sp)
+                Text(
+                    if (isGenerating) "正在生成…（已用时 ${elapsedSeconds}s）" else "生成",
+                    color = Color.White,
+                    fontSize = 16.sp
+                )
             }
 
             // 错误提示
