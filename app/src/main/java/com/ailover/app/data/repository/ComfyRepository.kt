@@ -37,6 +37,14 @@ import java.util.UUID
  *
  * baseUrl 占位：http://10.0.2.2:8188，后续替换为真实地址。
  */
+/**
+ * 生成任务完成后的图片信息（filename + subfolder），用于后续手动下载。
+ */
+data class ComfyGeneratedImage(
+    val filename: String,
+    val subfolder: String
+)
+
 class ComfyRepository(
     private val context: Context,
     private val okHttpClient: OkHttpClient,
@@ -210,8 +218,8 @@ class ComfyRepository(
     // ==================== 文生图 ====================
 
     /**
-     * 文生图完整流程。
-     * @return 本地图片文件路径
+     * 文生图：发送任务 → 轮询 → 拿到 filename（不自动下载）。
+     * @return 生成的图片信息（filename + subfolder），调用方再调 downloadAndSave 下载
      */
     suspend fun generateImage(
         positivePrompt: String,
@@ -220,7 +228,7 @@ class ComfyRepository(
         height: Int = 512,
         steps: Int = 20,
         seed: Long = -1
-    ): String = withContext(Dispatchers.IO) {
+    ): ComfyGeneratedImage = withContext(Dispatchers.IO) {
         val workflow = buildTxt2ImgWorkflow(positivePrompt, negativePrompt, width, height, steps, seed)
         submitAndWait(workflow)
     }
@@ -246,11 +254,8 @@ class ComfyRepository(
     }
 
     /**
-     * 图生图完整流程：上传参考图 → 构建工作流 → 发送 → 轮询 → 下载。
-     *
-     * @param referenceImage 本地参考图文件
-     * @param denoise 重绘强度 0~1（默认 0.6，越大变化越大）
-     * @return 本地生成图片路径
+     * 图生图：上传参考图 → 构建工作流 → 发送 → 轮询 → 拿到 filename（不自动下载）。
+     * @return 生成的图片信息（filename + subfolder），调用方再调 downloadAndSave 下载
      */
     suspend fun generateImageToImage(
         referenceImage: File,
@@ -261,7 +266,7 @@ class ComfyRepository(
         height: Int = 512,
         steps: Int = 20,
         seed: Long = -1
-    ): String = withContext(Dispatchers.IO) {
+    ): ComfyGeneratedImage = withContext(Dispatchers.IO) {
         // 1. 上传参考图，拿文件名
         val uploadedName = uploadImage(referenceImage)
 
@@ -277,17 +282,18 @@ class ComfyRepository(
             seed = seed
         )
 
-        // 3. 发送+等待+下载
+        // 3. 发送+等待（不下载）
         submitAndWait(workflow)
     }
 
     // ==================== 通用流程 ====================
 
     /**
-     * 发送任务 → 轮询进度 → 下载图片（文生图/图生图共用）。
+     * 发送任务 → 轮询进度 → 拿到 filename（不下载）。
      * workflow 直接用 JsonObject，避免 Gson 把整数转成 Double（1024→1024.0）导致 ComfyUI 400。
+     * @return 生成的图片信息（filename + subfolder）
      */
-    private suspend fun submitAndWait(workflow: JsonObject): String {
+    private suspend fun submitAndWait(workflow: JsonObject): ComfyGeneratedImage {
         val clientId = UUID.randomUUID().toString()
         val request = ComfyRequest(prompt = workflow, client_id = clientId)
 
@@ -342,26 +348,34 @@ class ComfyRepository(
                 throw Exception("生成超时（${MAX_POLL_COUNT * POLL_INTERVAL_MS / 1000}秒）")
             }
 
-        Log.d("ComfyDebug", "准备下载: filename=$filename, subfolder=$subfolder")
-        // 下载图片
-        val downloadUrl = "${BASE_URL}view?filename=$filename&subfolder=$subfolder&type=output"
-        Log.d("ComfyDebug", "下载 URL: $downloadUrl")
+        Log.d("ComfyDebug", "生成完成: filename=$filename, subfolder=$subfolder")
+        return ComfyGeneratedImage(filename = filename, subfolder = subfolder)
+    }
+
+    /**
+     * 手动下载生成的图片：GET /view → 存本地 → 存相册。
+     * 用专用 downloadClient（readTimeout 120秒）。
+     * @return 本地图片文件路径
+     */
+    suspend fun downloadAndSave(generated: ComfyGeneratedImage): String = withContext(Dispatchers.IO) {
+        val downloadUrl = "${BASE_URL}view?filename=${generated.filename}&subfolder=${generated.subfolder}&type=output"
+        Log.d("ComfyDebug", "准备下载: URL=$downloadUrl")
         val localPath = try {
-            downloadImage(downloadUrl, filename)
+            downloadImage(downloadUrl, generated.filename)
         } catch (e: Exception) {
             Log.e("ComfyDebug", "下载失败: ${e.javaClass.simpleName}: ${e.message}")
             throw Exception("下载失败: ${e.message}")
         }
         Log.d("ComfyDebug", "下载完成: $localPath")
 
-        // 自动保存到系统相册（用户能在相册里看到）
+        // 保存到系统相册
         try {
             saveToGallery(localPath)
             Log.d(TAG, "已保存到相册")
         } catch (e: Exception) {
             Log.w(TAG, "保存到相册失败: ${e.message}")
         }
-        return localPath
+        localPath
     }
 
     /**

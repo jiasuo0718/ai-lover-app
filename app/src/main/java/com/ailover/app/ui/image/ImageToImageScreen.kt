@@ -55,6 +55,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.ailover.app.data.repository.ComfyGeneratedImage
 import com.ailover.app.data.repository.ComfyRepository
 import com.ailover.app.di.AppContainer
 import com.ailover.app.ui.theme.AccentBlue
@@ -92,6 +93,8 @@ fun ImageToImageScreen(
     var steps by remember { mutableStateOf("20") }
     var seed by remember { mutableStateOf("-1") }
     var isGenerating by remember { mutableStateOf(false) }
+    var isDownloading by remember { mutableStateOf(false) }
+    var pendingDownload by remember { mutableStateOf<ComfyGeneratedImage?>(null) }
     var elapsedSeconds by remember { mutableStateOf(0) }
     var generatedImagePath by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -261,19 +264,38 @@ fun ImageToImageScreen(
                 }
             }
 
-            // 生成按钮
+            // 生成/下载按钮
             Button(
                 onClick = {
+                    // 有未下载的生成结果 → 点下载
+                    if (pendingDownload != null && !isDownloading) {
+                        isDownloading = true
+                        errorMessage = null
+                        scope.launch {
+                            try {
+                                val path = comfyRepository.downloadAndSave(pendingDownload!!)
+                                generatedImagePath = path
+                                pendingDownload = null
+                            } catch (e: Exception) {
+                                errorMessage = "下载失败，重试：${e.message}"
+                            } finally {
+                                isDownloading = false
+                            }
+                        }
+                        return@Button
+                    }
+                    // 正常生成
                     val refFile = referenceImageFile
                     if (refFile == null || !refFile.exists() || positivePrompt.isBlank() || isGenerating)
                         return@Button
                     isGenerating = true
                     errorMessage = null
                     generatedImagePath = null
+                    pendingDownload = null
                     scope.launch {
                         try {
                             val (w, h) = parseSizeStr(selectedSize)
-                            val imagePath = comfyRepository.generateImageToImage(
+                            val generated = comfyRepository.generateImageToImage(
                                 referenceImage = refFile,
                                 positivePrompt = positivePrompt,
                                 negativePrompt = negativePrompt.ifBlank { ComfyRepository.DEFAULT_NEGATIVE },
@@ -283,7 +305,7 @@ fun ImageToImageScreen(
                                 steps = steps.toIntOrNull() ?: 20,
                                 seed = seed.toLongOrNull() ?: -1
                             )
-                            generatedImagePath = imagePath
+                            pendingDownload = generated  // 生成完成，等用户点下载
                         } catch (e: Exception) {
                             errorMessage = e.message ?: "生成失败"
                         } finally {
@@ -293,10 +315,16 @@ fun ImageToImageScreen(
                 },
                 modifier = Modifier.fillMaxWidth().height(48.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
-                enabled = !isGenerating && positivePrompt.isNotBlank() && referenceImageFile?.exists() == true
+                enabled = !isGenerating && !isDownloading &&
+                        ((positivePrompt.isNotBlank() && referenceImageFile?.exists() == true) || pendingDownload != null)
             ) {
                 Text(
-                    if (isGenerating) "正在生成…（已用时 ${elapsedSeconds}s）" else "生成",
+                    when {
+                        isGenerating -> "正在生成…（已用时 ${elapsedSeconds}s）"
+                        isDownloading -> "下载中…"
+                        pendingDownload != null -> "下载"
+                        else -> "生成"
+                    },
                     color = Color.White,
                     fontSize = 16.sp
                 )

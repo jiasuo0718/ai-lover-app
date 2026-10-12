@@ -189,13 +189,15 @@ class ChatViewModel(
             }
             Log.d("ImageGen", "扩写提示词: $expandedPrompt")
 
-            // 4. 调 ComfyUI 生成图片
-            val imagePath = comfyRepository.generateImage(
+            // 4. 调 ComfyUI 生成图片（轮询拿 filename，不自动下载）
+            val generated = comfyRepository.generateImage(
                 positivePrompt = expandedPrompt,
                 negativePrompt = ComfyRepository.DEFAULT_NEGATIVE
             )
+            // 5. 聊天快捷生图保持自动下载（用户不会在聊天里点下载按钮）
+            val imagePath = comfyRepository.downloadAndSave(generated)
 
-            // 5. 更新占位为图片消息
+            // 6. 更新占位为图片消息
             val placeholder = messageRepository.getMessageById(placeholderId) ?: return
             messageRepository.updateMessage(
                 placeholder.copy(
