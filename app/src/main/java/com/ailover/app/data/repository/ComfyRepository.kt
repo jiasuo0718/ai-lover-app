@@ -40,6 +40,56 @@ class ComfyRepository(
         private const val POLL_INTERVAL_MS = 2000L
         // 最大轮询次数（约 5 分钟超时）
         private const val MAX_POLL_COUNT = 150
+
+        /** 默认负面提示词 */
+        const val DEFAULT_NEGATIVE = "low quality, blurry, bad anatomy, worst quality, deformed, ugly"
+
+        /**
+         * 占位工作流 JSON（标准 SD1.5 txt2img）。
+         * 后续替换为真实 ComfyUI 工作流导出的 JSON。
+         * 提示词替换机制：节点 4=正向，节点 5=负面，节点 3=尺寸，节点 6=步数/种子。
+         */
+        private const val PLACEHOLDER_WORKFLOW = """
+        {
+          "3": {
+            "class_type": "EmptyLatentImage",
+            "inputs": { "width": 512, "height": 512, "batch_size": 1 }
+          },
+          "4": {
+            "class_type": "CLIPTextEncode",
+            "inputs": { "text": "PLACEHOLDER_POSITIVE", "clip": ["1", 1] }
+          },
+          "5": {
+            "class_type": "CLIPTextEncode",
+            "inputs": { "text": "PLACEHOLDER_NEGATIVE", "clip": ["1", 1] }
+          },
+          "6": {
+            "class_type": "KSampler",
+            "inputs": {
+              "seed": -1, "steps": 20, "cfg": 7.0,
+              "sampler_name": "euler", "scheduler": "normal", "denoise": 1.0,
+              "model": ["1", 0], "positive": ["4", 0], "negative": ["5", 0],
+              "latent_image": ["3", 0]
+            }
+          },
+          "7": {
+            "class_type": "VAEDecode",
+            "inputs": { "samples": ["6", 0], "vae": ["2", 0] }
+          },
+          "8": {
+            "class_type": "SaveImage",
+            "inputs": { "filename_prefix": "ComfyUI", "images": ["7", 0] }
+          },
+          "1": {
+            "class_type": "CheckpointLoaderSimple",
+            "inputs": { "ckpt_name": "v1-5-pruned-emaonly.safetensors" }
+          },
+          "2": {
+            "class_type": "VAELoader",
+            "inputs": { "vae_name": "vae-ft-mse-840000-ema-pruned.safetensors" }
+          }
+        }
+        """
     }
 
     private val api: ComfyApi by lazy {
@@ -180,57 +230,5 @@ class ComfyRepository(
 
         // 转回 Map<String, Any>
         return gson.fromJson(json, Map::class.java) as Map<String, Any>
-    }
-
-    /** 默认负面提示词 */
-    companion object {
-        const val DEFAULT_NEGATIVE = "low quality, blurry, bad anatomy, worst quality, deformed, ugly"
-
-        /**
-         * 占位工作流 JSON（标准 SD1.5 txt2img）。
-         * 后续替换为真实 ComfyUI 工作流导出的 JSON。
-         * 提示词替换机制：节点 4=正向，节点 5=负面，节点 3=尺寸，节点 6=步数/种子。
-         */
-        private const val PLACEHOLDER_WORKFLOW = """
-        {
-          "3": {
-            "class_type": "EmptyLatentImage",
-            "inputs": { "width": 512, "height": 512, "batch_size": 1 }
-          },
-          "4": {
-            "class_type": "CLIPTextEncode",
-            "inputs": { "text": "PLACEHOLDER_POSITIVE", "clip": ["1", 1] }
-          },
-          "5": {
-            "class_type": "CLIPTextEncode",
-            "inputs": { "text": "PLACEHOLDER_NEGATIVE", "clip": ["1", 1] }
-          },
-          "6": {
-            "class_type": "KSampler",
-            "inputs": {
-              "seed": -1, "steps": 20, "cfg": 7.0,
-              "sampler_name": "euler", "scheduler": "normal", "denoise": 1.0,
-              "model": ["1", 0], "positive": ["4", 0], "negative": ["5", 0],
-              "latent_image": ["3", 0]
-            }
-          },
-          "7": {
-            "class_type": "VAEDecode",
-            "inputs": { "samples": ["6", 0], "vae": ["2", 0] }
-          },
-          "8": {
-            "class_type": "SaveImage",
-            "inputs": { "filename_prefix": "ComfyUI", "images": ["7", 0] }
-          },
-          "1": {
-            "class_type": "CheckpointLoaderSimple",
-            "inputs": { "ckpt_name": "v1-5-pruned-emaonly.safetensors" }
-          },
-          "2": {
-            "class_type": "VAELoader",
-            "inputs": { "vae_name": "vae-ft-mse-840000-ema-pruned.safetensors" }
-          }
-        }
-        """
     }
 }
