@@ -3,9 +3,13 @@ package com.ailover.app.data.remote
 import com.ailover.app.data.remote.model.ComfyHistoryEntry
 import com.ailover.app.data.remote.model.ComfyPromptResponse
 import com.ailover.app.data.remote.model.ComfyRequest
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Multipart
 import retrofit2.http.POST
+import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
 import retrofit2.http.Url
@@ -25,6 +29,18 @@ interface ComfyApi {
 
     @POST("prompt")
     suspend fun submitPrompt(@Body request: ComfyRequest): ComfyPromptResponse
+
+    /**
+     * 上传图片（图生图用）。
+     * POST /upload/image，multipart/form-data。
+     * 返回 {"name": "xxx.png", "subfolder": "", "type": "input"}。
+     */
+    @Multipart
+    @POST("upload/image")
+    suspend fun uploadImage(
+        @Part image: MultipartBody.Part,
+        @Part("type") type: RequestBody
+    ): ComfyUploadResponse
 
     @GET("history/{prompt_id}")
     suspend fun getHistory(@Path("prompt_id") promptId: String): Map<String, ComfyHistoryEntry>

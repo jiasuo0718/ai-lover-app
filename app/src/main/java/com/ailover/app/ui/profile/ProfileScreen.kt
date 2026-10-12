@@ -200,11 +200,11 @@ fun ProfileScreen(
                     title = "设置",
                     onClick = onSettingsClick
                 )
-                // 高级生图
+                // AIGC
                 ProfileListItem(
                     icon = Icons.Filled.Image,
                     iconTint = TextPrimary,
-                    title = "高级生图",
+                    title = "AIGC",
                     onClick = onImageGenClick
                 )
             }

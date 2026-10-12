@@ -52,7 +52,9 @@ import com.ailover.app.ui.character.CharacterSettingsScreen
 import com.ailover.app.ui.character.MemoryListScreen
 import com.ailover.app.ui.chat.ChatScreen
 import com.ailover.app.ui.conversation.ConversationListScreen
+import com.ailover.app.ui.image.AigcHubScreen
 import com.ailover.app.ui.image.ImageGenScreen
+import com.ailover.app.ui.image.ImageToImageScreen
 import com.ailover.app.ui.profile.ProfileScreen
 import com.ailover.app.ui.profile.UserProfileEditScreen
 import com.ailover.app.ui.settings.ApiProfileEditScreen
@@ -70,6 +72,8 @@ object Routes {
     const val USER_PROFILE_EDIT = "user_profile_edit"
     const val SETTINGS_PAGE = "settings_page"
     const val IMAGE_GEN = "image_gen"
+    const val AIGC_HUB = "aigc_hub"
+    const val IMAGE_TO_IMAGE = "image_to_image"
     const val API_PROFILE_LIST = "api_profile_list"
     const val API_PROFILE_EDIT = "api_profile_edit/{profileId}"
 
@@ -134,7 +138,7 @@ fun AppNavGraph() {
                     navController.navigate(Routes.SETTINGS_PAGE)
                 },
                 onImageGenClick = {
-                    navController.navigate(Routes.IMAGE_GEN)
+                    navController.navigate(Routes.AIGC_HUB)
                 }
             )
         }
@@ -149,9 +153,29 @@ fun AppNavGraph() {
             )
         }
 
-        // 高级生图页
+        // AIGC 选择页
+        composable(Routes.AIGC_HUB) {
+            AigcHubScreen(
+                onBackClick = { navController.popBackStack() },
+                onTextToImageClick = {
+                    navController.navigate(Routes.IMAGE_GEN)
+                },
+                onImageToImageClick = {
+                    navController.navigate(Routes.IMAGE_TO_IMAGE)
+                }
+            )
+        }
+
+        // 文生图页
         composable(Routes.IMAGE_GEN) {
             ImageGenScreen(
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        // 图生图页
+        composable(Routes.IMAGE_TO_IMAGE) {
+            ImageToImageScreen(
                 onBackClick = { navController.popBackStack() }
             )
         }

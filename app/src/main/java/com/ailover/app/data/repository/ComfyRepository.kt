@@ -9,23 +9,27 @@ import com.google.gson.JsonObject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
+import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.io.File
 import java.util.UUID
 
 /**
- * ComfyUI 文生图仓库。
+ * ComfyUI 图片生成仓库（文生图 + 图生图）。
  *
  * 功能：
  * 1. 发送生成任务（POST /prompt）
  * 2. 轮询进度（GET /history/{prompt_id}）
  * 3. 下载图片到 App 本地（GET /view）
- * 4. 占位工作流 JSON + 提示词替换机制
+ * 4. 上传参考图（POST /upload/image，multipart）
+ * 5. 占位工作流 JSON + 提示词/参数替换机制
  *
  * baseUrl 占位：http://10.0.2.2:8188，后续替换为真实地址。
- * 工作流 JSON 是占位的标准 txt2img 结构，拿到真实配置后替换即可。
  */
 class ComfyRepository(
     private val context: Context,
@@ -45,9 +49,8 @@ class ComfyRepository(
         const val DEFAULT_NEGATIVE = "low quality, blurry, bad anatomy, worst quality, deformed, ugly"
 
         /**
-         * 占位工作流 JSON（标准 SD1.5 txt2img）。
-         * 后续替换为真实 ComfyUI 工作流导出的 JSON。
-         * 提示词替换机制：节点 4=正向，节点 5=负面，节点 3=尺寸，节点 6=步数/种子。
+         * 文生图占位工作流 JSON（标准 SD1.5 txt2img）。
+         * 节点：3=EmptyLatentImage, 4=正向, 5=负面, 6=KSampler, 7=VAEDecode, 8=SaveImage, 1=模型, 2=VAE
          */
         private const val PLACEHOLDER_WORKFLOW = """
         {
@@ -90,6 +93,56 @@ class ComfyRepository(
           }
         }
         """
+
+        /**
+         * 图生图占位工作流 JSON（标准 SD1.5 img2img）。
+         * 节点：10=LoadImage, 11=VAEEncode, 4=正向, 5=负面, 6=KSampler(denoise可调), 7=VAEDecode, 8=SaveImage, 1=模型, 2=VAE
+         */
+        private const val PLACEHOLDER_WORKFLOW_IMG2IMG = """
+        {
+          "10": {
+            "class_type": "LoadImage",
+            "inputs": { "image": "PLACEHOLDER_INPUT_IMAGE" }
+          },
+          "11": {
+            "class_type": "VAEEncode",
+            "inputs": { "pixels": ["10", 0], "vae": ["2", 0] }
+          },
+          "4": {
+            "class_type": "CLIPTextEncode",
+            "inputs": { "text": "PLACEHOLDER_POSITIVE", "clip": ["1", 1] }
+          },
+          "5": {
+            "class_type": "CLIPTextEncode",
+            "inputs": { "text": "PLACEHOLDER_NEGATIVE", "clip": ["1", 1] }
+          },
+          "6": {
+            "class_type": "KSampler",
+            "inputs": {
+              "seed": -1, "steps": 20, "cfg": 7.0,
+              "sampler_name": "euler", "scheduler": "normal", "denoise": 0.6,
+              "model": ["1", 0], "positive": ["4", 0], "negative": ["5", 0],
+              "latent_image": ["11", 0]
+            }
+          },
+          "7": {
+            "class_type": "VAEDecode",
+            "inputs": { "samples": ["6", 0], "vae": ["2", 0] }
+          },
+          "8": {
+            "class_type": "SaveImage",
+            "inputs": { "filename_prefix": "ComfyUI_img2img", "images": ["7", 0] }
+          },
+          "1": {
+            "class_type": "CheckpointLoaderSimple",
+            "inputs": { "ckpt_name": "v1-5-pruned-emaonly.safetensors" }
+          },
+          "2": {
+            "class_type": "VAELoader",
+            "inputs": { "vae_name": "vae-ft-mse-840000-ema-pruned.safetensors" }
+          }
+        }
+        """
     }
 
     private val api: ComfyApi by lazy {
@@ -101,15 +154,10 @@ class ComfyRepository(
             .create(ComfyApi::class.java)
     }
 
+    // ==================== 文生图 ====================
+
     /**
-     * 生成图片的完整流程：扩写提示词 → 发送任务 → 轮询 → 下载。
-     *
-     * @param positivePrompt 正向提示词（已扩写的英文）
-     * @param negativePrompt 负面提示词
-     * @param width 宽度（默认 512）
-     * @param height 高度（默认 512）
-     * @param steps 步数（默认 20）
-     * @param seed 随机种子（-1 表示随机）
+     * 文生图完整流程。
      * @return 本地图片文件路径
      */
     suspend fun generateImage(
@@ -120,26 +168,88 @@ class ComfyRepository(
         steps: Int = 20,
         seed: Long = -1
     ): String = withContext(Dispatchers.IO) {
-        val clientId = UUID.randomUUID().toString()
+        val workflow = buildTxt2ImgWorkflow(positivePrompt, negativePrompt, width, height, steps, seed)
+        submitAndWait(workflow)
+    }
 
-        // 1. 构建工作流 JSON（替换提示词、尺寸、步数、种子）
-        val workflow = buildWorkflow(positivePrompt, negativePrompt, width, height, steps, seed)
+    // ==================== 图生图 ====================
+
+    /**
+     * 上传参考图到 ComfyUI（POST /upload/image，multipart）。
+     * @return 上传后的文件名（用于工作流 LoadImage 节点）
+     */
+    suspend fun uploadImage(imageFile: File): String = withContext(Dispatchers.IO) {
+        require(imageFile.exists()) { "参考图不存在: ${imageFile.absolutePath}" }
+
+        val requestFile = imageFile.asRequestBody("image/*".toMediaTypeOrNull())
+        val imagePart = MultipartBody.Part.createFormData("image", imageFile.name, requestFile)
+        val typePart = "input".toRequestBody("text/plain".toMediaTypeOrNull())
+
+        val response = api.uploadImage(imagePart, typePart)
+        val name = response.name
+            ?: throw Exception("上传图片返回无 name: ${gson.toJson(response)}")
+        Log.d(TAG, "图片已上传: name=$name, subfolder=${response.subfolder}")
+        name
+    }
+
+    /**
+     * 图生图完整流程：上传参考图 → 构建工作流 → 发送 → 轮询 → 下载。
+     *
+     * @param referenceImage 本地参考图文件
+     * @param denoise 重绘强度 0~1（默认 0.6，越大变化越大）
+     * @return 本地生成图片路径
+     */
+    suspend fun generateImageToImage(
+        referenceImage: File,
+        positivePrompt: String,
+        negativePrompt: String = DEFAULT_NEGATIVE,
+        denoise: Float = 0.6f,
+        width: Int = 512,
+        height: Int = 512,
+        steps: Int = 20,
+        seed: Long = -1
+    ): String = withContext(Dispatchers.IO) {
+        // 1. 上传参考图，拿文件名
+        val uploadedName = uploadImage(referenceImage)
+
+        // 2. 构建图生图工作流
+        val workflow = buildImg2ImgWorkflow(
+            inputImageName = uploadedName,
+            positive = positivePrompt,
+            negative = negativePrompt,
+            denoise = denoise,
+            width = width,
+            height = height,
+            steps = steps,
+            seed = seed
+        )
+
+        // 3. 发送+等待+下载
+        submitAndWait(workflow)
+    }
+
+    // ==================== 通用流程 ====================
+
+    /**
+     * 发送任务 → 轮询进度 → 下载图片（文生图/图生图共用）。
+     */
+    private suspend fun submitAndWait(workflow: Map<String, Any>): String {
+        val clientId = UUID.randomUUID().toString()
         Log.d(TAG, "工作流 JSON: $workflow")
 
-        // 2. 发送任务
+        // 发送任务
         val response = api.submitPrompt(ComfyRequest(prompt = workflow, client_id = clientId))
         val promptId = response.prompt_id
             ?: throw Exception("ComfyUI 返回无 prompt_id: ${gson.toJson(response)}")
         Log.d(TAG, "任务已提交: prompt_id=$promptId")
 
-        // 3. 轮询进度
-        var imageInfo: Pair<String, String>? = null // filename to subfolder
+        // 轮询进度
+        var imageInfo: Pair<String, String>? = null
         repeat(MAX_POLL_COUNT) {
             delay(POLL_INTERVAL_MS)
             val history = api.getHistory(promptId)
             val entry = history[promptId]
             if (entry?.outputs != null) {
-                // 找到第一个输出图片
                 for ((_, output) in entry.outputs) {
                     val img = output.images?.firstOrNull()
                     if (img != null && img.filename != null) {
@@ -155,15 +265,15 @@ class ComfyRepository(
         val (filename, subfolder) = imageInfo
             ?: throw Exception("生成超时（${MAX_POLL_COUNT * POLL_INTERVAL_MS / 1000}秒）")
 
-        // 4. 下载图片
+        // 下载图片
         val downloadUrl = "${BASE_URL}view?filename=$filename&subfolder=$subfolder&type=output"
         val localPath = downloadImage(downloadUrl, filename)
         Log.d(TAG, "图片已保存: $localPath")
-        localPath
+        return localPath
     }
 
     /**
-     * 下载图片到 App 本地 files 目录。
+     * 下载图片到 App 本地 files/generated_images 目录。
      */
     private suspend fun downloadImage(url: String, filename: String): String {
         val responseBody = api.downloadImage(url)
@@ -171,28 +281,18 @@ class ComfyRepository(
         if (!dir.exists()) dir.mkdirs()
         val file = File(dir, filename)
         responseBody.byteStream().use { input ->
-            file.outputStream().use { output ->
-                input.copyTo(output)
-            }
+            file.outputStream().use { output -> input.copyTo(output) }
         }
         return file.absolutePath
     }
 
+    // ==================== 工作流构建 ====================
+
     /**
-     * 构建 ComfyUI 工作流 JSON（占位版标准 txt2img）。
-     *
-     * 节点结构：
-     * - 3: EmptyLatentImage（尺寸）
-     * - 4: CLIPTextEncode（正向提示词）← 替换 positive
-     * - 5: CLIPTextEncode（负面提示词）← 替换 negative
-     * - 6: KSampler（步数、种子）
-     * - 7: VAEDecode
-     * - 8: SaveImage
-     *
-     * 拿到真实工作流 JSON 后，替换此方法即可，调用方不变。
+     * 构建文生图工作流。
      */
     @Suppress("UNCHECKED_CAST")
-    private fun buildWorkflow(
+    private fun buildTxt2ImgWorkflow(
         positive: String,
         negative: String,
         width: Int,
@@ -202,33 +302,43 @@ class ComfyRepository(
     ): Map<String, Any> {
         val json = gson.fromJson(PLACEHOLDER_WORKFLOW, JsonObject::class.java)
 
-        // 替换正向提示词（节点 4 的 text）
-        json.getAsJsonObject("4")
-            .getAsJsonObject("inputs")
-            .addProperty("text", positive)
+        json.getAsJsonObject("4").getAsJsonObject("inputs").addProperty("text", positive)
+        json.getAsJsonObject("5").getAsJsonObject("inputs").addProperty("text", negative)
+        json.getAsJsonObject("3").getAsJsonObject("inputs").addProperty("width", width)
+        json.getAsJsonObject("3").getAsJsonObject("inputs").addProperty("height", height)
+        json.getAsJsonObject("6").getAsJsonObject("inputs").addProperty("steps", steps)
+        json.getAsJsonObject("6").getAsJsonObject("inputs").addProperty("seed", seed)
 
-        // 替换负面提示词（节点 5 的 text）
-        json.getAsJsonObject("5")
-            .getAsJsonObject("inputs")
-            .addProperty("text", negative)
+        return gson.fromJson(json, Map::class.java) as Map<String, Any>
+    }
 
-        // 替换尺寸（节点 3）
-        json.getAsJsonObject("3")
-            .getAsJsonObject("inputs")
-            .addProperty("width", width)
-        json.getAsJsonObject("3")
-            .getAsJsonObject("inputs")
-            .addProperty("height", height)
+    /**
+     * 构建图生图工作流。
+     * 节点10=LoadImage（用上传文件名），节点6=KSampler（denoise可调）。
+     */
+    @Suppress("UNCHECKED_CAST")
+    private fun buildImg2ImgWorkflow(
+        inputImageName: String,
+        positive: String,
+        negative: String,
+        denoise: Float,
+        width: Int,
+        height: Int,
+        steps: Int,
+        seed: Long
+    ): Map<String, Any> {
+        val json = gson.fromJson(PLACEHOLDER_WORKFLOW_IMG2IMG, JsonObject::class.java)
 
-        // 替换步数和种子（节点 6）
-        json.getAsJsonObject("6")
-            .getAsJsonObject("inputs")
-            .addProperty("steps", steps)
-        json.getAsJsonObject("6")
-            .getAsJsonObject("inputs")
-            .addProperty("seed", seed)
+        // LoadImage 节点：替换为上传后的文件名
+        json.getAsJsonObject("10").getAsJsonObject("inputs").addProperty("image", inputImageName)
+        // 提示词
+        json.getAsJsonObject("4").getAsJsonObject("inputs").addProperty("text", positive)
+        json.getAsJsonObject("5").getAsJsonObject("inputs").addProperty("text", negative)
+        // KSampler：步数、种子、重绘强度
+        json.getAsJsonObject("6").getAsJsonObject("inputs").addProperty("steps", steps)
+        json.getAsJsonObject("6").getAsJsonObject("inputs").addProperty("seed", seed)
+        json.getAsJsonObject("6").getAsJsonObject("inputs").addProperty("denoise", denoise)
 
-        // 转回 Map<String, Any>
         return gson.fromJson(json, Map::class.java) as Map<String, Any>
     }
 }

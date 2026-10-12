@@ -23,6 +23,16 @@ data class ComfyPromptResponse(
 )
 
 /**
+ * ComfyUI POST /upload/image 的响应。
+ * 返回 {"name": "xxx.png", "subfolder": "", "type": "input"}。
+ */
+data class ComfyUploadResponse(
+    val name: String? = null,
+    val subfolder: String? = null,
+    val type: String? = null
+)
+
+/**
  * ComfyUI GET /history/{prompt_id} 的响应结构（简化版）。
  * 实际返回是 Map<prompt_id, HistoryEntry>，这里只取需要的字段。
  */
