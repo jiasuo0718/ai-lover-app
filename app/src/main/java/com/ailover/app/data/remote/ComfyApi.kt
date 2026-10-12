@@ -3,6 +3,7 @@ package com.ailover.app.data.remote
 import com.ailover.app.data.remote.model.ComfyHistoryEntry
 import com.ailover.app.data.remote.model.ComfyPromptResponse
 import com.ailover.app.data.remote.model.ComfyRequest
+import com.ailover.app.data.remote.model.ComfyUploadResponse
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.http.Body
