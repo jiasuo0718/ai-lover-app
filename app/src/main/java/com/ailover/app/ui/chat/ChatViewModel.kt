@@ -289,11 +289,11 @@ class ChatViewModel(
                         val len = line.length
                         val burst = kotlin.random.Random.nextFloat() < 0.2f  // 20%概率连续快速
                         val delayMs = if (burst) {
-                            (200..500).random()  // 连续快速：0.2~0.5秒
+                            (200L..500L).random()  // 连续快速：0.2~0.5秒
                         } else when {
-                            len <= 5 -> (300..800).random()    // 短句：0.3~0.8秒
-                            len <= 20 -> (800..2000).random()  // 中句：0.8~2秒
-                            else -> (1500..4000).random()      // 长句：1.5~4秒
+                            len <= 5 -> (300L..800L).random()    // 短句：0.3~0.8秒
+                            len <= 20 -> (800L..2000L).random()  // 中句：0.8~2秒
+                            else -> (1500L..4000L).random()      // 长句：1.5~4秒
                         }
                         accumulatedDelay += delayMs
                         kotlinx.coroutines.delay(delayMs)
