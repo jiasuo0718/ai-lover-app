@@ -199,6 +199,14 @@ class ComfyRepository(
             .create(ComfyApi::class.java)
     }
 
+    // 下载图片专用 client：readTimeout 120秒（全局只有60秒，大图/慢网会超时）
+    private val downloadClient: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(120, java.util.concurrent.TimeUnit.SECONDS)
+            .build()
+    }
+
     // ==================== 文生图 ====================
 
     /**
@@ -338,7 +346,12 @@ class ComfyRepository(
         // 下载图片
         val downloadUrl = "${BASE_URL}view?filename=$filename&subfolder=$subfolder&type=output"
         Log.d("ComfyDebug", "下载 URL: $downloadUrl")
-        val localPath = downloadImage(downloadUrl, filename)
+        val localPath = try {
+            downloadImage(downloadUrl, filename)
+        } catch (e: Exception) {
+            Log.e("ComfyDebug", "下载失败: ${e.javaClass.simpleName}: ${e.message}")
+            throw Exception("下载失败: ${e.message}")
+        }
         Log.d("ComfyDebug", "下载完成: $localPath")
 
         // 自动保存到系统相册（用户能在相册里看到）
@@ -353,16 +366,25 @@ class ComfyRepository(
 
     /**
      * 下载图片到 App 本地 files/generated_images 目录。
+     * 用专用 downloadClient（readTimeout 120秒），不走全局 Retrofit client（60秒会超时）。
      */
-    private suspend fun downloadImage(url: String, filename: String): String {
-        val responseBody = api.downloadImage(url)
+    private suspend fun downloadImage(url: String, filename: String): String = withContext(Dispatchers.IO) {
+        Log.d("ComfyDebug", "准备下载: URL=$url")
+        val request = okhttp3.Request.Builder().url(url).build()
+        val response = downloadClient.newCall(request).execute()
+        if (!response.isSuccessful) {
+            val errorBody = response.body?.string() ?: "(空)"
+            throw Exception("下载失败 HTTP ${response.code}: $errorBody")
+        }
+        val responseBody = response.body ?: throw Exception("下载失败: 响应体为空")
         val dir = File(context.filesDir, "generated_images")
         if (!dir.exists()) dir.mkdirs()
         val file = File(dir, filename)
         responseBody.byteStream().use { input ->
             file.outputStream().use { output -> input.copyTo(output) }
         }
-        return file.absolutePath
+        Log.d("ComfyDebug", "下载完成: 路径=${file.absolutePath}, 大小=${file.length()}字节")
+        file.absolutePath
     }
 
     /**
