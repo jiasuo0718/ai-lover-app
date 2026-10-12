@@ -307,7 +307,7 @@ fun ChatScreen(
                 CenterAlignedTopAppBar(
                     modifier = Modifier.height(48.dp),
                     title = {
-                        Column {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
                                 title,
                                 color = TextPrimary,
