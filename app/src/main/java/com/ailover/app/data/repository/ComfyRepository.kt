@@ -277,11 +277,17 @@ class ComfyRepository(
         val clientId = UUID.randomUUID().toString()
         val request = ComfyRequest(prompt = workflow, client_id = clientId)
 
-        // 发送任务（失败时打印完整请求体，方便排查）
+        // 发送任务（失败时打印完整请求体+响应体，方便排查）
         val response = try {
             api.submitPrompt(request)
+        } catch (e: retrofit2.HttpException) {
+            val errorBody = try { e.response()?.errorBody()?.string() } catch (_: Exception) { "(无法读取响应体)" }
+            Log.e("ComfyDebug", "POST 失败 URL=${BASE_URL}prompt  响应码=${e.code()}")
+            Log.e("ComfyDebug", "请求体: ${gson.toJson(request)}")
+            Log.e("ComfyDebug", "响应体: $errorBody")
+            throw e
         } catch (e: Exception) {
-            Log.e("ComfyDebug", "POST 失败 URL=${BASE_URL}prompt")
+            Log.e("ComfyDebug", "POST 失败 URL=${BASE_URL}prompt  异常类型=${e.javaClass.simpleName}")
             Log.e("ComfyDebug", "请求体: ${gson.toJson(request)}")
             Log.e("ComfyDebug", "异常: ${e.message}")
             throw e
