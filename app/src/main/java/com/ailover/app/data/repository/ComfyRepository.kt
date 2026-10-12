@@ -277,7 +277,11 @@ class ComfyRepository(
         Log.d(TAG, "工作流 JSON: $workflow")
 
         // 发送任务
-        val response = api.submitPrompt(ComfyRequest(prompt = workflow, client_id = clientId))
+        val request = ComfyRequest(prompt = workflow, client_id = clientId)
+        val requestBody = gson.toJson(request)
+        Log.d("ComfyDebug", "===== POST URL: ${BASE_URL}prompt =====")
+        Log.d("ComfyDebug", "===== 请求体: $requestBody")
+        val response = api.submitPrompt(request)
         val promptId = response.prompt_id
             ?: throw Exception("ComfyUI 返回无 prompt_id: ${gson.toJson(response)}")
         Log.d(TAG, "任务已提交: prompt_id=$promptId")
