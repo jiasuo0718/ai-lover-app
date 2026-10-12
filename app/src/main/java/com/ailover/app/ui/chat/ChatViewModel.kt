@@ -250,6 +250,9 @@ class ChatViewModel(
             }
 
             val fullContent = StringBuilder()
+            // 流式开始：气泡显示"正在输入..."，不显示一整条内容（避免生成完跳变）
+            aiMessage = aiMessage.copy(content = "正在输入...")
+            messageRepository.updateMessage(aiMessage)
             try {
                 chatRepository.streamChat(
                     baseUrl = settings.baseUrl,
@@ -262,8 +265,7 @@ class ChatViewModel(
                     )
                 ).collect { chunk ->
                     fullContent.append(chunk)
-                    aiMessage = aiMessage.copy(content = fullContent.toString())
-                    messageRepository.updateMessage(aiMessage)
+                    // 流式过程中不更新气泡内容（保持"正在输入..."），生成完再逐条显示
                 }
                 // 成功：标记用户消息发送成功
                 messageRepository.getMessageById(userMessageId)?.let {
@@ -309,6 +311,10 @@ class ChatViewModel(
                         )
                     }
                     finalContent = firstLine  // 会话最后消息用第一条
+                } else {
+                    // 单行：生成完更新气泡内容（从"正在输入..."变成实际内容）
+                    aiMessage = aiMessage.copy(content = finalContent)
+                    messageRepository.updateMessage(aiMessage)
                 }
                 // 自动轮换：更新到下一套
                 if (autoRotate) {
