@@ -62,6 +62,8 @@ class ComfyRepository(
 
         /** 默认负面提示词 */
         const val DEFAULT_NEGATIVE = "low quality, blurry, bad anatomy, worst quality, deformed, ugly"
+        /** 默认底模（列表加载失败时用） */
+        const val DEFAULT_CHECKPOINT = "realisticVisionV6.safetensors"
 
         /**
          * 文生图真实工作流（realisticVisionV6，已云端验证）。
@@ -339,6 +341,29 @@ class ComfyRepository(
         positive to negative
     }
 
+    // ==================== 模型列表 ====================
+
+    /**
+     * 从 ComfyUI 获取可选底模列表（CheckpointLoaderSimple 的 ckpt_name 选项）。
+     * GET /object_info/CheckpointLoaderSimple，解析 input.required.ckpt_name 数组。
+     * 失败返回空列表（调用方用默认模型兜底）。
+     */
+    suspend fun getCheckpointList(): List<String> = withContext(Dispatchers.IO) {
+        try {
+            val obj = api().getObjectInfo("CheckpointLoaderSimple")
+            val ckptArray = obj.getAsJsonObject("CheckpointLoaderSimple")
+                ?.getAsJsonObject("input")
+                ?.getAsJsonObject("required")
+                ?.getAsJsonArray("ckpt_name")
+            val list = ckptArray?.map { it.asString } ?: emptyList()
+            Log.d("ComfyDebug", "获取模型列表: ${list.size}个 -> $list")
+            list
+        } catch (e: Exception) {
+            Log.e("ComfyDebug", "获取模型列表失败: ${e.message}")
+            emptyList()
+        }
+    }
+
     // ==================== 文生图 ====================
 
     /**
@@ -351,9 +376,10 @@ class ComfyRepository(
         width: Int = 512,
         height: Int = 512,
         steps: Int = 20,
-        seed: Long = -1
+        seed: Long = -1,
+        ckptName: String = DEFAULT_CHECKPOINT
     ): ComfyGeneratedImage = withContext(Dispatchers.IO) {
-        val workflow = buildTxt2ImgWorkflow(positivePrompt, negativePrompt, width, height, steps, seed)
+        val workflow = buildTxt2ImgWorkflow(positivePrompt, negativePrompt, width, height, steps, seed, ckptName)
         submitAndWait(workflow)
     }
 
@@ -587,10 +613,13 @@ class ComfyRepository(
         width: Int,
         height: Int,
         steps: Int,
-        seed: Long
+        seed: Long,
+        ckptName: String = DEFAULT_CHECKPOINT
     ): JsonObject {
         val json = gson.fromJson(PLACEHOLDER_WORKFLOW, JsonObject::class.java)
 
+        // 底模（节点4 CheckpointLoaderSimple）
+        json.getAsJsonObject("4").getAsJsonObject("inputs").addProperty("ckpt_name", ckptName)
         // 正向提示词（节点6）
         json.getAsJsonObject("6").getAsJsonObject("inputs").addProperty("text", positive)
         // 负面提示词（节点7）

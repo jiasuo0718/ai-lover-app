@@ -47,6 +47,14 @@ interface ComfyApi {
     suspend fun getHistory(@Path("prompt_id") promptId: String): Map<String, ComfyHistoryEntry>
 
     /**
+     * 查询节点信息（用于获取可选模型列表等）。
+     * GET /object_info/{node_class_type}
+     * 返回结构复杂，直接用 JsonObject 解析。
+     */
+    @GET("object_info/{node_type}")
+    suspend fun getObjectInfo(@Path("node_type") nodeType: String): com.google.gson.JsonObject
+
+    /**
      * 下载图片。用 @Url 动态传完整地址（含 query 参数），
      * 因为 /view 的参数是 filename/subfolder/type，直接拼 URL 更方便。
      */

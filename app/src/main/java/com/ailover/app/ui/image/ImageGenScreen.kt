@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -32,6 +33,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -53,6 +55,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
 import com.ailover.app.data.repository.ComfyGeneratedImage
 import com.ailover.app.data.repository.ComfyRepository
@@ -96,6 +99,23 @@ fun ImageGenScreen(
     var elapsedSeconds by remember { mutableStateOf(0) }
     var generatedImagePath by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // 模型列表（从 ComfyUI 动态加载）
+    var checkpointList by remember { mutableStateOf<List<String>>(emptyList()) }
+    var selectedCheckpoint by remember { mutableStateOf(ComfyRepository.DEFAULT_CHECKPOINT) }
+    var isLoadingCheckpoints by remember { mutableStateOf(false) }
+    var showCheckpointDialog by remember { mutableStateOf(false) }
+
+    // 进入页面时加载模型列表
+    LaunchedEffect(Unit) {
+        isLoadingCheckpoints = true
+        val list = comfyRepository.getCheckpointList()
+        checkpointList = list
+        if (list.isNotEmpty() && selectedCheckpoint !in list) {
+            selectedCheckpoint = list.first()
+        }
+        isLoadingCheckpoints = false
+    }
 
     // 生成计时器：isGenerating=true 时每秒+1
     LaunchedEffect(isGenerating) {
@@ -203,6 +223,38 @@ fun ImageGenScreen(
                 )
             )
 
+            // 模型选择（从 ComfyUI 动态加载）
+            Text("模型", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(CardWhite)
+                    .clickable {
+                        if (checkpointList.isNotEmpty()) showCheckpointDialog = true
+                    }
+                    .padding(horizontal = 12.dp, vertical = 12.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = if (isLoadingCheckpoints) "加载中…"
+                        else if (checkpointList.isEmpty()) "默认（${selectedCheckpoint.removeSuffix(".safetensors")}）"
+                        else selectedCheckpoint.removeSuffix(".safetensors"),
+                        color = if (isLoadingCheckpoints) TextSecondary else TextPrimary,
+                        fontSize = 14.sp,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Icon(
+                        imageVector = Icons.Filled.ChevronRight,
+                        contentDescription = null,
+                        tint = TextSecondary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
             // 尺寸选择
             Text("尺寸", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -300,7 +352,8 @@ fun ImageGenScreen(
                                 width = w,
                                 height = h,
                                 steps = steps.toIntOrNull() ?: 20,
-                                seed = seed.toLongOrNull() ?: -1
+                                seed = seed.toLongOrNull() ?: -1,
+                                ckptName = selectedCheckpoint
                             )
                             pendingDownload = generated  // 生成完成，等用户点下载
                         } catch (e: Exception) {
@@ -360,6 +413,55 @@ fun ImageGenScreen(
             }
 
             Spacer(Modifier.height(24.dp))
+        }
+    }
+
+    // 模型选择对话框
+    if (showCheckpointDialog) {
+        Dialog(onDismissRequest = { showCheckpointDialog = false }) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(CardWhite)
+                    .padding(vertical = 8.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Text(
+                    text = "选择模型",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)
+                )
+                checkpointList.forEach { ckpt ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                selectedCheckpoint = ckpt
+                                showCheckpointDialog = false
+                            }
+                            .padding(horizontal = 20.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = selectedCheckpoint == ckpt,
+                            onClick = {
+                                selectedCheckpoint = ckpt
+                                showCheckpointDialog = false
+                            }
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = ckpt.removeSuffix(".safetensors"),
+                            fontSize = 15.sp,
+                            color = TextPrimary
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
         }
     }
 }
