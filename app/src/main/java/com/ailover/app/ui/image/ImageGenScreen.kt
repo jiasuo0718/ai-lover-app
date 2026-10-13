@@ -231,7 +231,7 @@ fun ImageGenScreen(
                     .clip(RoundedCornerShape(8.dp))
                     .background(CardWhite)
                     .clickable {
-                        if (checkpointList.isNotEmpty()) showCheckpointDialog = true
+                        showCheckpointDialog = true
                     }
                     .padding(horizontal = 12.dp, vertical = 12.dp)
             ) {
@@ -434,6 +434,14 @@ fun ImageGenScreen(
                     color = TextPrimary,
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)
                 )
+                if (checkpointList.isEmpty()) {
+                    Text(
+                        text = "未加载到模型，使用默认模型",
+                        fontSize = 14.sp,
+                        color = TextSecondary,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)
+                    )
+                }
                 checkpointList.forEach { ckpt ->
                     Row(
                         modifier = Modifier

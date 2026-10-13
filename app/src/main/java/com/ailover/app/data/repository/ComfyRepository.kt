@@ -351,15 +351,19 @@ class ComfyRepository(
     suspend fun getCheckpointList(): List<String> = withContext(Dispatchers.IO) {
         try {
             val obj = api().getObjectInfo("CheckpointLoaderSimple")
+            // ComfyUI 返回结构: ckpt_name: [["model1", "model2", ...], {"tooltip": "..."}]
+            // 外层数组第0个元素才是模型列表
             val ckptArray = obj.getAsJsonObject("CheckpointLoaderSimple")
                 ?.getAsJsonObject("input")
                 ?.getAsJsonObject("required")
                 ?.getAsJsonArray("ckpt_name")
+                ?.get(0)
+                ?.asJsonArray
             val list = ckptArray?.map { it.asString } ?: emptyList()
             Log.d("ComfyDebug", "获取模型列表: ${list.size}个 -> $list")
             list
         } catch (e: Exception) {
-            Log.e("ComfyDebug", "获取模型列表失败: ${e.message}")
+            Log.e("ComfyDebug", "获取模型列表失败: ${e.javaClass.simpleName}: ${e.message}")
             emptyList()
         }
     }
