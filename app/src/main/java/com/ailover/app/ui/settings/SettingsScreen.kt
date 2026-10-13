@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.ailover.app.BuildConfig
+import com.ailover.app.data.repository.ComfyRepository
 import com.ailover.app.data.settings.SettingsRepository
 import com.ailover.app.di.AppContainer
 import io.github.qdsfdhvh.iconpark.IconParkIcons
@@ -76,6 +77,10 @@ fun SettingsScreen(
     var showAdvisorUrlDialog by remember { mutableStateOf(false) }
     var editingComfyUrl by remember { mutableStateOf("") }
     var editingAdvisorUrl by remember { mutableStateOf("") }
+    var comfyTestResult by remember { mutableStateOf<String?>(null) }
+    var advisorTestResult by remember { mutableStateOf<String?>(null) }
+    var comfySaveError by remember { mutableStateOf<String?>(null) }
+    var advisorSaveError by remember { mutableStateOf<String?>(null) }
 
     val themeLabel = when (themeMode) {
         "dark" -> "深色"
@@ -364,7 +369,11 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(12.dp))
                 OutlinedTextField(
                     value = editingComfyUrl,
-                    onValueChange = { editingComfyUrl = it },
+                    onValueChange = {
+                        editingComfyUrl = it
+                        comfySaveError = null
+                        comfyTestResult = null
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = false,
                     colors = OutlinedTextFieldDefaults.colors(
@@ -374,7 +383,40 @@ fun SettingsScreen(
                         unfocusedBorderColor = Divider
                     )
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+                if (comfySaveError != null) {
+                    Text(
+                        text = comfySaveError!!,
+                        color = DangerRed,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+                if (comfyTestResult != null) {
+                    Text(
+                        text = comfyTestResult!!,
+                        color = if (comfyTestResult!!.startsWith("成功")) AccentBlue else DangerRed,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                // 测试连接按钮
+                val comfyRepo = remember { AppContainer.comfyRepository() }
+                Button(
+                    onClick = {
+                        comfySaveError = null
+                        comfyTestResult = "测试中…"
+                        scope.launch {
+                            val result = comfyRepo.testComfyUiConnection(editingComfyUrl)
+                            comfyTestResult = if (result == null) "成功：能连上" else "失败：$result"
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = CardWhite),
+                    modifier = Modifier.fillMaxWidth().height(40.dp)
+                ) {
+                    Text("测试连接", color = TextPrimary, fontSize = 14.sp)
+                }
+                Spacer(modifier = Modifier.height(12.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
@@ -388,7 +430,12 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(
                         onClick = {
-                            scope.launch { settingsRepository.setComfyUiUrl(editingComfyUrl.trim()) }
+                            val normalized = ComfyRepository.normalizeComfyUiUrl(editingComfyUrl)
+                            if (normalized == null) {
+                                comfySaveError = "地址非法：需以 http:// 或 https:// 开头且非空"
+                                return@Button
+                            }
+                            scope.launch { settingsRepository.setComfyUiUrl(normalized) }
                             showComfyUrlDialog = false
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
@@ -414,7 +461,11 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(12.dp))
                 OutlinedTextField(
                     value = editingAdvisorUrl,
-                    onValueChange = { editingAdvisorUrl = it },
+                    onValueChange = {
+                        editingAdvisorUrl = it
+                        advisorSaveError = null
+                        advisorTestResult = null
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = false,
                     colors = OutlinedTextFieldDefaults.colors(
@@ -424,7 +475,40 @@ fun SettingsScreen(
                         unfocusedBorderColor = Divider
                     )
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+                if (advisorSaveError != null) {
+                    Text(
+                        text = advisorSaveError!!,
+                        color = DangerRed,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+                if (advisorTestResult != null) {
+                    Text(
+                        text = advisorTestResult!!,
+                        color = if (advisorTestResult!!.startsWith("成功")) AccentBlue else DangerRed,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                // 测试连接按钮
+                val comfyRepo = remember { AppContainer.comfyRepository() }
+                Button(
+                    onClick = {
+                        advisorSaveError = null
+                        advisorTestResult = "测试中…"
+                        scope.launch {
+                            val result = comfyRepo.testAdvisorConnection(editingAdvisorUrl)
+                            advisorTestResult = if (result == null) "成功：能连上" else "失败：$result"
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = CardWhite),
+                    modifier = Modifier.fillMaxWidth().height(40.dp)
+                ) {
+                    Text("测试连接", color = TextPrimary, fontSize = 14.sp)
+                }
+                Spacer(modifier = Modifier.height(12.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
@@ -438,7 +522,18 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(
                         onClick = {
-                            scope.launch { settingsRepository.setAdvisorUrl(editingAdvisorUrl.trim()) }
+                            val normalized = ComfyRepository.normalizeAdvisorUrl(editingAdvisorUrl)
+                            if (normalized == null) {
+                                advisorSaveError = "地址非法：需以 http:// 或 https:// 开头且非空"
+                                return@Button
+                            }
+                            // 没带 /v1/chat/completions 则自动补上（有/无都能用）
+                            val finalUrl = if (normalized.endsWith("/v1/chat/completions")) {
+                                normalized
+                            } else {
+                                normalized + "/v1/chat/completions"
+                            }
+                            scope.launch { settingsRepository.setAdvisorUrl(finalUrl) }
                             showAdvisorUrlDialog = false
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)

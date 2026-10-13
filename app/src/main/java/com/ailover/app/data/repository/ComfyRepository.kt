@@ -66,6 +66,31 @@ class ComfyRepository(
         const val DEFAULT_CHECKPOINT = "realisticVisionV6.safetensors"
 
         /**
+         * URL 规范化：
+         * - ComfyUI 地址：去末尾多余斜杠再补一个（Retrofit baseUrl 必须以 / 结尾）
+         * - 返回 null 表示格式非法（空 / 非 http/https）
+         */
+        fun normalizeComfyUiUrl(raw: String): String? {
+            val trimmed = raw.trim()
+            if (trimmed.isEmpty()) return null
+            if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) return null
+            val base = trimmed.trimEnd('/')
+            return base + "/"
+        }
+
+        /**
+         * URL 规范化：
+         * - 军师地址：只去末尾多余斜杠（不补，是完整路径）
+         * - 返回 null 表示格式非法（空 / 非 http/https）
+         */
+        fun normalizeAdvisorUrl(raw: String): String? {
+            val trimmed = raw.trim()
+            if (trimmed.isEmpty()) return null
+            if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) return null
+            return trimmed.trimEnd('/')
+        }
+
+        /**
          * 文生图真实工作流（realisticVisionV6，已云端验证）。
          * 节点：3=KSampler, 4=Checkpoint(model/clip/vae), 5=EmptyLatentImage,
          *      6=正向CLIPTextEncode, 7=负向CLIPTextEncode, 8=VAEDecode, 9=SaveImage
@@ -228,6 +253,93 @@ class ComfyRepository(
             .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
             .readTimeout(120, java.util.concurrent.TimeUnit.SECONDS)
             .build()
+    }
+
+    // 测试连接专用 client：超时 8 秒，避免无限转圈
+    private val testClient: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .connectTimeout(8, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(8, java.util.concurrent.TimeUnit.SECONDS)
+            .writeTimeout(8, java.util.concurrent.TimeUnit.SECONDS)
+            .build()
+    }
+
+    // ==================== 测试连接 ====================
+
+    /**
+     * 测试 ComfyUI 连接：GET {url}system_stats（轻量探活）。
+     * @return null = 成功；非 null = 失败原因
+     */
+    suspend fun testComfyUiConnection(url: String): String? = withContext(Dispatchers.IO) {
+        val base = normalizeComfyUiUrl(url) ?: return@withContext "地址格式非法（需 http/https 开头）"
+        try {
+            val request = okhttp3.Request.Builder()
+                .url(base + "system_stats")
+                .get()
+                .build()
+            testClient.newCall(request).execute().use { resp ->
+                if (resp.isSuccessful) {
+                    Log.d("ComfyDebug", "ComfyUI 测试连接成功: $base")
+                    null
+                } else {
+                    "HTTP ${resp.code}"
+                }
+            }
+        } catch (e: java.net.SocketTimeoutException) {
+            Log.e("ComfyDebug", "ComfyUI 测试连接超时: ${e.message}")
+            "连接超时（8秒）"
+        } catch (e: java.net.UnknownHostException) {
+            "地址无法解析（域名不存在）"
+        } catch (e: java.net.ConnectException) {
+            "连不上（拒绝连接/端口不通）"
+        } catch (e: Exception) {
+            Log.e("ComfyDebug", "ComfyUI 测试连接失败: ${e.javaClass.simpleName}: ${e.message}")
+            "失败: ${e.javaClass.simpleName}"
+        }
+    }
+
+    /**
+     * 测试军师连接：POST /v1/chat/completions 发 "hi" 探活（只探活，不写聊天/记忆）。
+     * @return null = 成功；非 null = 失败原因
+     */
+    suspend fun testAdvisorConnection(url: String): String? = withContext(Dispatchers.IO) {
+        val advisor = normalizeAdvisorUrl(url) ?: return@withContext "地址格式非法（需 http/https 开头）"
+        val endpoint = if (advisor.endsWith("/v1/chat/completions") || advisor.endsWith("/v1/chat/completions/")) {
+            advisor
+        } else {
+            advisor.trimEnd('/') + "/v1/chat/completions"
+        }
+        try {
+            val body = """
+                {
+                  "model": "$ADVISOR_MODEL",
+                  "messages": [{"role": "user", "content": "hi"}],
+                  "stream": false
+                }
+            """.trimIndent()
+            val request = okhttp3.Request.Builder()
+                .url(endpoint)
+                .post(body.toRequestBody("application/json".toMediaTypeOrNull()))
+                .build()
+            testClient.newCall(request).execute().use { resp ->
+                val respBody = resp.body?.string() ?: ""
+                if (resp.isSuccessful) {
+                    Log.d("ComfyDebug", "军师测试连接成功: $endpoint")
+                    null
+                } else {
+                    "HTTP ${resp.code}（${respBody.take(100)}）"
+                }
+            }
+        } catch (e: java.net.SocketTimeoutException) {
+            "连接超时（8秒）"
+        } catch (e: java.net.UnknownHostException) {
+            "地址无法解析（域名不存在）"
+        } catch (e: java.net.ConnectException) {
+            "连不上（拒绝连接/端口不通）"
+        } catch (e: Exception) {
+            Log.e("ComfyDebug", "军师测试连接失败: ${e.javaClass.simpleName}: ${e.message}")
+            "失败: ${e.javaClass.simpleName}"
+        }
     }
 
     // ==================== 军师扩写 ====================
