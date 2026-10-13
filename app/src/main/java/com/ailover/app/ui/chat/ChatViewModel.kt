@@ -25,12 +25,19 @@ import com.ailover.app.data.repository.MessageRepository
 import com.ailover.app.data.settings.RolePlayRules
 import com.ailover.app.data.settings.RuleTemplate
 import com.ailover.app.data.settings.SettingsRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.util.concurrent.TimeUnit
 
 class ChatViewModel(
     private val conversationId: Long,
@@ -214,6 +221,143 @@ class ChatViewModel(
                 placeholder.copy(content = "生成失败：${e.message ?: "未知错误"}")
             )
             _errorMessage.value = "图片生成失败：${e.message}"
+        }
+    }
+
+    // ==================== 文件分析（Edge Function） ====================
+
+    private val analyzeClient: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(120, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .build()
+    }
+
+    /**
+     * 发送文件给 AI 分析（Supabase Edge Function）。
+     * 流程：插入用户消息(只显示文件名) → 插入"正在分析文件…"占位
+     *      → POST Edge Function → 更新占位为 reply。
+     * 文件内容不进记忆库、不写会话摘要。
+     */
+    fun sendFileForAnalysis(fileName: String, fileContent: String) {
+        if (_isStreaming.value) return
+        viewModelScope.launch {
+            // 1. 插入用户消息（只显示文件名，不塞全文）
+            val userMsg = "[文件] $fileName"
+            messageRepository.insertMessage(
+                MessageEntity(
+                    conversationId = conversationId,
+                    senderType = SenderType.USER,
+                    messageType = MessageType.TEXT,
+                    content = userMsg,
+                    sendStatus = MessageEntity.SEND_STATUS_SUCCESS
+                )
+            )
+            updateConversationLastMessage(userMsg)
+
+            // 2. 插入"正在分析文件…"占位
+            val placeholderId = messageRepository.insertMessage(
+                MessageEntity(
+                    conversationId = conversationId,
+                    senderType = SenderType.AI,
+                    messageType = MessageType.TEXT,
+                    content = "正在分析文件…"
+                )
+            )
+
+            try {
+                // 3. 拿角色 + API 配置
+                val conversation = conversationRepository.getConversationById(conversationId)
+                val character = conversation?.let { characterRepository.getCharacterById(it.characterId) }
+                val settings = resolveApiProfile(character)
+                if (!settings.isConfigured()) {
+                    messageRepository.getMessageById(placeholderId)?.let {
+                        messageRepository.updateMessage(it.copy(content = "分析失败：未配置 API Key，请先在设置中配置"))
+                    }
+                    _errorMessage.value = "文件分析失败：缺少 API Key"
+                    return@launch
+                }
+
+                // 4. 补全 apiUrl（baseUrl → 完整接口地址）
+                val apiUrl = buildFullApiUrl(settings.baseUrl)
+
+                // 5. POST Edge Function
+                val reply = callAnalyzeFunction(fileContent, settings.apiKey, apiUrl, settings.modelName)
+
+                // 6. 更新占位为 reply
+                messageRepository.getMessageById(placeholderId)?.let {
+                    messageRepository.updateMessage(it.copy(content = reply))
+                }
+                updateConversationLastMessage(reply.take(50))
+            } catch (e: Exception) {
+                Log.d("FileAnalyze", "文件分析失败: ${e.message}")
+                // 失败：更新占位为明确错误提示，别卡住
+                messageRepository.getMessageById(placeholderId)?.let {
+                    messageRepository.updateMessage(it.copy(content = "分析失败：${e.message ?: "未知错误"}"))
+                }
+                _errorMessage.value = "文件分析失败：${e.message}"
+            }
+        }
+    }
+
+    /**
+     * 把 baseUrl 补全成完整接口地址（含 /v1/chat/completions）。
+     * 已含 /chat/completions 则直接用；否则补 /v1/chat/completions。
+     */
+    private fun buildFullApiUrl(baseUrl: String): String {
+        val trimmed = baseUrl.trim()
+        if (trimmed.endsWith("/chat/completions")) return trimmed
+        return trimmed.trimEnd('/') + "/v1/chat/completions"
+    }
+
+    /**
+     * 调 Supabase Edge Function：POST {base}/functions/v1/analyze
+     * body = { text, apiKey, apiUrl, model }，返回 { reply } 或 { error }。
+     * header 带 apikey + Authorization（Supabase Edge Function 标准）。
+     */
+    private suspend fun callAnalyzeFunction(
+        text: String,
+        apiKey: String,
+        apiUrl: String,
+        model: String
+    ): String = withContext(Dispatchers.IO) {
+        val functionUrl = "https://oqsxkuvdjhibeyolfmbu.supabase.co/functions/v1/analyze"
+        val supabaseKey = "sb_publishable_gNlL2aQAG3IimzYdk3QFdg_2rCDSAlw"
+
+        val body = com.google.gson.Gson().toJson(
+            mapOf(
+                "text" to text,
+                "apiKey" to apiKey,
+                "apiUrl" to apiUrl,
+                "model" to model
+            )
+        )
+
+        val request = Request.Builder()
+            .url(functionUrl)
+            .addHeader("Content-Type", "application/json")
+            .addHeader("apikey", supabaseKey)
+            .addHeader("Authorization", "Bearer $supabaseKey")
+            .post(body.toRequestBody("application/json".toMediaTypeOrNull()))
+            .build()
+
+        analyzeClient.newCall(request).execute().use { response ->
+            val respBody = response.body?.string() ?: ""
+            if (!response.isSuccessful) {
+                if (response.code == 401) {
+                    throw Exception("401 Unauthorized：Edge Function 开了 JWT 验证，需在 Supabase 控制台关闭该 function 的 JWT 验证")
+                }
+                throw Exception("HTTP ${response.code}：${respBody.take(200)}")
+            }
+            val json = com.google.gson.JsonParser.parseString(respBody).asJsonObject
+            val reply = json.get("reply")?.asString
+            if (!reply.isNullOrBlank()) {
+                reply
+            } else {
+                val err = json.get("error")?.asString ?: "无 reply 字段"
+                throw Exception("分析失败：$err")
+            }
         }
     }
 

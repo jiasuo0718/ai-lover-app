@@ -3,8 +3,11 @@ package com.ailover.app.ui.chat
 import com.ailover.app.ui.theme.*
 import android.Manifest
 import android.content.Context
+import android.net.Uri
 import android.os.VibrationEffect
 import android.os.Vibrator
+import android.provider.OpenableColumns
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -155,6 +158,18 @@ fun ChatScreen(
     var isVoiceMode by remember { mutableStateOf(false) }
     var showEmojiPanel by remember { mutableStateOf(false) }
     var showPlusMenu by remember { mutableStateOf(false) }
+
+    // 文件选择器（「+」菜单"文件"按钮 → 选文件给 AI 分析）
+    val filePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            handlePickedFile(context, uri) { fileName, content ->
+                showPlusMenu = false
+                viewModel.sendFileForAnalysis(fileName, content)
+            }
+        }
+    }
 
     // 输入框焦点控制：点键盘图标后自动聚焦弹键盘
     val focusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
@@ -804,10 +819,13 @@ fun ChatScreen(
                                 Text("相册", fontSize = 12.sp, color = TextSecondary)
                             }
 
-                            // 文件
+                            // 文件（选文件给 AI 分析）
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
-                                modifier = Modifier.clickable { }
+                                modifier = Modifier.clickable {
+                                    showPlusMenu = false
+                                    filePicker.launch(arrayOf("*/*"))
+                                }
                             ) {
                                 Box(
                                     modifier = Modifier
@@ -1296,5 +1314,50 @@ private fun Avatar(firstChar: String, avatarUri: String? = null) {
                 fontSize = 16.sp
             )
         }
+    }
+}
+
+/**
+ * 读取选中的文件：校验扩展名（txt/kt/java）→ 读内容（UTF-8）→ 校验大小（≤10万字符）。
+ * 失败统一 Toast 提示，不崩。成功后回调 (fileName, content)。
+ */
+private fun handlePickedFile(
+    context: Context,
+    uri: Uri,
+    onReady: (fileName: String, content: String) -> Unit
+) {
+    try {
+        // 1. 文件名
+        var fileName = "file"
+        context.contentResolver.query(
+            uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null
+        )?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (idx >= 0) fileName = cursor.getString(idx) ?: "file"
+            }
+        }
+
+        // 2. 扩展名校验（仅支持 .txt / .kt / .java）
+        val ext = fileName.substringAfterLast('.', "").lowercase()
+        if (ext !in listOf("txt", "kt", "java")) {
+            Toast.makeText(context, "仅支持 txt/kt/java 文件", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // 3. 读内容（UTF-8）
+        val content = context.contentResolver.openInputStream(uri)?.use {
+            it.readBytes().toString(Charsets.UTF_8)
+        } ?: throw Exception("无法打开文件")
+
+        // 4. 大小校验（超 10 万字符不发送）
+        if (content.length > 100_000) {
+            Toast.makeText(context, "文件太大（超过10万字符），不发送", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        onReady(fileName, content)
+    } catch (e: Exception) {
+        Toast.makeText(context, "读取文件失败", Toast.LENGTH_SHORT).show()
     }
 }
