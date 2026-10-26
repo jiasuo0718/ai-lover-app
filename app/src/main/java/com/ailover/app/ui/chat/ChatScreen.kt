@@ -138,8 +138,7 @@ fun ChatScreen(
             characterRepository = AppContainer.characterRepository(),
             chatRepository = AppContainer.chatRepository(),
             settingsRepository = AppContainer.settingsRepository(),
-            memoryRepository = AppContainer.memoryRepository(),
-            comfyRepository = AppContainer.comfyRepository()
+            memoryRepository = AppContainer.memoryRepository()
         )
     )
     val messages by viewModel.messages.collectAsState()

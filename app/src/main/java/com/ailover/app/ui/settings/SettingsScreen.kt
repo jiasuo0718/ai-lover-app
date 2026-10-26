@@ -50,7 +50,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.ailover.app.BuildConfig
-import com.ailover.app.data.repository.ComfyRepository
 import com.ailover.app.data.settings.SettingsRepository
 import com.ailover.app.di.AppContainer
 import io.github.qdsfdhvh.iconpark.IconParkIcons
@@ -68,19 +67,9 @@ fun SettingsScreen(
     val selectedRule by settingsRepository.selectedRule.collectAsState(initial = "none")
     val autoRotateRule by settingsRepository.autoRotateRule.collectAsState(initial = false)
     val novelMode by settingsRepository.novelMode.collectAsState(initial = false)
-    val comfyUiUrl by settingsRepository.comfyUiUrl.collectAsState(initial = SettingsRepository.DEFAULT_COMFYUI_URL)
-    val advisorUrl by settingsRepository.advisorUrl.collectAsState(initial = SettingsRepository.DEFAULT_ADVISOR_URL)
     val scope = rememberCoroutineScope()
     var showThemeDialog by remember { mutableStateOf(false) }
     var showRuleDialog by remember { mutableStateOf(false) }
-    var showComfyUrlDialog by remember { mutableStateOf(false) }
-    var showAdvisorUrlDialog by remember { mutableStateOf(false) }
-    var editingComfyUrl by remember { mutableStateOf("") }
-    var editingAdvisorUrl by remember { mutableStateOf("") }
-    var comfyTestResult by remember { mutableStateOf<String?>(null) }
-    var advisorTestResult by remember { mutableStateOf<String?>(null) }
-    var comfySaveError by remember { mutableStateOf<String?>(null) }
-    var advisorSaveError by remember { mutableStateOf<String?>(null) }
 
     val themeLabel = when (themeMode) {
         "dark" -> "深色"
@@ -207,39 +196,7 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // ===== 分组二：云端地址 =====
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(CardWhite)
-            ) {
-                // ComfyUI 地址
-                SettingsListItem(
-                    icon = IconParkIcons.Outline.SettingTwo,
-                    iconTint = TextPrimary,
-                    title = "ComfyUI 地址",
-                    trailing = comfyUiUrl.removePrefix("https://").take(24) + "…",
-                    onClick = {
-                        editingComfyUrl = comfyUiUrl
-                        showComfyUrlDialog = true
-                    }
-                )
-                // 军师地址
-                SettingsListItem(
-                    icon = IconParkIcons.Outline.SettingTwo,
-                    iconTint = TextPrimary,
-                    title = "军师地址",
-                    trailing = advisorUrl.removePrefix("https://").take(24) + "…",
-                    onClick = {
-                        editingAdvisorUrl = advisorUrl
-                        showAdvisorUrlDialog = true
-                    }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // ===== 分组三：关于 =====
+            // ===== 分组二：关于 =====
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -355,195 +312,6 @@ fun SettingsScreen(
         }
     }
 
-    // ComfyUI 地址编辑弹窗
-    if (showComfyUrlDialog) {
-        Dialog(onDismissRequest = { showComfyUrlDialog = false }) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(CardWhite)
-                    .padding(20.dp)
-            ) {
-                Text("ComfyUI 地址", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                Spacer(modifier = Modifier.height(12.dp))
-                OutlinedTextField(
-                    value = editingComfyUrl,
-                    onValueChange = {
-                        editingComfyUrl = it
-                        comfySaveError = null
-                        comfyTestResult = null
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = false,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary,
-                        focusedBorderColor = AccentBlue,
-                        unfocusedBorderColor = Divider
-                    )
-                )
-                if (comfySaveError != null) {
-                    Text(
-                        text = comfySaveError!!,
-                        color = DangerRed,
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
-                if (comfyTestResult != null) {
-                    Text(
-                        text = comfyTestResult!!,
-                        color = if (comfyTestResult!!.startsWith("成功")) AccentBlue else DangerRed,
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                // 测试连接按钮
-                val comfyRepo = remember { AppContainer.comfyRepository() }
-                Button(
-                    onClick = {
-                        comfySaveError = null
-                        comfyTestResult = "测试中…"
-                        scope.launch {
-                            val result = comfyRepo.testComfyUiConnection(editingComfyUrl)
-                            comfyTestResult = if (result == null) "成功：能连上" else "失败：$result"
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = CardWhite),
-                    modifier = Modifier.fillMaxWidth().height(40.dp)
-                ) {
-                    Text("测试连接", color = TextPrimary, fontSize = 14.sp)
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    Button(
-                        onClick = { showComfyUrlDialog = false },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
-                    ) {
-                        Text("取消", color = TextSecondary)
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Button(
-                        onClick = {
-                            val normalized = ComfyRepository.normalizeComfyUiUrl(editingComfyUrl)
-                            if (normalized == null) {
-                                comfySaveError = "地址非法：需以 http:// 或 https:// 开头且非空"
-                                return@Button
-                            }
-                            scope.launch { settingsRepository.setComfyUiUrl(normalized) }
-                            showComfyUrlDialog = false
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
-                    ) {
-                        Text("保存", color = Color.White)
-                    }
-                }
-            }
-        }
-    }
-
-    // 军师地址编辑弹窗
-    if (showAdvisorUrlDialog) {
-        Dialog(onDismissRequest = { showAdvisorUrlDialog = false }) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(CardWhite)
-                    .padding(20.dp)
-            ) {
-                Text("军师地址", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                Spacer(modifier = Modifier.height(12.dp))
-                OutlinedTextField(
-                    value = editingAdvisorUrl,
-                    onValueChange = {
-                        editingAdvisorUrl = it
-                        advisorSaveError = null
-                        advisorTestResult = null
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = false,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary,
-                        focusedBorderColor = AccentBlue,
-                        unfocusedBorderColor = Divider
-                    )
-                )
-                if (advisorSaveError != null) {
-                    Text(
-                        text = advisorSaveError!!,
-                        color = DangerRed,
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
-                if (advisorTestResult != null) {
-                    Text(
-                        text = advisorTestResult!!,
-                        color = if (advisorTestResult!!.startsWith("成功")) AccentBlue else DangerRed,
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                // 测试连接按钮
-                val comfyRepo = remember { AppContainer.comfyRepository() }
-                Button(
-                    onClick = {
-                        advisorSaveError = null
-                        advisorTestResult = "测试中…"
-                        scope.launch {
-                            val result = comfyRepo.testAdvisorConnection(editingAdvisorUrl)
-                            advisorTestResult = if (result == null) "成功：能连上" else "失败：$result"
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = CardWhite),
-                    modifier = Modifier.fillMaxWidth().height(40.dp)
-                ) {
-                    Text("测试连接", color = TextPrimary, fontSize = 14.sp)
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    Button(
-                        onClick = { showAdvisorUrlDialog = false },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
-                    ) {
-                        Text("取消", color = TextSecondary)
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Button(
-                        onClick = {
-                            val normalized = ComfyRepository.normalizeAdvisorUrl(editingAdvisorUrl)
-                            if (normalized == null) {
-                                advisorSaveError = "地址非法：需以 http:// 或 https:// 开头且非空"
-                                return@Button
-                            }
-                            // 没带 /v1/chat/completions 则自动补上（有/无都能用）
-                            val finalUrl = if (normalized.endsWith("/v1/chat/completions")) {
-                                normalized
-                            } else {
-                                normalized + "/v1/chat/completions"
-                            }
-                            scope.launch { settingsRepository.setAdvisorUrl(finalUrl) }
-                            showAdvisorUrlDialog = false
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
-                    ) {
-                        Text("保存", color = Color.White)
-                    }
-                }
-            }
-        }
-    }
 }
 
 @Composable

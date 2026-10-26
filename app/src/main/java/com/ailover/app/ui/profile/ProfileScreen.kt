@@ -82,8 +82,7 @@ class ProfileViewModelFactory(
 @Composable
 fun ProfileScreen(
     onEditProfileClick: () -> Unit,
-    onSettingsClick: () -> Unit,
-    onImageGenClick: () -> Unit
+    onSettingsClick: () -> Unit
 ) {
     val viewModel: ProfileViewModel = viewModel(
         factory = ProfileViewModelFactory(AppContainer.userProfileRepository())
@@ -199,13 +198,6 @@ fun ProfileScreen(
                     iconTint = TextPrimary,
                     title = "设置",
                     onClick = onSettingsClick
-                )
-                // AIGC
-                ProfileListItem(
-                    icon = Icons.Filled.Image,
-                    iconTint = TextPrimary,
-                    title = "AIGC",
-                    onClick = onImageGenClick
                 )
             }
 

@@ -52,9 +52,6 @@ import com.ailover.app.ui.character.CharacterSettingsScreen
 import com.ailover.app.ui.character.MemoryListScreen
 import com.ailover.app.ui.chat.ChatScreen
 import com.ailover.app.ui.conversation.ConversationListScreen
-import com.ailover.app.ui.image.AigcHubScreen
-import com.ailover.app.ui.image.ImageGenScreen
-import com.ailover.app.ui.image.ImageToImageScreen
 import com.ailover.app.ui.profile.ProfileScreen
 import com.ailover.app.ui.profile.UserProfileEditScreen
 import com.ailover.app.ui.settings.ApiProfileEditScreen
@@ -71,9 +68,6 @@ object Routes {
     const val MEMORY_LIST = "memory_list/{characterId}/{characterName}"
     const val USER_PROFILE_EDIT = "user_profile_edit"
     const val SETTINGS_PAGE = "settings_page"
-    const val IMAGE_GEN = "image_gen"
-    const val AIGC_HUB = "aigc_hub"
-    const val IMAGE_TO_IMAGE = "image_to_image"
     const val API_PROFILE_LIST = "api_profile_list"
     const val API_PROFILE_EDIT = "api_profile_edit/{profileId}"
 
@@ -136,9 +130,6 @@ fun AppNavGraph() {
                 },
                 onSettingsClick = {
                     navController.navigate(Routes.SETTINGS_PAGE)
-                },
-                onImageGenClick = {
-                    navController.navigate(Routes.AIGC_HUB)
                 }
             )
         }
@@ -149,33 +140,6 @@ fun AppNavGraph() {
                 onApiSettingsClick = {
                     navController.navigate(Routes.API_PROFILE_LIST)
                 },
-                onBackClick = { navController.popBackStack() }
-            )
-        }
-
-        // AIGC 选择页
-        composable(Routes.AIGC_HUB) {
-            AigcHubScreen(
-                onBackClick = { navController.popBackStack() },
-                onTextToImageClick = {
-                    navController.navigate(Routes.IMAGE_GEN)
-                },
-                onImageToImageClick = {
-                    navController.navigate(Routes.IMAGE_TO_IMAGE)
-                }
-            )
-        }
-
-        // 文生图页
-        composable(Routes.IMAGE_GEN) {
-            ImageGenScreen(
-                onBackClick = { navController.popBackStack() }
-            )
-        }
-
-        // 图生图页
-        composable(Routes.IMAGE_TO_IMAGE) {
-            ImageToImageScreen(
                 onBackClick = { navController.popBackStack() }
             )
         }
@@ -343,8 +307,7 @@ private fun MainScreen(
     onAddCharacterClick: () -> Unit,
     onCharacterClick: (Long) -> Unit,
     onEditProfileClick: () -> Unit,
-    onSettingsClick: () -> Unit,
-    onImageGenClick: () -> Unit
+    onSettingsClick: () -> Unit
 ) {
     val pagerState = rememberPagerState(pageCount = { 3 })
     val scope = rememberCoroutineScope()
@@ -420,8 +383,7 @@ private fun MainScreen(
                 )
                 2 -> ProfileScreen(
                     onEditProfileClick = onEditProfileClick,
-                    onSettingsClick = onSettingsClick,
-                    onImageGenClick = onImageGenClick
+                    onSettingsClick = onSettingsClick
                 )
             }
         }

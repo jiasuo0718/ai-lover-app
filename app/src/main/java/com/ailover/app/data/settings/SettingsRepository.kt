@@ -35,13 +35,6 @@ class SettingsRepository(private val context: Context) {
     private val KEY_AUTO_ROTATE_RULE = booleanPreferencesKey("auto_rotate_rule")
     private val KEY_CURRENT_RULE_INDEX = intPreferencesKey("current_rule_index")
     private val KEY_NOVEL_MODE = booleanPreferencesKey("novel_mode")
-    private val KEY_COMFYUI_URL = stringPreferencesKey("comfyui_url")
-    private val KEY_ADVISOR_URL = stringPreferencesKey("advisor_url")
-
-    companion object {
-        const val DEFAULT_COMFYUI_URL = "https://u1108487-8a9f-f1a85596.westb.seetacloud.com:8443/"
-        const val DEFAULT_ADVISOR_URL = "https://uu1108487-8a9f-f1a85596.westb.seetacloud.com:8443/v1/chat/completions"
-    }
 
     // 旧 key（迁移用，迁移后保留不删）
     private val KEY_OLD_BASE_URL = stringPreferencesKey("api_base_url")
@@ -130,26 +123,6 @@ class SettingsRepository(private val context: Context) {
     }
 
     suspend fun getNovelModeOnce(): Boolean = novelMode.first()
-
-    // ComfyUI 地址（生图云端），默认 SeetaCloud 实例
-    val comfyUiUrl: Flow<String> = context.dataStore.data
-        .map { prefs -> prefs[KEY_COMFYUI_URL] ?: DEFAULT_COMFYUI_URL }
-
-    suspend fun setComfyUiUrl(url: String) {
-        context.dataStore.edit { prefs -> prefs[KEY_COMFYUI_URL] = url }
-    }
-
-    suspend fun getComfyUiUrlOnce(): String = comfyUiUrl.first()
-
-    // 军师地址（Ollama OpenAI 兼容，扩写提示词），默认 SeetaCloud 实例
-    val advisorUrl: Flow<String> = context.dataStore.data
-        .map { prefs -> prefs[KEY_ADVISOR_URL] ?: DEFAULT_ADVISOR_URL }
-
-    suspend fun setAdvisorUrl(url: String) {
-        context.dataStore.edit { prefs -> prefs[KEY_ADVISOR_URL] = url }
-    }
-
-    suspend fun getAdvisorUrlOnce(): String = advisorUrl.first()
 
     suspend fun getProfilesOnce(): List<ApiProfile> = apiProfiles.first()
 

@@ -4,7 +4,6 @@ import android.content.Context
 import com.ailover.app.data.local.AppDatabase
 import com.ailover.app.data.repository.CharacterRepository
 import com.ailover.app.data.repository.ChatRepository
-import com.ailover.app.data.repository.ComfyRepository
 import com.ailover.app.data.repository.ConversationRepository
 import com.ailover.app.data.repository.MemoryRepository
 import com.ailover.app.data.repository.MessageRepository
@@ -24,7 +23,6 @@ object AppContainer {
     private var messageRepo: MessageRepository? = null
     private var memoryRepo: MemoryRepository? = null
     private var chatRepo: ChatRepository? = null
-    private var comfyRepo: ComfyRepository? = null
     private var settingsRepo: SettingsRepository? = null
     private var userProfileRepo: UserProfileRepository? = null
     private var okHttpClient: OkHttpClient? = null
@@ -55,9 +53,8 @@ object AppContainer {
                     gson = GsonBuilder().create()
                     chatRepo = ChatRepository(okHttpClient!!, gson!!)
 
-                    // 设置（先初始化，ComfyRepository 需要读地址）
+                    // 设置
                     settingsRepo = SettingsRepository(appContext)
-                    comfyRepo = ComfyRepository(appContext, okHttpClient!!, gson!!, settingsRepo!!)
 
                     userProfileRepo = UserProfileRepository(appContext)
                 }
@@ -78,9 +75,6 @@ object AppContainer {
         ?: error("AppContainer not initialized")
 
     fun chatRepository(): ChatRepository = chatRepo
-        ?: error("AppContainer not initialized")
-
-    fun comfyRepository(): ComfyRepository = comfyRepo
         ?: error("AppContainer not initialized")
 
     fun settingsRepository(): SettingsRepository = settingsRepo
