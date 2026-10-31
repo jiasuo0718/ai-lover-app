@@ -79,6 +79,12 @@ class ChatViewModel(
 
     init {
         viewModelScope.launch {
+            // 同步当前 AI 配置里的火山 TTS 密钥（豆包 Seed-TTS 2.0 鉴权 X-Api-Key）
+            settingsRepository.activeApiProfile.collect { profile ->
+                VolcTtsManager.setApiKey(profile.volcTtsApiKey)
+            }
+        }
+        viewModelScope.launch {
             val conversation = conversationRepository.getConversationById(conversationId)
             conversation?.let {
                 _conversation.value = it
@@ -133,6 +139,13 @@ class ChatViewModel(
     fun speakMessage(content: String) {
         if (content.isBlank()) return
         viewModelScope.launch {
+            // 实时读取当前配置里的火山 TTS 密钥，未设置则提示去编辑配置填写
+            val profile = settingsRepository.getActiveProfileOnce()
+            if (profile.volcTtsApiKey.isBlank()) {
+                _ttsToast.emit("未设置火山TTS密钥：请到 设置 → 编辑配置 填写")
+                return@launch
+            }
+            VolcTtsManager.setApiKey(profile.volcTtsApiKey)
             VolcTtsManager.play(
                 text = content,
                 onStart = {},

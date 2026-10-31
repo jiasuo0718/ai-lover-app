@@ -168,6 +168,13 @@ fun ChatScreen(
         Toast.makeText(context, "已复制", Toast.LENGTH_SHORT).show()
     }
 
+    // 火山 TTS 播放/音色切换的 Toast 提示
+    LaunchedEffect(Unit) {
+        viewModel.ttsToast.collect { msg ->
+            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+        }
+    }
+
     // 输入模式：文本 / 语音
     var isVoiceMode by remember { mutableStateOf(false) }
     var showEmojiPanel by remember { mutableStateOf(false) }

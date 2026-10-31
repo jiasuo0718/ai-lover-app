@@ -31,7 +31,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  *    仅豆包2.0情感音色（_uranus_bigtts）支持，且该字段不参与计费。
  *  - 流式边下边播：音频以 pcm 流式返回，用 AudioTrack 实时写入播放，低延迟。
  *
- * 注意：API_KEY 需在火山引擎控制台（豆包语音 > API Key 管理）获取，这里用占位符，替换为真实值后方可调用。
+ * 注意：鉴权密钥由 App 的"编辑配置"页同步进来（ApiProfile.volcTtsApiKey），运行时通过 setApiKey 更新。
  * 并发安全：同一时间仅允许一路合成，新请求会先停止上一路；播放器/连接用锁保护。
  */
 object VolcTtsManager {
@@ -41,8 +41,14 @@ object VolcTtsManager {
     /** 双向流式 WebSocket 接口地址 */
     private const val WS_URL = "wss://openspeech.bytedance.com/api/v3/tts/bidirection"
 
-    // ===== 鉴权凭证（占位，请替换为你在火山引擎控制台获取的 API Key）=====
-    private const val API_KEY = "YOUR_API_KEY"
+    // ===== 鉴权凭证（动态：由 App 编辑配置页的"火山 TTS ApiKey"同步进来，运行时可用 setApiKey 更新）=====
+    @Volatile
+    private var apiKey: String = ""
+
+    /** 更新鉴权密钥（火山引擎控制台 > 豆包语音 > API Key 管理）。 */
+    fun setApiKey(key: String?) {
+        apiKey = key.orEmpty().trim()
+    }
 
     /** 模型版本：豆包语音合成大模型 2.0 */
     private const val RESOURCE_ID = "seed-tts-2.0"
@@ -194,7 +200,7 @@ object VolcTtsManager {
 
                 val request = Request.Builder()
                     .url(WS_URL)
-                    .header("X-Api-Key", API_KEY)
+                    .header("X-Api-Key", apiKey)
                     .header("X-Api-Resource-Id", RESOURCE_ID)
                     .header("X-Api-Connect-Id", connectId)
                     .header("X-Control-Require-Usage-Tokens-Return", "*")

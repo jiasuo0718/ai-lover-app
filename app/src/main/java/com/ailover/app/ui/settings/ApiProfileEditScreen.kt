@@ -66,7 +66,9 @@ fun ApiProfileEditScreen(
     var baseUrl by remember { mutableStateOf("") }
     var apiKey by remember { mutableStateOf("") }
     var modelName by remember { mutableStateOf("") }
+    var volcTtsApiKey by remember { mutableStateOf("") }
     var showApiKey by remember { mutableStateOf(false) }
+    var showVolcKey by remember { mutableStateOf(false) }
     var platformMenuExpanded by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
     var loaded by remember { mutableStateOf(false) }
@@ -80,6 +82,7 @@ fun ApiProfileEditScreen(
                 baseUrl = profile.baseUrl
                 apiKey = profile.apiKey
                 modelName = profile.modelName
+                volcTtsApiKey = profile.volcTtsApiKey
             }
         } else {
             platform = ApiPlatforms.DEEPSEEK.id
@@ -99,7 +102,8 @@ fun ApiProfileEditScreen(
                 platform = platform,
                 baseUrl = baseUrl,
                 apiKey = apiKey,
-                modelName = modelName
+                modelName = modelName,
+                volcTtsApiKey = volcTtsApiKey
             )
             if (profileId == null) {
                 settingsRepository.addProfile(profile)
@@ -236,6 +240,29 @@ fun ApiProfileEditScreen(
                 placeholder = { Text("deepseek-chat", color = TextSecondary) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
+            )
+
+            // ===== 火山豆包 Seed-TTS 2.0（朗读音色）=====
+            Text("火山豆包 Seed-TTS 2.0（朗读）", fontSize = 14.sp, color = TextSecondary)
+            OutlinedTextField(
+                value = volcTtsApiKey,
+                onValueChange = { volcTtsApiKey = it },
+                label = { Text("火山 TTS ApiKey") },
+                placeholder = { Text("火山引擎控制台 > API Key 管理", color = TextSecondary) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                visualTransformation = if (showVolcKey)
+                    VisualTransformation.None else PasswordVisualTransformation(),
+                trailingIcon = {
+                    TextButton(onClick = { showVolcKey = !showVolcKey }) {
+                        Text(if (showVolcKey) "隐藏" else "显示", fontSize = 13.sp)
+                    }
+                }
+            )
+            Text(
+                "在火山引擎控制台 → 豆包语音 → API Key 管理获取。\n留空则消息气泡的朗读喇叭不可用。",
+                fontSize = 12.sp,
+                color = TextSecondary
             )
 
             Spacer(modifier = Modifier.height(8.dp))
