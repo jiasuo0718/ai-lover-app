@@ -19,6 +19,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -152,6 +153,13 @@ fun ChatScreen(
     val listState = rememberLazyListState()
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
+
+    // 复制消息到剪贴板（长按消息气泡触发）
+    val clipboardManager = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+    val copyTextToClipboard: (String) -> Unit = { text ->
+        clipboardManager.setPrimaryClip(android.content.ClipData.newPlainText("对话消息", text))
+        Toast.makeText(context, "已复制", Toast.LENGTH_SHORT).show()
+    }
 
     // 输入模式：文本 / 语音
     var isVoiceMode by remember { mutableStateOf(false) }
@@ -991,7 +999,8 @@ fun ChatScreen(
                                     currentPlayingId = message.id
                                 }
                             },
-                            onResend = { viewModel.resendMessage(it) }
+                            onResend = { viewModel.resendMessage(it) },
+                            onCopyText = copyTextToClipboard
                         )
                     }
                 }
@@ -1064,7 +1073,8 @@ private fun MessageBubble(
     userAvatarUri: String?,
     isPlaying: Boolean,
     onPlayClick: () -> Unit,
-    onResend: (Long) -> Unit = {}
+    onResend: (Long) -> Unit = {},
+    onCopyText: (String) -> Unit = {}
 ) {
     val isSelf = message.senderType == SenderType.USER
     val isSystem = message.senderType == SenderType.SYSTEM
@@ -1115,13 +1125,16 @@ private fun MessageBubble(
                     )
                     .clip(RoundedCornerShape(20.dp))
                     .background(bubbleColor)
-                    .then(
-                        if (isVoice) Modifier.clickable(onClick = onPlayClick)
-                        else Modifier.clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = {}
-                        )
+                    .combinedClickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = { if (isVoice) onPlayClick() },
+                        onLongClick = {
+                            // 长按复制：仅文本消息（语音/图片复制无意义）
+                            if (!isVoice && !isImage && message.content.isNotBlank()) {
+                                onCopyText(message.content)
+                            }
+                        }
                     )
                     .padding(
                         horizontal = if (isImage) 0.dp else 14.dp,
