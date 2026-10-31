@@ -1027,7 +1027,7 @@ $conflictPart
                 // 去掉行首编号/圆点，再匹配操作
                 val cleaned = line.replaceFirst(Regex("^[\\d\\-*]+[.、)）:]?\\s*"), "").trim()
                 // [新增] [类型] 内容 或 新增：[类型]内容 / 新增：类型：内容
-                val addMatch = Regex("^[\\[【]?新增[\]】]?\\s*[:：]?\\s*(.+)$").find(cleaned)
+                val addMatch = Regex("^[\\[【]?新增[\\]】]?\\s*[:：]?\\s*(.+)$").find(cleaned)
                 if (addMatch != null) {
                     val typeContent = parseCandidateLine(addMatch.groupValues[1])
                     if (typeContent != null) {
@@ -1047,7 +1047,7 @@ $conflictPart
                     continue
                 }
                 // [更新] 已有序号 → [类型] 新内容 或 更新：序号 → ...
-                val updateMatch = Regex("^[\\[【]?更新[\]】]?\\s*[:：]?\\s*(\\d+)\\s*[→\\-:：]\\s*(.+)$").find(cleaned)
+                val updateMatch = Regex("^[\\[【]?更新[\\]】]?\\s*[:：]?\\s*(\\d+)\\s*[→\\-:：]\\s*(.+)$").find(cleaned)
                 if (updateMatch != null) {
                     val idx = updateMatch.groupValues[1].toIntOrNull() ?: 0
                     val typeContent = parseCandidateLine(updateMatch.groupValues[2])
