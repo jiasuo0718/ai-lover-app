@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -79,6 +80,14 @@ fun CharacterEditScreen(
     val personality by viewModel.personality.collectAsState()
     val avatarUri by viewModel.avatarUri.collectAsState()
     val isEditMode by viewModel.isEditMode.collectAsState()
+    val background by viewModel.background.collectAsState()
+    val speechStyle by viewModel.speechStyle.collectAsState()
+    val behaviorRules by viewModel.behaviorRules.collectAsState()
+    val relationshipSetup by viewModel.relationshipSetup.collectAsState()
+    val greeting by viewModel.greeting.collectAsState()
+    val exampleDialogues by viewModel.exampleDialogues.collectAsState()
+    val narrativeStyle by viewModel.narrativeStyle.collectAsState()
+    val characterTags by viewModel.characterTags.collectAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -214,44 +223,80 @@ fun CharacterEditScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // 人设标签（放在输入框上方）
-            Text(
-                text = "人设 / 性格 / 背景设定",
-                color = TextPrimary,
-                fontSize = 15.sp,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // 人设输入框（浅灰底、圆角12dp、无边框、聚焦不变蓝）
-            OutlinedTextField(
-                value = personality,
-                onValueChange = viewModel::onPersonalityChange,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp),
-                maxLines = 8,
-                shape = RoundedCornerShape(12.dp),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = HintBg,
-                    unfocusedContainerColor = HintBg,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    cursorColor = TextPrimary
-                ),
-                placeholder = {
-                    Text(
-                        "例如：你是一个温柔体贴的AI恋人，喜欢倾听用户的烦恼...",
-                        color = TextSecondary,
-                        fontSize = 14.sp
-                    )
-                }
-            )
+            // ===== 角色卡 v2.0：分组折叠编辑 =====
+            // 组① 基础信息 · 角色标签
+            EditGroup(title = "基础信息 · 角色标签", initiallyExpanded = true) {
+                EditField(
+                    label = "角色标签",
+                    value = characterTags,
+                    onValueChange = viewModel::onCharacterTagsChange,
+                    singleLine = true,
+                    placeholder = "如：女仆 · AI 恋人 · 虚构成年角色"
+                )
+            }
+            // 组② 角色设定
+            EditGroup(title = "角色设定", initiallyExpanded = true) {
+                EditField(
+                    label = "背景故事",
+                    value = background,
+                    onValueChange = viewModel::onBackgroundChange,
+                    placeholder = "身份、经历、世界观…"
+                )
+                EditField(
+                    label = "性格特点",
+                    value = personality,
+                    onValueChange = viewModel::onPersonalityChange,
+                    placeholder = "温顺、傲娇、主动、腹黑…"
+                )
+                EditField(
+                    label = "行为习惯",
+                    value = behaviorRules,
+                    onValueChange = viewModel::onBehaviorRulesChange,
+                    placeholder = "遇到不同情况如何反应…"
+                )
+                EditField(
+                    label = "语言风格",
+                    value = speechStyle,
+                    onValueChange = viewModel::onSpeechStyleChange,
+                    placeholder = "用词、语气、说话方式…"
+                )
+            }
+            // 组③ 互动设定
+            EditGroup(title = "互动设定", initiallyExpanded = false) {
+                EditField(
+                    label = "与用户的初始关系",
+                    value = relationshipSetup,
+                    onValueChange = viewModel::onRelationshipSetupChange,
+                    singleLine = true,
+                    placeholder = "女仆、恋人、朋友…"
+                )
+                EditField(
+                    label = "开场白",
+                    value = greeting,
+                    onValueChange = viewModel::onGreetingChange,
+                    placeholder = "第一次聊天的表现…"
+                )
+                EditField(
+                    label = "示例对话",
+                    value = exampleDialogues,
+                    onValueChange = viewModel::onExampleDialoguesChange,
+                    placeholder = "一段满意的角色对话，教模型模仿其表达…"
+                )
+            }
+            // 组④ 叙事偏好
+            EditGroup(title = "叙事偏好", initiallyExpanded = false) {
+                EditField(
+                    label = "小说叙事偏好",
+                    value = narrativeStyle,
+                    onValueChange = viewModel::onNarrativeStyleChange,
+                    placeholder = "动作/环境描写偏好、情绪表现特点…"
+                )
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                "此设定将作为 system prompt 注入对话",
+                "以上设定将按角色卡结构注入 system prompt",
                 color = TextSecondary,
                 fontSize = 12.sp
             )
@@ -278,5 +323,77 @@ fun CharacterEditScreen(
                 }
             }
         )
+    }
+}
+
+// ===== 角色卡 v2.0：分组折叠编辑组件 =====
+@Composable
+private fun EditGroup(
+    title: String,
+    initiallyExpanded: Boolean,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    var expanded by remember { mutableStateOf(initiallyExpanded) }
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { expanded = !expanded }
+                .padding(vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = title,
+                color = TextPrimary,
+                fontSize = 15.sp,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = if (expanded) "▾" else "▸",
+                color = TextSecondary,
+                fontSize = 13.sp
+            )
+        }
+        if (expanded) {
+            Column(modifier = Modifier.fillMaxWidth()) { content() }
+        }
+    }
+}
+
+@Composable
+private fun EditField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    singleLine: Boolean = false,
+    placeholder: String
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = label,
+            color = TextPrimary,
+            fontSize = 14.sp,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(if (singleLine) Modifier else Modifier.height(96.dp)),
+            maxLines = if (singleLine) 1 else 4,
+            singleLine = singleLine,
+            shape = RoundedCornerShape(12.dp),
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = HintBg,
+                unfocusedContainerColor = HintBg,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+                cursorColor = TextPrimary
+            ),
+            placeholder = { Text(placeholder, color = TextSecondary, fontSize = 14.sp) }
+        )
+        Spacer(modifier = Modifier.height(14.dp))
     }
 }

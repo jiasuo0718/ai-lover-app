@@ -62,6 +62,24 @@ class CharacterEditViewModel(
     private val _avatarUri = MutableStateFlow<String?>(null)
     val avatarUri: StateFlow<String?> = _avatarUri
 
+    // ===== 角色卡 v2.0 新增字段 =====
+    private val _background = MutableStateFlow("")
+    val background: StateFlow<String> = _background
+    private val _speechStyle = MutableStateFlow("")
+    val speechStyle: StateFlow<String> = _speechStyle
+    private val _behaviorRules = MutableStateFlow("")
+    val behaviorRules: StateFlow<String> = _behaviorRules
+    private val _relationshipSetup = MutableStateFlow("")
+    val relationshipSetup: StateFlow<String> = _relationshipSetup
+    private val _greeting = MutableStateFlow("")
+    val greeting: StateFlow<String> = _greeting
+    private val _exampleDialogues = MutableStateFlow("")
+    val exampleDialogues: StateFlow<String> = _exampleDialogues
+    private val _narrativeStyle = MutableStateFlow("")
+    val narrativeStyle: StateFlow<String> = _narrativeStyle
+    private val _characterTags = MutableStateFlow("")
+    val characterTags: StateFlow<String> = _characterTags
+
     private val _isEditMode = MutableStateFlow(characterId != null)
     val isEditMode: StateFlow<Boolean> = _isEditMode
 
@@ -76,6 +94,14 @@ class CharacterEditViewModel(
                     _name.value = character.name
                     _personality.value = character.personality
                     _avatarUri.value = character.avatarUri
+                    _background.value = character.background
+                    _speechStyle.value = character.speechStyle
+                    _behaviorRules.value = character.behaviorRules
+                    _relationshipSetup.value = character.relationshipSetup
+                    _greeting.value = character.greeting
+                    _exampleDialogues.value = character.exampleDialogues
+                    _narrativeStyle.value = character.narrativeStyle
+                    _characterTags.value = character.characterTags
                 }
             }
         }
@@ -84,6 +110,14 @@ class CharacterEditViewModel(
     fun onNameChange(value: String) { _name.value = value }
     fun onPersonalityChange(value: String) { _personality.value = value }
     fun onAvatarChange(value: String?) { _avatarUri.value = value }
+    fun onBackgroundChange(value: String) { _background.value = value }
+    fun onSpeechStyleChange(value: String) { _speechStyle.value = value }
+    fun onBehaviorRulesChange(value: String) { _behaviorRules.value = value }
+    fun onRelationshipSetupChange(value: String) { _relationshipSetup.value = value }
+    fun onGreetingChange(value: String) { _greeting.value = value }
+    fun onExampleDialoguesChange(value: String) { _exampleDialogues.value = value }
+    fun onNarrativeStyleChange(value: String) { _narrativeStyle.value = value }
+    fun onCharacterTagsChange(value: String) { _characterTags.value = value }
 
     // 非 suspend 入口：在 viewModelScope 中执行，完成后发事件
     fun save() {
@@ -112,7 +146,15 @@ class CharacterEditViewModel(
                 id = characterId,
                 name = trimmedName,
                 avatarUri = _avatarUri.value,
-                personality = _personality.value.trim()
+                personality = _personality.value.trim(),
+                background = _background.value.trim(),
+                speechStyle = _speechStyle.value.trim(),
+                behaviorRules = _behaviorRules.value.trim(),
+                relationshipSetup = _relationshipSetup.value.trim(),
+                greeting = _greeting.value.trim(),
+                exampleDialogues = _exampleDialogues.value.trim(),
+                narrativeStyle = _narrativeStyle.value.trim(),
+                characterTags = _characterTags.value.trim()
             )
             characterRepository.updateCharacter(character)
             characterId
@@ -121,7 +163,15 @@ class CharacterEditViewModel(
             val character = CharacterEntity(
                 name = trimmedName,
                 avatarUri = _avatarUri.value,
-                personality = _personality.value.trim()
+                personality = _personality.value.trim(),
+                background = _background.value.trim(),
+                speechStyle = _speechStyle.value.trim(),
+                behaviorRules = _behaviorRules.value.trim(),
+                relationshipSetup = _relationshipSetup.value.trim(),
+                greeting = _greeting.value.trim(),
+                exampleDialogues = _exampleDialogues.value.trim(),
+                narrativeStyle = _narrativeStyle.value.trim(),
+                characterTags = _characterTags.value.trim()
             )
             characterRepository.insertCharacter(character)
         }

@@ -24,7 +24,7 @@ import com.ailover.app.data.local.entity.MessageEntity
         MessageEntity::class,
         MemoryEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -128,6 +128,21 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // 角色卡 v2.0：characters 表新增 8 个结构化字段（中性叙事升级，默认空串）
+        // 旧版 personality 大文本保留，作为"性格特点"字段继续兼容
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE characters ADD COLUMN background TEXT NOT NULL DEFAULT ''")
+                database.execSQL("ALTER TABLE characters ADD COLUMN speechStyle TEXT NOT NULL DEFAULT ''")
+                database.execSQL("ALTER TABLE characters ADD COLUMN behaviorRules TEXT NOT NULL DEFAULT ''")
+                database.execSQL("ALTER TABLE characters ADD COLUMN relationshipSetup TEXT NOT NULL DEFAULT ''")
+                database.execSQL("ALTER TABLE characters ADD COLUMN greeting TEXT NOT NULL DEFAULT ''")
+                database.execSQL("ALTER TABLE characters ADD COLUMN exampleDialogues TEXT NOT NULL DEFAULT ''")
+                database.execSQL("ALTER TABLE characters ADD COLUMN narrativeStyle TEXT NOT NULL DEFAULT ''")
+                database.execSQL("ALTER TABLE characters ADD COLUMN characterTags TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -135,7 +150,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "ailover_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
                     .build()
                 INSTANCE = instance
                 instance

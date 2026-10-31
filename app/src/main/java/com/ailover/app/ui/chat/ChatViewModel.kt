@@ -67,7 +67,22 @@ class ChatViewModel(
             val conversation = conversationRepository.getConversationById(conversationId)
             conversation?.let {
                 _conversation.value = it
-                _character.value = characterRepository.getCharacterById(it.characterId)
+                val character = characterRepository.getCharacterById(it.characterId)
+                _character.value = character
+                // 开场白：新会话无消息且角色配置了 greeting → 插入 AI 开场白作为第一条消息
+                val greeting = character?.greeting?.takeIf { g -> g.isNotBlank() }
+                if (greeting != null && messageRepository.getMessagesByConversationOnce(conversationId).isEmpty()) {
+                    messageRepository.insertMessage(
+                        MessageEntity(
+                            conversationId = conversationId,
+                            senderType = SenderType.AI,
+                            messageType = MessageType.TEXT,
+                            content = greeting,
+                            sendStatus = MessageEntity.SEND_STATUS_SUCCESS
+                        )
+                    )
+                    updateConversationLastMessage(greeting)
+                }
             }
         }
     }
@@ -536,19 +551,31 @@ class ChatViewModel(
      * 规则在后，不覆盖人设，只补充规则。
      */
     private fun buildSystemPrompt(character: CharacterEntity, ruleTemplate: RuleTemplate, novelMode: Boolean, mood: String, reaction: String): String {
-        val personalityPart = character.personality?.takeIf { it.isNotBlank() }?.let { "你的人设：$it\n" } ?: ""
+        // ① 角色身份（名字 + 标签）
+        val identity = "你是${character.name}。"
+        val tagsPart = character.characterTags.takeIf { it.isNotBlank() }?.let { "\n【角色标签】$it" } ?: ""
+        // ② 角色背景
+        val backgroundPart = character.background.takeIf { it.isNotBlank() }?.let { "\n\n你的背景：$it" } ?: ""
+        // ③ 角色性格（旧 personality 字段，语义升级为性格特点，兼容旧角色）
+        val personalityPart = character.personality.takeIf { it.isNotBlank() }?.let { "\n你的性格：$it" } ?: ""
+        // ④ 角色行为规则
+        val behaviorPart = character.behaviorRules.takeIf { it.isNotBlank() }?.let { "\n你的行为习惯：$it" } ?: ""
+        // ⑤ 角色语言风格
+        val speechPart = character.speechStyle.takeIf { it.isNotBlank() }?.let { "\n你的语言风格：$it" } ?: ""
+        // ⑥ 关系阶段（初始关系设定 + 动态关系度阶段）
         val stage = getRelationshipStage(character.relationshipScore)
-        val relationshipPart = """
-你和用户的关系阶段：${stage.name}（${stage.description}）。
-请用【${stage.name}】的态度和语气回复，但保持角色人设，别过度演绎。"""
-        val emotionPart = """
-你现在的心情基调是【$mood】，刚才的事让你【$reaction】。
-用这种状态回复，保持人设，别过度演绎。"""
-        val conflictPart = """
-当"关系态度"和"当前情绪"冲突时，以【当前情绪】为准（情绪是当前状态，关系是底色）。
-例：关系亲密 + 情绪生气 → 用"亲密的生气"（赌气/傲娇/别扭），不是"撒娇"；也不是"冷淡无情"。
-不要"既撒娇又冷淡"。"""
+        val setupPart = character.relationshipSetup.takeIf { it.isNotBlank() }?.let { "\n\n你和用户的初始关系：$it" } ?: ""
+        val relationshipPart = "$setupPart\n你和用户的关系阶段：${stage.name}（${stage.description}）。\n请用【${stage.name}】的态度和语气回复，但保持角色人设，别过度演绎。"
+        // ⑦ 实时情绪
+        val emotionPart = "\n\n你现在的心情基调是【$mood】，刚才的事让你【$reaction】。\n用这种状态回复，保持人设，别过度演绎。"
+        // ⑧ 冲突协调
+        val conflictPart = "\n\n当\"关系态度\"和\"当前情绪\"冲突时，以【当前情绪】为准（情绪是当前状态，关系是底色）。\n例：关系亲密 + 情绪生气 → 用\"亲密的生气\"（赌气/傲娇/别扭），不是\"撒娇\"；也不是\"冷淡无情\"。\n不要\"既撒娇又冷淡\"。"
+        // ⑩ 对话风格规则
         val rulePart = if (ruleTemplate.content.isNotBlank()) "\n\n${ruleTemplate.content}" else ""
+        // ⑪ 示例对话（教模型模仿角色的表达与描写风格，放在角色定义之后）
+        val examplePart = character.exampleDialogues.takeIf { it.isNotBlank() }?.let { "\n\n【示例对话】\n$it\n（以上是角色示例对话，请模仿其说话方式与描写风格）" } ?: ""
+        // ⑫ 小说叙事引擎（v2.20 + 角色叙事偏好）
+        val narrativePart = character.narrativeStyle.takeIf { it.isNotBlank() }?.let { "\n叙事偏好：$it" } ?: ""
         val novelPart = if (novelMode) """
 
 【小说模式开启】
@@ -581,8 +608,9 @@ class ChatViewModel(
 六、规则优先级
 小说模式开启时，优先遵循小说叙事要求，不受微信基础规则中的默认简短、口语化、非文学化要求限制。
 对话风格规则只影响角色说话的语气和性格，不应压缩小说场景描写。
-始终保持角色人设、关系阶段和实时情绪的一致性。""" else ""
-        return """你是${character.name}。${personalityPart}$relationshipPart
+始终保持角色人设、关系阶段和实时情绪的一致性。$narrativePart""" else ""
+        return """$identity$tagsPart$backgroundPart$personalityPart$behaviorPart$speechPart
+$relationshipPart
 $emotionPart
 $conflictPart
 你正在和用户微信聊天，请：
@@ -597,7 +625,7 @@ $conflictPart
 - 被问"是不是AI"：默认像真人被冒犯（愣/气/怼），别平静否认。但如果角色人设是 AI/虚拟角色，按人设坦诚回答（不用装傻）
 - 默认称呼用户为"你"（称"您/主人/名字"的角色按人设）
 - 像真人发微信，一次可以连发多条短消息（用换行分隔每条），想到啥发啥：补一句、追问、自言自语、突然想起
-- 但别为发而发：一条能说清就一条，话多/激动时才连发，每条短、口语$rulePart$novelPart"""
+- 但别为发而发：一条能说清就一条，话多/激动时才连发，每条短、口语$rulePart$examplePart$novelPart"""
     }
 
     /**
