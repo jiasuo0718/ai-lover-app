@@ -63,6 +63,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -75,6 +76,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -118,6 +122,7 @@ import com.ailover.app.di.AppContainer
 import com.ailover.app.util.AudioPlayer
 import com.ailover.app.util.TimeUtils
 import com.ailover.app.util.VoiceToText
+import com.ailover.app.util.VolcTtsManager
 import io.github.qdsfdhvh.iconpark.IconParkIcons
 import io.github.qdsfdhvh.iconpark.outline.*
 import kotlinx.coroutines.delay
@@ -166,6 +171,7 @@ fun ChatScreen(
     var isVoiceMode by remember { mutableStateOf(false) }
     var showEmojiPanel by remember { mutableStateOf(false) }
     var showPlusMenu by remember { mutableStateOf(false) }
+    var showTtsMenu by remember { mutableStateOf(false) }
 
     // 文件选择器（「+」菜单"文件"按钮 → 选文件给 AI 分析）
     val filePicker = rememberLauncherForActivityResult(
@@ -366,10 +372,39 @@ fun ChatScreen(
                         }
                     },
                     actions = {
-                        IconButton(onClick = {
-                            character?.id?.let { onSettingsClick(it) }
-                        }) {
-                            Icon(Icons.Filled.MoreVert, "更多", tint = TextPrimary)
+                        Box {
+                            IconButton(onClick = { showTtsMenu = true }) {
+                                Icon(Icons.Filled.MoreVert, "更多", tint = TextPrimary)
+                            }
+                            DropdownMenu(
+                                expanded = showTtsMenu,
+                                onDismissRequest = { showTtsMenu = false }
+                            ) {
+                                // 朗读音色切换
+                                Text(
+                                    "朗读音色",
+                                    fontSize = 12.sp,
+                                    color = TextSecondary,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                                )
+                                VolcTtsManager.presetVoices.forEach { voice ->
+                                    DropdownMenuItem(
+                                        text = { Text(if (currentVoiceId == voice.voiceType) "✓ ${voice.displayName}" else voice.displayName) },
+                                        onClick = {
+                                            showTtsMenu = false
+                                            viewModel.setVoice(voice.voiceType)
+                                        }
+                                    )
+                                }
+                                HorizontalDivider()
+                                DropdownMenuItem(
+                                    text = { Text("角色设置") },
+                                    onClick = {
+                                        showTtsMenu = false
+                                        character?.id?.let { onSettingsClick(it) }
+                                    }
+                                )
+                            }
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -992,7 +1027,8 @@ fun ChatScreen(
                                 }
                             },
                             onResend = { viewModel.resendMessage(it) },
-                            onCopyText = copyTextToClipboard
+                            onCopyText = copyTextToClipboard,
+                            onSpeakClick = { text -> viewModel.speakMessage(text) }
                         )
                     }
                 }
@@ -1067,7 +1103,8 @@ private fun MessageBubble(
     isPlaying: Boolean,
     onPlayClick: () -> Unit,
     onResend: (Long) -> Unit = {},
-    onCopyText: (String) -> Unit = {}
+    onCopyText: (String) -> Unit = {},
+    onSpeakClick: (String) -> Unit = {}
 ) {
     val isSelf = message.senderType == SenderType.USER
     val isSystem = message.senderType == SenderType.SYSTEM
@@ -1182,12 +1219,28 @@ private fun MessageBubble(
                     } else {
                         message.content
                     }
-                    Text(
-                        text = displayText,
-                        fontSize = if (isSystem) 12.sp else 15.sp,
-                        lineHeight = if (isSystem) 15.6.sp else 19.5.sp,
-                        color = textColor
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = displayText,
+                            fontSize = if (isSystem) 12.sp else 15.sp,
+                            lineHeight = if (isSystem) 15.6.sp else 19.5.sp,
+                            color = textColor
+                        )
+                        // AI 文本消息：喇叭朗读（豆包 Seed-TTS 2.0 情感合成）
+                        if (message.senderType == SenderType.AI && message.content.isNotBlank()) {
+                            Icon(
+                                imageVector = Icons.Filled.VolumeUp,
+                                contentDescription = "朗读",
+                                tint = TextSecondary,
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .clickable { onSpeakClick(message.content) }
+                            )
+                        }
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(2.dp))

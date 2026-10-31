@@ -9,6 +9,7 @@ import com.ailover.app.data.local.converter.SenderType
 import com.ailover.app.data.local.entity.CharacterEntity
 import com.ailover.app.data.local.entity.ConversationEntity
 import com.ailover.app.data.local.entity.MemoryEntity
+import com.ailover.app.util.VolcTtsManager
 import java.util.Locale
 import com.ailover.app.data.local.entity.MessageEntity
 import com.ailover.app.data.remote.model.ChatMessage
@@ -23,9 +24,12 @@ import com.ailover.app.data.settings.RolePlayRules
 import com.ailover.app.data.settings.RuleTemplate
 import com.ailover.app.data.settings.SettingsRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -106,6 +110,41 @@ class ChatViewModel(
 
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+
+    // ===== 火山引擎 TTS：当前音色 =====
+    private val _currentVoiceId = MutableStateFlow(VolcTtsManager.presetVoices[0].voiceType)
+    val currentVoiceId: StateFlow<String> = _currentVoiceId.asStateFlow()
+
+    // TTS 切换音色/播放的 Toast 事件（一次性事件流）
+    private val _ttsToast = MutableSharedFlow<String>()
+    val ttsToast: SharedFlow<String> = _ttsToast.asSharedFlow()
+
+    /** 切换朗读音色：更新状态 + 同步到 TTS 管理器 + 弹出 Toast */
+    fun setVoice(voiceType: String) {
+        if (_currentVoiceId.value == voiceType) return
+        _currentVoiceId.value = voiceType
+        VolcTtsManager.setCurrentVoiceType(voiceType)
+        viewModelScope.launch {
+            _ttsToast.emit("音色已切换：${VolcTtsManager.displayNameOf(voiceType)}")
+        }
+    }
+
+    /** 朗读一条 AI 文本消息（豆包 Seed-TTS 2.0 智能理解情感） */
+    fun speakMessage(content: String) {
+        if (content.isBlank()) return
+        viewModelScope.launch {
+            VolcTtsManager.play(
+                text = content,
+                onStart = {},
+                onError = { err -> viewModelScope.launch { _ttsToast.emit("朗读失败：$err") } }
+            )
+        }
+    }
+
+    override fun onCleared() {
+        VolcTtsManager.release()
+        super.onCleared()
+    }
 
     fun onInputTextChange(text: String) {
         _inputText.value = text
