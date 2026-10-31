@@ -141,6 +141,20 @@ class SettingsRepository(private val context: Context) {
         }
     }
 
+    // 记忆提取进度标记：记录每个会话上次提取时的消息数，用于"每累计10条提取一次"
+    // （不依赖"恰好整10"的巧合；纯 DataStore，不动 Room 表结构）
+    private fun memoryExtractKey(conversationId: Long) = intPreferencesKey("memory_extract_count_$conversationId")
+
+    suspend fun getMemoryExtractCountOnce(conversationId: Long): Int {
+        return context.dataStore.data.first()[memoryExtractKey(conversationId)] ?: 0
+    }
+
+    suspend fun saveMemoryExtractCount(conversationId: Long, count: Int) {
+        context.dataStore.edit { prefs ->
+            prefs[memoryExtractKey(conversationId)] = count
+        }
+    }
+
     suspend fun getProfilesOnce(): List<ApiProfile> = apiProfiles.first()
 
     suspend fun addProfile(profile: ApiProfile) {

@@ -314,10 +314,11 @@ class ChatViewModel(
             return
         }
 
-        // 4.5 判断情绪（用户消息进来后、构建 prompt 前，让新情绪立即生效）
-        updateEmotionIfNeeded()
-        // 重新获取 conversation（情绪可能已更新）
-        val conversationForPrompt = conversationRepository.getConversationById(conversationId) ?: conversation
+        // 4.5 情绪判断改后台（不阻塞发请求）：本轮回复沿用已存情绪，新情绪下一轮生效
+        // 之前是同步 await 一次完整 LLM，导致每次回复 = 2 次 LLM 往返；改为后台异步，回复更快
+        viewModelScope.launch { updateEmotionIfNeeded() }
+        // 本轮 prompt 使用当前已存情绪（旧值）
+        val conversationForPrompt = conversation
 
         // 5. 创建 AI 回复占位消息
         val aiMessageId = messageRepository.insertMessage(
@@ -397,6 +398,12 @@ class ChatViewModel(
 
         // 7. 流式调用 API（支持规则轮换 + 被拒重试一次）
         _isStreaming.value = true
+        // 用户消息已发出：立即标记发送成功，不再等 AI 整段回完（解耦消息状态；若后续失败，catch 会改回 FAILED）
+        messageRepository.getMessageById(userMessageId)?.let {
+            if (it.sendStatus != MessageEntity.SEND_STATUS_FAILED) {
+                messageRepository.updateMessage(it.copy(sendStatus = MessageEntity.SEND_STATUS_SUCCESS))
+            }
+        }
         var attempt = 0
         var finalContent = ""
         var sendSuccess = false
@@ -674,9 +681,11 @@ $conflictPart
                         it.sendStatus == MessageEntity.SEND_STATUS_SUCCESS &&
                         it.content.isNotBlank()
                     }
-                val shouldGenerate = allMessages.size >= 10 && allMessages.size % 10 == 0
-                Log.d("SummaryDebug", "当前消息数=${allMessages.size}, 是否触发=$shouldGenerate")
-                // 每10条生成一次
+                // 触发：累计有效消息数 >=10，且距上次提取又新增了 >=10 条
+                // （用 DataStore 记录上次提取时的消息数，不再依赖"恰好整10"的巧合，避免聊很久永不触发）
+                val lastExtract = settingsRepository.getMemoryExtractCountOnce(conversationId)
+                val shouldGenerate = allMessages.size >= 10 && (allMessages.size - lastExtract) >= 10
+                Log.d("SummaryDebug", "当前消息数=${allMessages.size}, 上次提取=$lastExtract, 是否触发=$shouldGenerate")
                 if (!shouldGenerate) return@launch
 
                 // 取最近20条消息
@@ -719,8 +728,12 @@ $conflictPart
 
                 // ===== 第3步：提取关键信息存记忆库 =====
                 extractAndSaveMemories(character.id, conversation.id, userOnlyMessages, settings)
-            } catch (_: Exception) {
-                // 摘要生成失败不影响聊天
+
+                // 无论提取是否有产出，都推进进度标记（避免下次因"未到整10"而永远跳过）
+                settingsRepository.saveMemoryExtractCount(conversationId, allMessages.size)
+            } catch (e: Exception) {
+                // 摘要/记忆生成失败不影响聊天，但记日志便于排查
+                Log.d("SummaryDebug", "摘要/记忆提取失败: ${e.message}")
             }
         }
     }
@@ -858,6 +871,41 @@ $conflictPart
         }
     }
 
+    /** 类型词近似归一：LLM 可能输出"姓名/称呼""爱好/喜欢/偏好/口味"等变体，统一到标准类型 */
+    private fun normalizeType(raw: String): String? {
+        val t = raw.trim()
+        return when {
+            t.contains("名字") || t.contains("姓名") || t.contains("称呼") || t.contains("昵称") -> "名字"
+            t.contains("喜好") || t.contains("爱好") || t.contains("喜欢") || t.contains("偏好") || t.contains("口味") || t.contains("习惯") -> "喜好"
+            t.contains("事件") || t.contains("经历") || t.contains("发生") -> "事件"
+            t.contains("关系") || t.contains("身份") -> "关系"
+            t.contains("其他") || t.contains("信息") -> "其他"
+            else -> null
+        }
+    }
+
+    /** 宽松解析一行候选：去掉行首编号，接受 [类型]内容 或 类型：内容，类型做近似归一 */
+    private fun parseCandidateLine(line: String): Pair<String, String>? {
+        val cleaned = line
+            .replaceFirst(Regex("^[\\d\\-*]+[.、)）:]?\\s*"), "")
+            .trim()
+        // [类型] 内容
+        val bracket = Regex("^\\[([^\\]]+)\\]\\s*[:：]?\\s*(.+)$").find(cleaned)
+        if (bracket != null) {
+            val type = normalizeType(bracket.groupValues[1])
+            val content = bracket.groupValues[2].trim()
+            if (type != null && content.isNotEmpty()) return type to content
+        }
+        // 类型：内容
+        val colon = Regex("^([^:：]+)[:：]\\s*(.+)$").find(cleaned)
+        if (colon != null) {
+            val type = normalizeType(colon.groupValues[1])
+            val content = colon.groupValues[2].trim()
+            if (type != null && content.isNotEmpty()) return type to content
+        }
+        return null
+    }
+
     /**
      * 从用户消息中提取关键信息，存入记忆库。
      * 两步走：第一步列候选，第二步严格审核（判断该不该记、类型、和已有关系）。
@@ -870,13 +918,18 @@ $conflictPart
         settings: com.ailover.app.data.settings.ApiProfile
     ) {
         try {
-            if (userOnlyMessages.isBlank()) return
+            if (userOnlyMessages.isBlank()) {
+                Log.d("SummaryDebug", "记忆提取：最近20条无用户消息，跳过")
+                return
+            }
 
             // ===== 第一步：列候选 =====
             val candidatePrompt = """
                 从以下用户说的话中，列出所有可能值得记住的候选信息，每条一行，格式：[类型] 内容
                 类型只能是：名字、喜好、事件、关系、其他
-                不要判断该不该记，先全部列出来（包括可能的）。没有候选就回复"无"。
+                不要判断该不该记，先全部列出来（包括可能的）。
+                即使是闲聊中透露出的稳定偏好（口味、习惯、喜欢/不喜欢、口头禅）、名字/称呼、长期经历、人物关系，也算候选。
+                只有整段话都完全没有可记信息时，才回复"无"。
                 用户说的话：
                 $userOnlyMessages
             """.trimIndent()
@@ -894,22 +947,20 @@ $conflictPart
             ).collect { chunk -> candidateResult.append(chunk) }
 
             val candidateRaw = candidateResult.toString().trim()
-            if (candidateRaw.isEmpty() || candidateRaw == "无") return
+            if (candidateRaw.isEmpty() || candidateRaw == "无") {
+                Log.d("SummaryDebug", "记忆提取：模型判定无候选（原文=${candidateRaw.take(120)}）")
+                return
+            }
 
-            // 解析候选
-            val validTypes = setOf("名字", "喜好", "事件", "关系", "其他")
+            // 解析候选（宽松容错：允许行首编号/圆点、[类型]内容 或 类型：内容、类型近似词）
             val candidates = candidateRaw.lines()
                 .map { it.trim() }
-                .filter { it.isNotEmpty() }
-                .mapNotNull { line ->
-                    val m = Regex("^\\[(.+?)\\]\\s*(.+)$").find(line)
-                    if (m != null) {
-                        val t = m.groupValues[1].trim()
-                        val c = m.groupValues[2].trim()
-                        if (t in validTypes && c.isNotEmpty()) t to c else null
-                    } else null
-                }
-            if (candidates.isEmpty()) return
+                .filter { it.isNotBlank() }
+                .mapNotNull { parseCandidateLine(it) }
+            if (candidates.isEmpty()) {
+                Log.d("SummaryDebug", "记忆提取：候选解析为空，跳过（原文=${candidateRaw.take(120)}）")
+                return
+            }
 
             // ===== 第二步：严格审核 =====
             val existingMemories = memoryRepository.getMemoriesByCharacterOnce(characterId, 50)
@@ -934,8 +985,9 @@ $conflictPart
                 $candidateListText
 
                 请严格审核每条候选：
-                【不该记的】未来计划、当下动作、感慨、玩笑、关于角色的、提问、推断、无信息量
-                【该记的】关于用户的明确事实（名字、喜好、长期经历、关系状态）
+                【不该记的】仅限：未来的一次性计划、当下瞬时动作/情绪、无信息量的寒暄
+                【该记的】关于用户的稳定事实与偏好：名字/称呼、口味与习惯、喜欢/不喜欢、长期经历、重要事件、人物关系状态
+                （闲聊里反复出现的稳定偏好也要记；只有纯粹无信息量的一句话寒暄才跳过）
 
                 和已有记忆比对：
                 - 重复/包含 → 合并（保留最全的，更新已有）
@@ -962,17 +1014,24 @@ $conflictPart
             ).collect { chunk -> reviewResult.append(chunk) }
 
             val reviewRaw = reviewResult.toString().trim()
-            if (reviewRaw.isEmpty() || reviewRaw == "无") return
+            if (reviewRaw.isEmpty() || reviewRaw == "无") {
+                Log.d("SummaryDebug", "记忆提取：审核无操作，跳过（原文=${reviewRaw.take(120)}）")
+                return
+            }
 
-            // 解析审核结果，执行操作
+            // 解析审核结果，执行操作（宽松容错）
+            var addCount = 0
+            var updateCount = 0
             val lines = reviewRaw.lines().map { it.trim() }.filter { it.isNotEmpty() }
             for (line in lines) {
-                // [新增] [类型] 内容
-                val addMatch = Regex("^\\[新增\\]\\s*\\[(.+?)\\]\\s*(.+)$").find(line)
+                // 去掉行首编号/圆点，再匹配操作
+                val cleaned = line.replaceFirst(Regex("^[\\d\\-*]+[.、)）:]?\\s*"), "").trim()
+                // [新增] [类型] 内容 或 新增：[类型]内容 / 新增：类型：内容
+                val addMatch = Regex("^[\\[【]?新增[\]】]?\\s*[:：]?\\s*(.+)$").find(cleaned)
                 if (addMatch != null) {
-                    val type = addMatch.groupValues[1].trim()
-                    val content = addMatch.groupValues[2].trim()
-                    if (type in validTypes && content.isNotEmpty()) {
+                    val typeContent = parseCandidateLine(addMatch.groupValues[1])
+                    if (typeContent != null) {
+                        val (type, content) = typeContent
                         val importance = when (type) {
                             "名字" -> 5; "关系" -> 4; "喜好" -> 4; "事件" -> 3; else -> 2
                         }
@@ -982,17 +1041,18 @@ $conflictPart
                                 importance = importance, sourceConversationId = sourceConversationId
                             )
                         )
-                        Log.d("SummaryDebug", "两步走-新增: [$type] $content")
+                        addCount++
+                        Log.d("SummaryDebug", "记忆提取-新增: [$type] $content")
                     }
                     continue
                 }
-                // [更新] 已有序号 → [类型] 新内容
-                val updateMatch = Regex("^\\[更新\\]\\s*(\\d+)\\s*[→\\-:]\\s*\\[(.+?)\\]\\s*(.+)$").find(line)
+                // [更新] 已有序号 → [类型] 新内容 或 更新：序号 → ...
+                val updateMatch = Regex("^[\\[【]?更新[\]】]?\\s*[:：]?\\s*(\\d+)\\s*[→\\-:：]\\s*(.+)$").find(cleaned)
                 if (updateMatch != null) {
                     val idx = updateMatch.groupValues[1].toIntOrNull() ?: 0
-                    val type = updateMatch.groupValues[2].trim()
-                    val content = updateMatch.groupValues[3].trim()
-                    if (idx in 1..existingMemories.size && type in validTypes && content.isNotEmpty()) {
+                    val typeContent = parseCandidateLine(updateMatch.groupValues[2])
+                    if (idx in 1..existingMemories.size && typeContent != null) {
+                        val (type, content) = typeContent
                         val target = existingMemories[idx - 1]
                         val importance = when (type) {
                             "名字" -> 5; "关系" -> 4; "喜好" -> 4; "事件" -> 3; else -> 2
@@ -1003,12 +1063,14 @@ $conflictPart
                                 updatedAt = System.currentTimeMillis()
                             )
                         )
-                        Log.d("SummaryDebug", "两步走-更新#$idx: [$type] $content")
+                        updateCount++
+                        Log.d("SummaryDebug", "记忆提取-更新#$idx: [$type] $content")
                     }
                     continue
                 }
                 // [跳过] 或其他 → 忽略
             }
+            Log.d("SummaryDebug", "记忆提取完成: 新增=$addCount, 更新=$updateCount")
         } catch (_: Exception) {
             // 提取失败不影响聊天
         }
