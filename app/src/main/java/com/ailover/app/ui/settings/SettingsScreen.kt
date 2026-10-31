@@ -61,6 +61,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun SettingsScreen(
     onApiSettingsClick: () -> Unit,
+    onTtsSettingsClick: () -> Unit,
     onBackClick: () -> Unit
 ) {
     val settingsRepository = remember { AppContainer.settingsRepository() }
@@ -126,6 +127,13 @@ fun SettingsScreen(
                     iconTint = TextPrimary,
                     title = "API 设置",
                     onClick = onApiSettingsClick
+                )
+                // 朗读设置（火山豆包 Seed-TTS 2.0）
+                SettingsListItem(
+                    icon = IconParkIcons.Outline.SettingTwo,
+                    iconTint = TextPrimary,
+                    title = "朗读设置",
+                    onClick = onTtsSettingsClick
                 )
                 // 深色模式
                 SettingsListItem(

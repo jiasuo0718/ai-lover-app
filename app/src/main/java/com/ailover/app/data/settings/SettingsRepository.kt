@@ -36,6 +36,7 @@ class SettingsRepository(private val context: Context) {
     private val KEY_CURRENT_RULE_INDEX = intPreferencesKey("current_rule_index")
     private val KEY_NOVEL_MODE = booleanPreferencesKey("novel_mode")
     private val KEY_GLOBAL_SYSTEM_PROMPT = stringPreferencesKey("global_system_prompt")
+    private val KEY_TTS_API_KEY = stringPreferencesKey("tts_api_key")
 
     // 旧 key（迁移用，迁移后保留不删）
     private val KEY_OLD_BASE_URL = stringPreferencesKey("api_base_url")
@@ -137,6 +138,22 @@ class SettingsRepository(private val context: Context) {
                 prefs.remove(KEY_GLOBAL_SYSTEM_PROMPT)
             } else {
                 prefs[KEY_GLOBAL_SYSTEM_PROMPT] = content
+            }
+        }
+    }
+
+    // 火山豆包 Seed-TTS 2.0 的 X-Api-Key：独立存储，与 AI 对话配置解耦（在"设置 > 朗读设置"里填写）
+    val ttsApiKey: Flow<String> = context.dataStore.data
+        .map { prefs -> prefs[KEY_TTS_API_KEY] ?: "" }
+
+    suspend fun getTtsApiKeyOnce(): String = ttsApiKey.first()
+
+    suspend fun saveTtsApiKey(key: String) {
+        context.dataStore.edit { prefs ->
+            if (key.isBlank()) {
+                prefs.remove(KEY_TTS_API_KEY)
+            } else {
+                prefs[KEY_TTS_API_KEY] = key
             }
         }
     }

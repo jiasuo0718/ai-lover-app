@@ -31,7 +31,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  *    仅豆包2.0情感音色（_uranus_bigtts）支持，且该字段不参与计费。
  *  - 流式边下边播：音频以 pcm 流式返回，用 AudioTrack 实时写入播放，低延迟。
  *
- * 注意：鉴权密钥由 App 的"编辑配置"页同步进来（ApiProfile.volcTtsApiKey），运行时通过 setApiKey 更新。
+ * 注意：鉴权密钥在"设置 > 朗读设置"里独立填写并保存，运行时通过 setApiKey 更新。
  * 并发安全：同一时间仅允许一路合成，新请求会先停止上一路；播放器/连接用锁保护。
  */
 object VolcTtsManager {

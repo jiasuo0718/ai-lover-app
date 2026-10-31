@@ -57,6 +57,7 @@ import com.ailover.app.ui.profile.UserProfileEditScreen
 import com.ailover.app.ui.settings.ApiProfileEditScreen
 import com.ailover.app.ui.settings.ApiProfileListScreen
 import com.ailover.app.ui.settings.SettingsScreen
+import com.ailover.app.ui.settings.TtsSettingsScreen
 import kotlinx.coroutines.launch
 
 object Routes {
@@ -70,6 +71,7 @@ object Routes {
     const val SETTINGS_PAGE = "settings_page"
     const val API_PROFILE_LIST = "api_profile_list"
     const val API_PROFILE_EDIT = "api_profile_edit/{profileId}"
+    const val TTS_SETTINGS = "tts_settings"
 
     fun createApiProfileEditRoute(profileId: String): String =
         "api_profile_edit/$profileId"
@@ -140,6 +142,16 @@ fun AppNavGraph() {
                 onApiSettingsClick = {
                     navController.navigate(Routes.API_PROFILE_LIST)
                 },
+                onTtsSettingsClick = {
+                    navController.navigate(Routes.TTS_SETTINGS)
+                },
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        // 朗读设置页（火山豆包 Seed-TTS 2.0）
+        composable(Routes.TTS_SETTINGS) {
+            TtsSettingsScreen(
                 onBackClick = { navController.popBackStack() }
             )
         }

@@ -9,9 +9,7 @@ data class ApiProfile(
     val platform: String = "deepseek",
     val baseUrl: String,
     val apiKey: String,
-    val modelName: String,
-    // 火山豆包 Seed-TTS 2.0 的 X-Api-Key（控制台 > API Key 管理），空串表示未设置
-    val volcTtsApiKey: String = ""
+    val modelName: String
 ) {
     fun isConfigured(): Boolean = apiKey.isNotBlank() && baseUrl.isNotBlank() && modelName.isNotBlank()
 }
