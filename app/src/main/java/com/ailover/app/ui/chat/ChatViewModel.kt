@@ -550,7 +550,9 @@ class ChatViewModel(
      * 构建 system prompt：角色人设 + 关系阶段 + 情绪 + 说话风格 + 规则模板 + 小说模式。
      * 规则在后，不覆盖人设，只补充规则。
      */
-    private fun buildSystemPrompt(character: CharacterEntity, ruleTemplate: RuleTemplate, novelMode: Boolean, mood: String, reaction: String): String {
+    private suspend fun buildSystemPrompt(character: CharacterEntity, ruleTemplate: RuleTemplate, novelMode: Boolean, mood: String, reaction: String): String {
+        // 全局系统提示词：用户自定义，非空则拼接到最前面
+        val globalPrePrompt = settingsRepository.getGlobalSystemPrompt()
         // ① 角色身份（名字 + 标签）
         val identity = "你是${character.name}。"
         val tagsPart = character.characterTags.takeIf { it.isNotBlank() }?.let { "\n【角色标签】$it" } ?: ""
@@ -610,7 +612,7 @@ class ChatViewModel(
 小说模式开启时，优先遵循小说叙事要求，不受微信基础规则中的默认简短、口语化、非文学化要求限制。
 对话风格规则只影响角色说话的语气和性格，不应压缩小说场景描写。
 始终保持角色人设、关系阶段和实时情绪的一致性。$narrativePart""" else ""
-        return """$identity$tagsPart$backgroundPart$personalityPart$behaviorPart$speechPart
+        val basePrompt = """$identity$tagsPart$backgroundPart$personalityPart$behaviorPart$speechPart
 $relationshipPart
 $emotionPart
 $conflictPart
@@ -627,6 +629,13 @@ $conflictPart
 - 默认称呼用户为"你"（称"您/主人/名字"的角色按人设）
 - 像真人发微信，一次可以连发多条短消息（用换行分隔每条），想到啥发啥：补一句、追问、自言自语、突然想起
 - 但别为发而发：一条能说清就一条，话多/激动时才连发，每条短、口语$rulePart$examplePart$novelPart"""
+
+        // 全局系统提示词非空 → 拼接到整个 System Prompt 的最前面（换行分隔）
+        return if (globalPrePrompt.isNotBlank()) {
+            "$globalPrePrompt\n\n$basePrompt"
+        } else {
+            basePrompt
+        }
     }
 
     /**

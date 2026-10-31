@@ -35,6 +35,7 @@ class SettingsRepository(private val context: Context) {
     private val KEY_AUTO_ROTATE_RULE = booleanPreferencesKey("auto_rotate_rule")
     private val KEY_CURRENT_RULE_INDEX = intPreferencesKey("current_rule_index")
     private val KEY_NOVEL_MODE = booleanPreferencesKey("novel_mode")
+    private val KEY_GLOBAL_SYSTEM_PROMPT = stringPreferencesKey("global_system_prompt")
 
     // 旧 key（迁移用，迁移后保留不删）
     private val KEY_OLD_BASE_URL = stringPreferencesKey("api_base_url")
@@ -123,6 +124,22 @@ class SettingsRepository(private val context: Context) {
     }
 
     suspend fun getNovelModeOnce(): Boolean = novelMode.first()
+
+    // 全局系统提示词：用户自定义的前置提示词，本地持久化（DataStore）
+    // 读取时为空字符串表示未设置
+    suspend fun getGlobalSystemPrompt(): String {
+        return context.dataStore.data.first()[KEY_GLOBAL_SYSTEM_PROMPT] ?: ""
+    }
+
+    suspend fun saveGlobalSystemPrompt(content: String) {
+        context.dataStore.edit { prefs ->
+            if (content.isBlank()) {
+                prefs.remove(KEY_GLOBAL_SYSTEM_PROMPT)
+            } else {
+                prefs[KEY_GLOBAL_SYSTEM_PROMPT] = content
+            }
+        }
+    }
 
     suspend fun getProfilesOnce(): List<ApiProfile> = apiProfiles.first()
 

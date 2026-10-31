@@ -35,6 +35,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -70,6 +71,12 @@ fun SettingsScreen(
     val scope = rememberCoroutineScope()
     var showThemeDialog by remember { mutableStateOf(false) }
     var showRuleDialog by remember { mutableStateOf(false) }
+
+    // 全局系统提示词：编辑框内容 + 首次加载已有值
+    var globalPrompt by remember { mutableStateOf("") }
+    LaunchedEffect(Unit) {
+        globalPrompt = settingsRepository.getGlobalSystemPrompt()
+    }
 
     val themeLabel = when (themeMode) {
         "dark" -> "深色"
@@ -196,7 +203,53 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // ===== 分组二：关于 =====
+            // ===== 分组二：全局系统提示词 =====
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(CardWhite)
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+            ) {
+                Text(
+                    text = "全局系统提示词",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "所有对话生效，会拼接到每条 System Prompt 的最前面；留空则不启用。",
+                    fontSize = 12.sp,
+                    color = TextSecondary
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = globalPrompt,
+                    onValueChange = { globalPrompt = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(160.dp),
+                    maxLines = 10,
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(color = TextPrimary),
+                    label = { Text("全局前置提示词", color = TextSecondary) },
+                    placeholder = { Text("例如：你是一个温柔体贴的恋人…", color = TextSecondary) }
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = {
+                        scope.launch {
+                            settingsRepository.saveGlobalSystemPrompt(globalPrompt)
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("保存全局提示词")
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // ===== 分组三：关于 =====
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
