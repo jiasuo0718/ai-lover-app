@@ -347,18 +347,9 @@ fun ChatScreen(
                                     fontSize = 12.sp
                                 )
                             } else {
-                                val score = character?.relationshipScore ?: 0
-                                val stageName = when {
-                                    score >= 200 -> "挚友"
-                                    score >= 100 -> "亲密"
-                                    score >= 50 -> "朋友"
-                                    score >= 20 -> "熟悉"
-                                    else -> "陌生"
-                                }
                                 val mood = conversation?.mood ?: "平淡"
-                                val reaction = conversation?.reaction ?: "平静"
                                 Text(
-                                    "关系：$stageName · 心情：$mood · 刚才：$reaction",
+                                    "状态：$mood",
                                     color = TextSecondary,
                                     fontSize = 12.sp
                                 )

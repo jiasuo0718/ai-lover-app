@@ -9,8 +9,6 @@ import com.ailover.app.data.local.converter.SenderType
 import com.ailover.app.data.local.entity.CharacterEntity
 import com.ailover.app.data.local.entity.ConversationEntity
 import com.ailover.app.data.local.entity.MemoryEntity
-import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 import com.ailover.app.data.local.entity.MessageEntity
 import com.ailover.app.data.remote.model.ChatMessage
@@ -504,18 +502,6 @@ class ChatViewModel(
                         (currentRuleIndex + attempt + 1) % RolePlayRules.ROTATABLE.size
                     )
                 }
-                // 关系值+1（每天上限20）
-                character?.let { c ->
-                    val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-                    val (lastDate, todayGain) = parseScoreDate(c.lastScoreDate)
-                    if (lastDate != today) {
-                        // 新的一天，重置计数并+1
-                        characterRepository.updateRelationshipScore(c.id, c.relationshipScore + 1, "$today:1")
-                    } else if (todayGain < 20) {
-                        // 今天还没到上限，+1
-                        characterRepository.updateRelationshipScore(c.id, c.relationshipScore + 1, "$today:${todayGain + 1}")
-                    }
-                }
                 break
             } catch (e: Exception) {
                 // 判断是否可以重试：第一次尝试 + 开启自动轮换 + 不是最后一套
@@ -546,31 +532,7 @@ class ChatViewModel(
     }
 
     /**
-     * 解析 lastScoreDate：格式 "yyyy-MM-dd:count"，返回 (日期, 今天已涨分数)。
-     */
-    private fun parseScoreDate(lastScoreDate: String?): Pair<String, Int> {
-        if (lastScoreDate.isNullOrBlank()) return "" to 0
-        val parts = lastScoreDate.split(":")
-        return if (parts.size == 2) parts[0] to (parts[1].toIntOrNull() ?: 0) else lastScoreDate to 0
-    }
-
-    /**
-     * 关系阶段：5档，带5分缓冲（升档到阈值才升，降档留5分缓冲）。
-     */
-    data class RelationshipStage(val name: String, val description: String, val minScore: Int)
-
-    private fun getRelationshipStage(score: Int): RelationshipStage {
-        return when {
-            score >= 200 -> RelationshipStage("挚友", "你们已经是灵魂伴侣，无话不谈，深度信任", 200)
-            score >= 100 -> RelationshipStage("亲密", "你们很亲近，可以撒娇、依赖、分享情绪", 100)
-            score >= 50 -> RelationshipStage("朋友", "你们很熟了，会吐槽、关心日常", 50)
-            score >= 20 -> RelationshipStage("熟悉", "你们开始熟悉，会开玩笑，偶尔主动找话题", 20)
-            else -> RelationshipStage("陌生", "你们刚认识，客气礼貌，有距离感", 0)
-        }
-    }
-
-    /**
-     * 构建 system prompt：角色人设 + 关系阶段 + 情绪 + 说话风格 + 规则模板 + 小说模式。
+     * 构建 system prompt：角色人设 + 情绪 + 说话风格 + 规则模板 + 小说模式。
      * 规则在后，不覆盖人设，只补充规则。
      */
     private suspend fun buildSystemPrompt(character: CharacterEntity, ruleTemplate: RuleTemplate, novelMode: Boolean, mood: String, reaction: String): String {
@@ -589,15 +551,12 @@ class ChatViewModel(
         val behaviorPart = character.behaviorRules.takeIf { it.isNotBlank() }?.let { "\n你的行为习惯：$it" } ?: ""
         // ⑤ 角色语言风格
         val speechPart = character.speechStyle.takeIf { it.isNotBlank() }?.let { "\n你的语言风格：$it" } ?: ""
-        // ⑥ 关系阶段（初始关系设定 + 动态关系度阶段）
-        val stage = getRelationshipStage(character.relationshipScore)
+        // ⑥ 初始关系设定（仅人设内容，不再有动态关系数值机制）
         val setupPart = character.relationshipSetup.takeIf { it.isNotBlank() }?.let { "\n\n你和用户的初始关系：$it" } ?: ""
-        val relationshipPart = "$setupPart\n你和用户的关系阶段：${stage.name}（${stage.description}）。\n请用【${stage.name}】的态度和语气回复，但保持角色人设，别过度演绎。"
+        val relationshipPart = setupPart
         // ⑦ 实时情绪
         val emotionPart = "\n\n你现在的心情基调是【$mood】，刚才的事让你【$reaction】。\n用这种状态回复，保持人设，别过度演绎。"
-        // ⑧ 冲突协调
-        val conflictPart = "\n\n当\"关系态度\"和\"当前情绪\"冲突时，以【当前情绪】为准（情绪是当前状态，关系是底色）。\n例：关系亲密 + 情绪生气 → 用\"亲密的生气\"（赌气/傲娇/别扭），不是\"撒娇\"；也不是\"冷淡无情\"。\n不要\"既撒娇又冷淡\"。"
-        // ⑩ 对话风格规则（显式优先级链：角色人设/背景/行为习惯 > 风格规则；风格规则只作用于语气、用词、节奏）
+        // ⑧ 对话风格规则（显式优先级链：角色人设/背景/行为习惯 > 风格规则；风格规则只作用于语气、用词、节奏）
         val rulePart = if (ruleTemplate.content.isNotBlank()) "\n\n【对话风格规则】\n${ruleTemplate.content}\n（角色人设、背景、行为习惯优先于对话风格规则；对话风格规则只影响你的语气、用词、节奏，不覆盖你的角色设定。）" else ""
         // ⑪ 示例对话（放在角色定义之后；只约束语气与用词，篇幅不由此处决定，指向小说模式规则）
         val novelLengthNote = if (novelMode) "\n（示例对话只约束你的语气与用词，不构成篇幅约束；篇幅以小说模式规则为准。）" else ""
@@ -636,11 +595,10 @@ class ChatViewModel(
 六、规则优先级
 小说模式开启时，优先遵循小说叙事要求，不受微信基础规则中的默认简短、口语化、非文学化要求限制。
 对话风格规则只影响角色说话的语气和性格，不应压缩小说场景描写。
-始终保持角色人设、关系阶段和实时情绪的一致性。$narrativePart""" else ""
+始终保持角色人设和实时情绪的一致性。$narrativePart""" else ""
         val basePrompt = """$identity$tagsPart$backgroundPart$personalityPart$behaviorPart$speechPart
 $relationshipPart
 $emotionPart
-$conflictPart
 你正在和用户微信聊天，请：
 - 默认用日常口语（文艺/古风/书面角色按人设）
 - 默认回复简短（话痨/爱解释角色按人设）
