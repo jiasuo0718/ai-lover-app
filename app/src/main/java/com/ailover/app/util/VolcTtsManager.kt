@@ -235,7 +235,7 @@ object VolcTtsManager {
                 synchronized(lock) { activeWebSocket = null }
                 runCatching {
                     track?.apply {
-                        if (playState == android.media.AudioTrack.PlayState.PLAYING) stop()
+                        if (playState == AudioTrack.PLAYSTATE_PLAYING) stop()
                         release()
                     }
                 }
@@ -251,7 +251,7 @@ object VolcTtsManager {
             activeWebSocket = null
             runCatching {
                 audioTrack?.apply {
-                    if (playState == AudioTrack.PlayState.PLAYING) stop()
+                    if (playState == AudioTrack.PLAYSTATE_PLAYING) stop()
                     release()
                 }
             }

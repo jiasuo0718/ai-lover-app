@@ -156,6 +156,7 @@ fun ChatScreen(
     val inputText by viewModel.inputText.collectAsState()
     val isStreaming by viewModel.isStreaming.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+    val currentVoiceId by viewModel.currentVoiceId.collectAsState()
     val listState = rememberLazyListState()
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
