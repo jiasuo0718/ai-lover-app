@@ -570,10 +570,11 @@ class ChatViewModel(
         val emotionPart = "\n\n你现在的心情基调是【$mood】，刚才的事让你【$reaction】。\n用这种状态回复，保持人设，别过度演绎。"
         // ⑧ 冲突协调
         val conflictPart = "\n\n当\"关系态度\"和\"当前情绪\"冲突时，以【当前情绪】为准（情绪是当前状态，关系是底色）。\n例：关系亲密 + 情绪生气 → 用\"亲密的生气\"（赌气/傲娇/别扭），不是\"撒娇\"；也不是\"冷淡无情\"。\n不要\"既撒娇又冷淡\"。"
-        // ⑩ 对话风格规则
-        val rulePart = if (ruleTemplate.content.isNotBlank()) "\n\n${ruleTemplate.content}" else ""
-        // ⑪ 示例对话（教模型模仿角色的表达与描写风格，放在角色定义之后）
-        val examplePart = character.exampleDialogues.takeIf { it.isNotBlank() }?.let { "\n\n【示例对话】\n$it\n（以上是角色示例对话，请模仿其说话方式与描写风格）" } ?: ""
+        // ⑩ 对话风格规则（显式优先级链：角色人设/背景/行为习惯 > 风格规则；风格规则只作用于语气、用词、节奏）
+        val rulePart = if (ruleTemplate.content.isNotBlank()) "\n\n【对话风格规则】\n${ruleTemplate.content}\n（角色人设、背景、行为习惯优先于对话风格规则；对话风格规则只影响你的语气、用词、节奏，不覆盖你的角色设定。）" else ""
+        // ⑪ 示例对话（放在角色定义之后；只约束语气与用词，篇幅不由此处决定，指向小说模式规则）
+        val novelLengthNote = if (novelMode) "\n（示例对话只约束你的语气与用词，不构成篇幅约束；篇幅以小说模式规则为准。）" else ""
+        val examplePart = character.exampleDialogues.takeIf { it.isNotBlank() }?.let { "\n\n【示例对话】\n$it\n（以上是角色示例对话，请模仿其说话方式与描写风格）$novelLengthNote" } ?: ""
         // ⑫ 小说叙事引擎（v2.20 + 角色叙事偏好）
         val narrativePart = character.narrativeStyle.takeIf { it.isNotBlank() }?.let { "\n叙事偏好：$it" } ?: ""
         val novelPart = if (novelMode) """

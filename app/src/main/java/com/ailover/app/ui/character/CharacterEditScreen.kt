@@ -246,7 +246,8 @@ fun CharacterEditScreen(
                     label = "性格特点",
                     value = personality,
                     onValueChange = viewModel::onPersonalityChange,
-                    placeholder = "温顺、傲娇、主动、腹黑…"
+                    placeholder = "温顺、傲娇、主动、腹黑…",
+                    hint = "留空将回退到默认的简短、口语、偏冷淡风格，角色会失去辨识度。"
                 )
                 EditField(
                     label = "行为习惯",
@@ -258,7 +259,8 @@ fun CharacterEditScreen(
                     label = "语言风格",
                     value = speechStyle,
                     onValueChange = viewModel::onSpeechStyleChange,
-                    placeholder = "用词、语气、说话方式…"
+                    placeholder = "用词、语气、说话方式…",
+                    hint = "留空将回退到默认的简短、口语、偏冷淡风格，角色会失去辨识度。"
                 )
             }
             // 组③ 互动设定
@@ -366,7 +368,8 @@ private fun EditField(
     value: String,
     onValueChange: (String) -> Unit,
     singleLine: Boolean = false,
-    placeholder: String
+    placeholder: String,
+    hint: String? = null
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
@@ -394,6 +397,15 @@ private fun EditField(
             ),
             placeholder = { Text(placeholder, color = TextSecondary, fontSize = 14.sp) }
         )
+        if (hint != null) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = hint,
+                color = Color.Red,
+                fontSize = 12.sp,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
         Spacer(modifier = Modifier.height(14.dp))
     }
 }
