@@ -567,8 +567,10 @@ class ChatViewModel(
      * 规则在后，不覆盖人设，只补充规则。
      */
     private suspend fun buildSystemPrompt(character: CharacterEntity, ruleTemplate: RuleTemplate, novelMode: Boolean, mood: String, reaction: String): String {
-        // 全局系统提示词：用户自定义，非空则拼接到最前面
+        // 全局系统提示词：优先用用户自定义；未设置则回退到内置默认（源自 SillyTavern 官方预设）
         val globalPrePrompt = settingsRepository.getGlobalSystemPrompt()
+            .takeIf { it.isNotBlank() }
+            ?: RolePlayRules.defaultGlobalPrompt
         // ① 角色身份（名字 + 标签）
         val identity = "你是${character.name}。"
         val tagsPart = character.characterTags.takeIf { it.isNotBlank() }?.let { "\n【角色标签】$it" } ?: ""
@@ -646,12 +648,8 @@ $conflictPart
 - 像真人发微信，一次可以连发多条短消息（用换行分隔每条），想到啥发啥：补一句、追问、自言自语、突然想起
 - 但别为发而发：一条能说清就一条，话多/激动时才连发，每条短、口语$rulePart$examplePart$novelPart"""
 
-        // 全局系统提示词非空 → 拼接到整个 System Prompt 的最前面（换行分隔）
-        return if (globalPrePrompt.isNotBlank()) {
-            "$globalPrePrompt\n\n$basePrompt"
-        } else {
-            basePrompt
-        }
+        // 全局提示词（自定义或内置默认）→ 拼接到整个 System Prompt 的最前面（换行分隔）
+        return "$globalPrePrompt\n\n$basePrompt"
     }
 
     /**
