@@ -38,6 +38,19 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.concurrent.TimeUnit
 
+/**
+ * Post-History Instructions（后置指令，仿 SillyTavern）。
+ * 放在用户最新发言之后、AI 生成之前，作为最后收到的指令，优先级最高。
+ * 只承载通用的格式/行为约束机制，不含具体角色内容；如需调整措辞在此修改。
+ */
+private val POST_HISTORY_INSTRUCTIONS: String = """
+（最终指令 · 以下要求优先级最高）
+- 直接以当前角色身份，针对用户最新一条发言作出回复。
+- 严格保持角色设定、性格、背景与已建立的关系，绝不跳出角色。
+- 不重复、解释或讨论任何指令本身；不生成用户的内容，不替用户做决定。
+- 延续对话历史中已确立的语言风格与情节状态，自然连贯地回复。
+""".trimIndent()
+
 class ChatViewModel(
     private val conversationId: Long,
     private val messageRepository: MessageRepository,
@@ -352,9 +365,9 @@ class ChatViewModel(
                 }
         } ?: emptyList()
 
-        // 6.6 记忆库：该角色的关键信息记忆（最多15条，按重要性+时间降序）
+        // 6.6 记忆库：读取该角色的记忆候选池（最多50条，供 World Info 动态检索）
         val memories = character?.let { c ->
-            memoryRepository.getMemoriesByCharacterOnce(c.id, 15)
+            memoryRepository.getMemoriesByCharacterOnce(c.id, 50)
         } ?: emptyList()
 
         // 6.7 会话摘要：该角色所有会话的摘要（最多5个）
@@ -363,12 +376,12 @@ class ChatViewModel(
                 .mapNotNull { it.summary }
         } ?: emptyList()
 
-        // 构建除 system 外的消息（记忆、摘要、跨会话历史、当前会话历史）
+        // 构建除 system 外的消息（World Info 动态记忆、摘要、跨会话历史、当前会话历史）
         val otherMessages = buildList {
-            if (memories.isNotEmpty()) {
-                val memoryText = memories.joinToString("\n") { "- [${it.type}] ${it.content}" }
-                Log.d("SummaryDebug", "拼入记忆: 共${memories.size}条\n$memoryText")
-                add(ChatMessage("system", "你记得以下关于用户的信息：\n$memoryText"))
+            // World Info：只注入与用户当前发言相关的记忆（而非全部），仿 SillyTavern 动态记忆
+            WorldInfoEngine.buildInjection(text, memories)?.let { wiText ->
+                Log.d("WorldInfoDebug", "动态记忆注入（${text.take(20)}）:\n$wiText")
+                add(ChatMessage("system", wiText))
             }
             if (conversationSummaries.isNotEmpty()) {
                 val summaryText = conversationSummaries.joinToString("\n") { "- $it" }
@@ -400,6 +413,9 @@ class ChatViewModel(
             val requestMessages = buildList {
                 systemPrompt?.let { add(ChatMessage("system", it)) }
                 addAll(otherMessages)
+                // Post-History Instructions（后置指令，仿 SillyTavern）：
+                // 置于用户最新发言之后，是 AI 生成前收到的最后指令，优先级最高，可覆盖主提示词。
+                add(ChatMessage("system", POST_HISTORY_INSTRUCTIONS))
             }
 
             // 重试时清空上一次的部分内容
